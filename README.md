@@ -1,17 +1,37 @@
-# skill_link
+# SkillLink
 
-A new Flutter project.
+SkillLink is a modern on-demand service marketplace app that connects customers with trusted local skilled workers such as painters, carpenters, electricians, plumbers, AC technicians, cleaners, mechanics, and more.
+
+## Features
+
+- Customer and skilled worker roles
+- Location-based job requests
+- Service categories
+- Worker offers and job acceptance
+- Real-time chat
+- Worker ratings and reviews
+- Job tracking
+- Professional onboarding screens
+- Admin dashboard planned
+
+## Tech Stack
+
+- Flutter
+- Dart
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Storage
+- Google Maps API
+- Firebase Cloud Messaging
+
+## Project Status
+
+This project is currently under development.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+Clone the repository and run:
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+flutter pub get
+flutter run
