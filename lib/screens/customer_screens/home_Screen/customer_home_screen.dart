@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -44,7 +45,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      bottomNavigationBar: _bottomNav(),
+      bottomNavigationBar: const CustomerBottomBar(
+        selectedIndex: 0,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
@@ -155,10 +158,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF2563EB),
-            Color(0xFF60A5FA),
-          ],
+          colors: [Color(0xFF2563EB), Color(0xFF60A5FA)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -387,53 +387,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
         );
       }).toList(),
-    );
-  }
-
-  Widget _bottomNav() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.08),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        onTap: (index) => setState(() => selectedIndex = index),
-        type: BottomNavigationBarType.fixed,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        selectedItemColor: const Color(0xFF2563EB),
-        unselectedItemColor: const Color(0xFF94A3B8),
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w900),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: "Home",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bookmark_border_rounded),
-            label: "Saved",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline_rounded),
-            label: "Chat",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline_rounded),
-            label: "Profile",
-          ),
-        ],
-      ),
     );
   }
 }

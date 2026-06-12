@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skill_link/screens/customer_home_Screen/customer_home_screen.dart';
+import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
 
 class CustomerProfileSetupScreen extends StatefulWidget {
   const CustomerProfileSetupScreen({super.key});

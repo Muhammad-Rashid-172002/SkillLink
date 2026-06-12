@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
 
 class WorkerProfileSetupScreen extends StatefulWidget {
   const WorkerProfileSetupScreen({super.key});
@@ -112,10 +113,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF16A34A),
-            Color(0xFF22C55E),
-          ],
+          colors: [Color(0xFF16A34A), Color(0xFF22C55E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -236,9 +234,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _label(label),
-        TextField(
-          decoration: _inputDecoration(hint, icon),
-        ),
+        TextField(decoration: _inputDecoration(hint, icon)),
       ],
     );
   }
@@ -339,7 +335,12 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
       height: 60,
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const WorkerHomeScreen()),
+          );
+        },
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: const Color(0xFF16A34A),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/Role_selection_screen/role_selection.dart';
-import 'package:skill_link/screens/customer_profile/customer_profile_setup_screen.dart';
-import 'package:skill_link/screens/worker_profile/worker_profile_setup.dart';
+import 'package:skill_link/screens/customer_screens/profile/customer_profile_setup_screen.dart';
+import 'package:skill_link/screens/worker_screens/profile/worker_profile_setup.dart';
 
 class AuthScreen extends StatefulWidget {
   final String role; // customer OR worker
