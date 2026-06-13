@@ -31,33 +31,42 @@ class _CustomerProfileSetupScreenState
   final addressController = TextEditingController();
 
   // save customer profile
-  Future<void> saveCustomerProfile() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-
-      await FirebaseFirestore.instance.collection("users").doc(uid).set({
-        "uid": uid,
-        "role": "customer",
-        "name": nameController.text.trim(),
-        "phone": phoneController.text.trim(),
-        "city": selectedCity,
-        "area": areaController.text.trim(),
-        "address": addressController.text.trim(),
-        "profileCompleted": true,
-        "updatedAt": FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
-    }
+ Future<void> saveCustomerProfile() async {
+  if (nameController.text.trim().isEmpty ||
+      phoneController.text.trim().isEmpty ||
+      areaController.text.trim().isEmpty ||
+      addressController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please fill all required fields")),
+    );
+    return;
   }
 
+  try {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    await FirebaseFirestore.instance.collection("users").doc(uid).set({
+      "uid": uid,
+      "role": "customer",
+      "name": nameController.text.trim(),
+      "phone": phoneController.text.trim(),
+      "city": selectedCity,
+      "area": areaController.text.trim(),
+      "address": addressController.text.trim(),
+      "profileCompleted": true,
+      "updatedAt": FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString())),
+    );
+  }
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(

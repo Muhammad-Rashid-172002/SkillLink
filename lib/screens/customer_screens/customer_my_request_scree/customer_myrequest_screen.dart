@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
 
 class CustomerMyRequestsScreen extends StatefulWidget {
   const CustomerMyRequestsScreen({super.key});
@@ -13,71 +16,99 @@ class _CustomerMyRequestsScreenState extends State<CustomerMyRequestsScreen> {
 
   final tabs = ["Pending", "Accepted", "Completed"];
 
-  final requests = [
-    {
-      "title": "Fan is not working",
-      "category": "Electrician",
-      "location": "Pabbi Bazar, Nowshera",
-      "budget": "Rs. 1000",
-      "status": "Pending",
-      "time": "Today, 2:30 PM",
-    },
-    {
-      "title": "AC cooling issue",
-      "category": "AC Repair",
-      "location": "Nowshera Cantt",
-      "budget": "Rs. 2500",
-      "status": "Accepted",
-      "time": "Tomorrow, 11:00 AM",
-    },
-    {
-      "title": "Room painting needed",
-      "category": "Painter",
-      "location": "University Road",
-      "budget": "Rs. 5000",
-      "status": "Completed",
-      "time": "Yesterday, 4:00 PM",
-    },
-  ];
 
   @override
   Widget build(BuildContext context) {
-    final filteredRequests = requests
-        .where((item) => item["status"] == tabs[selectedTab])
-        .toList();
+    //  requests.where((item) => item["status"] == tabs[selectedTab]).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-     
+
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                icon: const Icon(Icons.arrow_back),
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection("requests")
+              .where(
+                "customerId",
+                isEqualTo: FirebaseAuth.instance.currentUser!.uid,
+              )
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (!snapshot.hasData) {
+              return _emptyState();
+            }
+
+            final allRequests = snapshot.data!.docs;
+
+            final filteredRequests = allRequests.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+
+              if (selectedTab == 0) {
+                return data["status"] == "pending";
+              }
+
+              if (selectedTab == 1) {
+                return data["status"] == "accepted";
+              }
+
+              return data["status"] == "completed";
+            }).toList();
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CustomerHomeScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+
+                  _header(),
+                  const SizedBox(height: 22),
+
+                  _statusTabs(),
+                  const SizedBox(height: 22),
+
+                  if (filteredRequests.isEmpty)
+                    _emptyState()
+                  else
+                    Column(
+                      children: filteredRequests.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+
+                        return _requestCard({
+                          "title": data["title"] ?? "",
+                          "category": data["category"] ?? "",
+                          "location": data["location"] ?? "",
+                          "budget": data["budget"] ?? "",
+                          "status": _capitalize(data["status"] ?? ""),
+                          "time": "Recently",
+                        });
+                      }).toList(),
+                    ),
+                ],
               ),
-              _header(),
-              const SizedBox(height: 22),
-              _statusTabs(),
-              const SizedBox(height: 22),
-              if (filteredRequests.isEmpty)
-                _emptyState()
-              else
-                Column(
-                  children: filteredRequests.map((request) {
-                    return _requestCard(request);
-                  }).toList(),
-                ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
+  }
+
+  String _capitalize(String text) {
+    if (text.isEmpty) return text;
+
+    return text[0].toUpperCase() + text.substring(1);
   }
 
   Widget _header() {

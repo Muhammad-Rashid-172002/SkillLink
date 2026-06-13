@@ -34,6 +34,16 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
 
   // save worker profile
   Future<void> saveWorkerProfile() async {
+    if (nameController.text.trim().isEmpty ||
+        phoneController.text.trim().isEmpty ||
+        experienceController.text.trim().isEmpty ||
+        rateController.text.trim().isEmpty ||
+        locationController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all required fields")),
+      );
+      return;
+    }
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
 
@@ -392,6 +402,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
       children: [
         _label("Short Bio"),
         TextField(
+          controller: bioController,
           maxLines: 4,
           decoration: _inputDecoration(
             "Tell customers about your work experience...",

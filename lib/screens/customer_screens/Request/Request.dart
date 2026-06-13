@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/customer_myrequest_screen.dart';
@@ -24,6 +26,57 @@ class _RequestState extends State<Request> {
 
   final urgencies = ["Normal", "Urgent", "Emergency"];
 
+  final titleController = TextEditingController();
+  final descriptionController = TextEditingController();
+  final locationController = TextEditingController();
+  final budgetController = TextEditingController();
+
+  bool isLoading = false;
+
+  // Post the request to Firestore
+  Future<void> postRequest() async {
+    if (titleController.text.trim().isEmpty ||
+        descriptionController.text.trim().isEmpty ||
+        locationController.text.trim().isEmpty ||
+        budgetController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
+      return;
+    }
+
+    try {
+      setState(() => isLoading = true);
+
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+
+      await FirebaseFirestore.instance.collection("requests").add({
+        "customerId": uid,
+        "category": selectedCategory,
+        "urgency": selectedUrgency,
+        "title": titleController.text.trim(),
+        "description": descriptionController.text.trim(),
+        "location": locationController.text.trim(),
+        "budget": budgetController.text.trim(),
+        "status": "pending",
+        "workerId": null,
+        "createdAt": FieldValue.serverTimestamp(),
+      });
+
+      setState(() => isLoading = false);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const CustomerMyRequestsScreen()),
+      );
+    } catch (e) {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -47,6 +100,7 @@ class _RequestState extends State<Request> {
                 label: "Problem Title",
                 hint: "Example: Fan is not working",
                 icon: Icons.title_rounded,
+                controller: titleController,
               ),
               const SizedBox(height: 16),
               _descriptionField(),
@@ -57,11 +111,13 @@ class _RequestState extends State<Request> {
                 label: "Location",
                 hint: "Example: Pabbi Bazar, Nowshera",
                 icon: Icons.location_on_outlined,
+                controller: locationController,
               ),
               const SizedBox(height: 16),
               _textField(
                 label: "Budget",
                 hint: "Example: Rs. 1000",
+                controller: budgetController,
                 icon: Icons.payments_outlined,
               ),
               const SizedBox(height: 16),
@@ -192,12 +248,16 @@ class _RequestState extends State<Request> {
     required String label,
     required String hint,
     required IconData icon,
+    required TextEditingController controller,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _label(label),
-        TextField(decoration: _inputDecoration(hint, icon)),
+        TextField(
+          controller: controller,
+          decoration: _inputDecoration(hint, icon),
+        ),
       ],
     );
   }
@@ -208,6 +268,7 @@ class _RequestState extends State<Request> {
       children: [
         _label("Problem Description"),
         TextField(
+          controller: descriptionController,
           maxLines: 4,
           decoration: _inputDecoration(
             "Describe your problem in detail...",
@@ -295,12 +356,7 @@ class _RequestState extends State<Request> {
       height: 60,
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CustomerMyRequestsScreen()),
-          );
-        },
+        onPressed: isLoading ? null : postRequest,
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: const Color(0xFF2563EB),
@@ -308,14 +364,16 @@ class _RequestState extends State<Request> {
             borderRadius: BorderRadius.circular(22),
           ),
         ),
-        child: const Text(
-          "Post Request",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        child: isLoading
+            ? const CircularProgressIndicator(color: Colors.white)
+            : const Text(
+                "Post Request",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
       ),
     );
   }

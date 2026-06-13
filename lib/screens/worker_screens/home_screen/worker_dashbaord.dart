@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
 
@@ -11,29 +13,29 @@ class WorkerHomeScreen extends StatefulWidget {
 class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   int selectedIndex = 0;
 
-  final requests = [
-    {
-      "name": "Ali Khan",
-      "service": "Electric wiring issue",
-      "location": "Hayatabad, Peshawar",
-      "price": "Rs. 1200",
-      "time": "Today, 2:30 PM",
-    },
-    {
-      "name": "Usman Ahmad",
-      "service": "Fan installation",
-      "location": "University Road",
-      "price": "Rs. 900",
-      "time": "Today, 5:00 PM",
-    },
-    {
-      "name": "Hamza Shah",
-      "service": "Switch board repair",
-      "location": "Saddar, Peshawar",
-      "price": "Rs. 700",
-      "time": "Tomorrow, 11:00 AM",
-    },
-  ];
+  // final requests = [
+  //   {
+  //     "name": "Ali Khan",
+  //     "service": "Electric wiring issue",
+  //     "location": "Hayatabad, Peshawar",
+  //     "price": "Rs. 1200",
+  //     "time": "Today, 2:30 PM",
+  //   },
+  //   {
+  //     "name": "Usman Ahmad",
+  //     "service": "Fan installation",
+  //     "location": "University Road",
+  //     "price": "Rs. 900",
+  //     "time": "Today, 5:00 PM",
+  //   },
+  //   {
+  //     "name": "Hamza Shah",
+  //     "service": "Switch board repair",
+  //     "location": "Saddar, Peshawar",
+  //     "price": "Rs. 700",
+  //     "time": "Tomorrow, 11:00 AM",
+  //   },
+  // ];
 
   @override
   Widget build(BuildContext context) {
@@ -290,95 +292,166 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     );
   }
 
-  Widget _requestList() {
-    return Column(
-      children: requests.map((request) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(.04),
-                blurRadius: 14,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    height: 54,
-                    width: 54,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF16A34A).withOpacity(.10),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: Color(0xFF16A34A),
-                      size: 30,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          request["name"]!,
-                          style: const TextStyle(
-                            color: Color(0xFF0F172A),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          request["service"]!,
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    request["price"]!,
-                    style: const TextStyle(
-                      color: Color(0xFF16A34A),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _infoRow(Icons.location_on_outlined, request["location"]!),
-              const SizedBox(height: 8),
-              _infoRow(Icons.access_time_rounded, request["time"]!),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(child: _outlineButton("Reject")),
-                  const SizedBox(width: 12),
-                  Expanded(child: _acceptButton("Accept")),
-                ],
-              ),
-            ],
+ Widget _requestList() {
+  final workerId = FirebaseAuth.instance.currentUser!.uid;
+
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection("requests")
+        .where("status", isEqualTo: "pending")
+        .snapshots(),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFF16A34A),
           ),
         );
-      }).toList(),
-    );
-  }
+      }
+
+      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        return _emptyJobs();
+      }
+
+      final docs = snapshot.data!.docs;
+
+      return Column(
+        children: docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+
+          return _jobCard(
+            requestId: doc.id,
+            title: data["title"] ?? "",
+            category: data["category"] ?? "",
+            location: data["location"] ?? "",
+            budget: data["budget"] ?? "",
+            urgency: data["urgency"] ?? "Normal",
+            workerId: workerId,
+          );
+        }).toList(),
+      );
+    },
+  );
+}
+
+Widget _jobCard({
+  required String requestId,
+  required String title,
+  required String category,
+  required String location,
+  required String budget,
+  required String urgency,
+  required String workerId,
+}) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(26),
+      border: Border.all(color: const Color(0xFFE2E8F0)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          category,
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _infoRow(Icons.location_on_outlined, location),
+        const SizedBox(height: 8),
+        _infoRow(Icons.payments_outlined, budget),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(child: _outlineButton("Reject")),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _acceptButtonReal(
+                requestId: requestId,
+                workerId: workerId,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _acceptButtonReal({
+  required String requestId,
+  required String workerId,
+}) {
+  return SizedBox(
+    height: 46,
+    child: ElevatedButton(
+      onPressed: () async {
+        await FirebaseFirestore.instance
+            .collection("requests")
+            .doc(requestId)
+            .update({
+          "status": "accepted",
+          "workerId": workerId,
+          "acceptedAt": FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Job accepted successfully")),
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        elevation: 0,
+        backgroundColor: const Color(0xFF16A34A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+      child: const Text(
+        "Accept",
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _emptyJobs() {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: const Color(0xFFE2E8F0)),
+    ),
+    child: const Center(
+      child: Text(
+        "No new job requests found",
+        style: TextStyle(
+          color: Color(0xFF64748B),
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    ),
+  );
+}
+
 
   Widget _infoRow(IconData icon, String text) {
     return Row(
@@ -421,26 +494,5 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     );
   }
 
-  Widget _acceptButton(String text) {
-    return SizedBox(
-      height: 46,
-      child: ElevatedButton(
-        onPressed: () {},
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          backgroundColor: const Color(0xFF16A34A),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
-    );
-  }
+ 
 }

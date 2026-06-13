@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/Role_selection_screen/role_selection.dart';
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 
 class CustomerProfileScreen extends StatefulWidget {
@@ -51,24 +54,34 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   }
 
   Widget _profileCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.05),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("users")
+          .doc(uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+
+        final name = data["name"] ?? "No Name";
+        final phone = data["phone"] ?? "No Phone";
+        final city = data["city"] ?? "";
+        final area = data["area"] ?? "";
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Stack(
+          child: Column(
             children: [
               Container(
                 height: 96,
@@ -83,56 +96,42 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   color: Color(0xFF2563EB),
                 ),
               ),
-              Positioned(
-                right: 0,
-                bottom: 4,
-                child: Container(
-                  height: 32,
-                  width: 32,
-                  decoration: const BoxDecoration(
+              const SizedBox(height: 16),
+              Text(
+                name,
+                style: const TextStyle(
+                  color: Color(0xFF0F172A),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB).withOpacity(.10),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  "Customer",
+                  style: TextStyle(
                     color: Color(0xFF2563EB),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt_rounded,
-                    color: Colors.white,
-                    size: 16,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
+              const SizedBox(height: 18),
+              _infoRow(Icons.phone_rounded, phone),
+              const SizedBox(height: 10),
+              _infoRow(Icons.location_on_rounded, "$area, $city"),
             ],
           ),
-          const SizedBox(height: 16),
-          const Text(
-            "Muhammad Rashid",
-            style: TextStyle(
-              color: Color(0xFF0F172A),
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2563EB).withOpacity(.10),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              "Customer",
-              style: TextStyle(
-                color: Color(0xFF2563EB),
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          _infoRow(Icons.phone_rounded, "+92 300 0000000"),
-          const SizedBox(height: 10),
-          _infoRow(Icons.location_on_rounded, "Pabbi, Nowshera"),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -248,7 +247,15 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       height: 56,
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () {},
+        onPressed: () async {
+          await FirebaseAuth.instance.signOut();
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+            (route) => false,
+          );
+        },
         icon: const Icon(Icons.logout_rounded, color: Colors.white),
         label: const Text(
           "Logout",

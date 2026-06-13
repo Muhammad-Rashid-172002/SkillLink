@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
 
@@ -10,34 +12,35 @@ class MapSreen extends StatefulWidget {
 }
 
 class _MapSreenState extends State<MapSreen> {
-  final requests = [
-    {
-      "title": "Fan is not working",
-      "category": "Electrician",
-      "location": "Pabbi Bazar",
-      "distance": "1.2 km",
-      "budget": "Rs. 1000",
-      "urgency": "Urgent",
-    },
-    {
-      "title": "AC cooling issue",
-      "category": "AC Repair",
-      "location": "Nowshera Cantt",
-      "distance": "3.5 km",
-      "budget": "Rs. 2500",
-      "urgency": "Normal",
-    },
-    {
-      "title": "Room painting needed",
-      "category": "Painter",
-      "location": "University Road",
-      "distance": "5.1 km",
-      "budget": "Rs. 5000",
-      "urgency": "Normal",
-    },
-  ];
+  static const LatLng pabbiCenter = LatLng(34.0097, 71.9970);
 
+  GoogleMapController? mapController;
 
+  Stream<QuerySnapshot> getRequestsStream() {
+    return FirebaseFirestore.instance
+        .collection("requests")
+        .where("status", isEqualTo: "pending")
+        .orderBy("createdAt", descending: true)
+        .snapshots();
+  }
+
+  Set<Marker> _buildMarkers(List<QueryDocumentSnapshot> docs) {
+    return docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+
+      final lat = (data["lat"] ?? 34.0097).toDouble();
+      final lng = (data["lng"] ?? 71.9970).toDouble();
+
+      return Marker(
+        markerId: MarkerId(doc.id),
+        position: LatLng(lat, lng),
+        infoWindow: InfoWindow(
+          title: data["title"] ?? "Job Request",
+          snippet: data["location"] ?? "",
+        ),
+      );
+    }).toSet();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,35 +48,58 @@ class _MapSreenState extends State<MapSreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       bottomNavigationBar: const WorkerBottomBar(selectedIndex: 1),
       body: SafeArea(
-        child: Column(
-          children: [
-            _header(),
-            _mapPreview(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionHeader(),
-                    const SizedBox(height: 14),
-                    ...requests.map((item) => _requestCard(item)),
-                  ],
+        child: StreamBuilder<QuerySnapshot>(
+          stream: getRequestsStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF16A34A)),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return Center(child: Text(snapshot.error.toString()));
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+
+            return Column(
+              children: [
+                _header(docs.length),
+                _googleMap(docs),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionHeader(),
+                        const SizedBox(height: 14),
+                        if (docs.isEmpty)
+                          _emptyState()
+                        else
+                          ...docs.map((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            return _requestCard(doc.id, data);
+                          }),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _header() {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(22, 18, 22, 14),
+  Widget _header(int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 18, 22, 14),
       child: Row(
         children: [
-          Expanded(
+          const Expanded(
             child: Text(
               "Nearby Requests",
               style: TextStyle(
@@ -83,80 +109,46 @@ class _MapSreenState extends State<MapSreen> {
               ),
             ),
           ),
-          Icon(Icons.tune_rounded, color: Color(0xFF16A34A)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF16A34A).withOpacity(.10),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              "$count Jobs",
+              style: const TextStyle(
+                color: Color(0xFF16A34A),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _mapPreview() {
+  Widget _googleMap(List<QueryDocumentSnapshot> docs) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 22),
-      height: 210,
-      width: double.infinity,
+      height: 230,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFD1FAE5), Color(0xFFEFF6FF)],
-        ),
         borderRadius: BorderRadius.circular(30),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: Stack(
-        children: [
-          const Center(
-            child: Icon(Icons.map_rounded, size: 90, color: Color(0xFF16A34A)),
-          ),
-          _pin(left: 45, top: 42),
-          _pin(right: 60, top: 72),
-          _pin(left: 120, bottom: 38),
-          Positioned(
-            left: 18,
-            bottom: 18,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Text(
-                "3 jobs near you",
-                style: TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _pin({double? left, double? right, double? top, double? bottom}) {
-    return Positioned(
-      left: left,
-      right: right,
-      top: top,
-      bottom: bottom,
-      child: Container(
-        height: 38,
-        width: 38,
-        decoration: BoxDecoration(
-          color: const Color(0xFF16A34A),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF16A34A).withOpacity(.35),
-              blurRadius: 14,
-              offset: const Offset(0, 8),
-            ),
-          ],
+      clipBehavior: Clip.antiAlias,
+      child: GoogleMap(
+        initialCameraPosition: const CameraPosition(
+          target: pabbiCenter,
+          zoom: 13,
         ),
-        child: const Icon(
-          Icons.location_on_rounded,
-          color: Colors.white,
-          size: 22,
-        ),
+        markers: _buildMarkers(docs),
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
+        zoomControlsEnabled: false,
+        onMapCreated: (controller) {
+          mapController = controller;
+        },
       ),
     );
   }
@@ -172,7 +164,7 @@ class _MapSreenState extends State<MapSreen> {
     );
   }
 
-  Widget _requestCard(Map<String, String> item) {
+  Widget _requestCard(String requestId, Map<String, dynamic> item) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(18),
@@ -186,14 +178,14 @@ class _MapSreenState extends State<MapSreen> {
         children: [
           Row(
             children: [
-              _iconBox(item["category"]!),
+              _iconBox(item["category"] ?? ""),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item["title"]!,
+                      item["title"] ?? "No Title",
                       style: const TextStyle(
                         color: Color(0xFF0F172A),
                         fontSize: 16,
@@ -202,7 +194,7 @@ class _MapSreenState extends State<MapSreen> {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      item["category"]!,
+                      item["category"] ?? "",
                       style: const TextStyle(
                         color: Color(0xFF64748B),
                         fontSize: 13,
@@ -213,7 +205,7 @@ class _MapSreenState extends State<MapSreen> {
                 ),
               ),
               Text(
-                item["budget"]!,
+                item["budget"] ?? "",
                 style: const TextStyle(
                   color: Color(0xFF16A34A),
                   fontWeight: FontWeight.w900,
@@ -222,15 +214,15 @@ class _MapSreenState extends State<MapSreen> {
             ],
           ),
           const SizedBox(height: 14),
-          _infoRow(Icons.location_on_outlined, item["location"]!),
+          _infoRow(Icons.location_on_outlined, item["location"] ?? ""),
           const SizedBox(height: 8),
-          _infoRow(Icons.near_me_outlined, item["distance"]!),
+          _infoRow(Icons.near_me_outlined, "Nearby"),
           const SizedBox(height: 14),
           Row(
             children: [
-              _badge(item["urgency"]!),
+              _badge(item["urgency"] ?? "Normal"),
               const Spacer(),
-              _acceptButton(item),
+              _acceptButton(requestId, item),
             ],
           ),
         ],
@@ -244,6 +236,7 @@ class _MapSreenState extends State<MapSreen> {
     if (category == "Electrician") icon = Icons.electrical_services_rounded;
     if (category == "AC Repair") icon = Icons.ac_unit_rounded;
     if (category == "Painter") icon = Icons.format_paint_rounded;
+    if (category == "Plumber") icon = Icons.plumbing_rounded;
 
     return Container(
       height: 52,
@@ -261,12 +254,14 @@ class _MapSreenState extends State<MapSreen> {
       children: [
         Icon(icon, size: 18, color: const Color(0xFF94A3B8)),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -274,10 +269,12 @@ class _MapSreenState extends State<MapSreen> {
   }
 
   Widget _badge(String text) {
+    final isUrgent = text == "Urgent" || text == "Emergency";
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: text == "Urgent"
+        color: isUrgent
             ? const Color(0xFFEF4444).withOpacity(.10)
             : const Color(0xFF16A34A).withOpacity(.10),
         borderRadius: BorderRadius.circular(20),
@@ -285,9 +282,7 @@ class _MapSreenState extends State<MapSreen> {
       child: Text(
         text,
         style: TextStyle(
-          color: text == "Urgent"
-              ? const Color(0xFFEF4444)
-              : const Color(0xFF16A34A),
+          color: isUrgent ? const Color(0xFFEF4444) : const Color(0xFF16A34A),
           fontSize: 12,
           fontWeight: FontWeight.w900,
         ),
@@ -295,40 +290,68 @@ class _MapSreenState extends State<MapSreen> {
     );
   }
 
- Widget _acceptButton(Map<String, String> item) {
-  return SizedBox(
-    height: 42,
-    child: ElevatedButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => WorkerJobDetailScreen(
-              title: item["title"]!,
-              category: item["category"]!,
-              location: item["location"]!,
-              distance: item["distance"]!,
-              budget: item["budget"]!,
-              urgency: item["urgency"]!,
+  Widget _acceptButton(String requestId, Map<String, dynamic> item) {
+    return SizedBox(
+      height: 42,
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => WorkerJobDetailScreen(
+                title: item["title"] ?? "",
+                category: item["category"] ?? "",
+                location: item["location"] ?? "",
+                distance: "Nearby",
+                budget: item["budget"] ?? "",
+                urgency: item["urgency"] ?? "",
+              ),
+            ),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: const Color(0xFF16A34A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+        child: const Text(
+          "View Job",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(26),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.work_off_rounded, size: 46, color: Color(0xFF94A3B8)),
+          SizedBox(height: 12),
+          Text(
+            "No pending jobs",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
             ),
           ),
-        );
-      },
-      style: ElevatedButton.styleFrom(
-        elevation: 0,
-        backgroundColor: const Color(0xFF16A34A),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
+          SizedBox(height: 6),
+          Text(
+            "New customer requests will appear here.",
+            style: TextStyle(color: Color(0xFF64748B)),
+          ),
+        ],
       ),
-      child: const Text(
-        "View Job",
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    ),
-  );
-}
+    );
+  }
 }
