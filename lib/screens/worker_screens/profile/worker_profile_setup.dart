@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
 
@@ -23,6 +25,43 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     "Mason",
   ];
 
+  final nameController = TextEditingController();
+  final phoneController = TextEditingController();
+  final experienceController = TextEditingController();
+  final rateController = TextEditingController();
+  final locationController = TextEditingController();
+  final bioController = TextEditingController();
+
+  // save worker profile
+  Future<void> saveWorkerProfile() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+
+      await FirebaseFirestore.instance.collection("users").doc(uid).set({
+        "uid": uid,
+        "role": "worker",
+        "name": nameController.text.trim(),
+        "phone": phoneController.text.trim(),
+        "skill": selectedSkill,
+        "experience": experienceController.text.trim(),
+        "hourlyRate": rateController.text.trim(),
+        "location": locationController.text.trim(),
+        "bio": bioController.text.trim(),
+        "profileCompleted": true,
+        "updatedAt": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const WorkerHomeScreen()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,19 +80,44 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
               const SizedBox(height: 28),
               _sectionTitle("Basic Information"),
               const SizedBox(height: 14),
-              _textField("Full Name", "Enter your full name", Icons.person),
+              _textField(
+                "Full Name",
+                "Enter your full name",
+                Icons.person,
+                nameController,
+              ),
               const SizedBox(height: 16),
-              _textField("Phone Number", "+92 300 0000000", Icons.phone),
+              _textField(
+                "Phone Number",
+                "+92 300 0000000",
+                Icons.phone,
+                phoneController,
+              ),
               const SizedBox(height: 16),
               _skillDropdown(),
               const SizedBox(height: 26),
               _sectionTitle("Work Details"),
               const SizedBox(height: 14),
-              _textField("Experience", "Example: 3 years", Icons.work),
+              _textField(
+                "Experience",
+                "Example: 3 years",
+                Icons.work,
+                experienceController,
+              ),
               const SizedBox(height: 16),
-              _textField("Hourly Rate", "Example: Rs. 800", Icons.payments),
+              _textField(
+                "Hourly Rate",
+                "Example: Rs. 800",
+                Icons.payments,
+                rateController,
+              ),
               const SizedBox(height: 16),
-              _textField("Location", "City / Area", Icons.location_on),
+              _textField(
+                "Location",
+                "City / Area",
+                Icons.location_on,
+                locationController,
+              ),
               const SizedBox(height: 16),
               _bioField(),
               const SizedBox(height: 30),
@@ -229,12 +293,20 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     );
   }
 
-  Widget _textField(String label, String hint, IconData icon) {
+  Widget _textField(
+    String label,
+    String hint,
+    IconData icon,
+    TextEditingController controller,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _label(label),
-        TextField(decoration: _inputDecoration(hint, icon)),
+        TextField(
+          controller: controller,
+          decoration: _inputDecoration(hint, icon),
+        ),
       ],
     );
   }
@@ -335,11 +407,8 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
       height: 60,
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const WorkerHomeScreen()),
-          );
+        onPressed: () async {
+          await saveWorkerProfile();
         },
         style: ElevatedButton.styleFrom(
           elevation: 0,

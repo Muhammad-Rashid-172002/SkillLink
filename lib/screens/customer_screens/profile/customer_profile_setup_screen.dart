@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
 
@@ -23,6 +25,39 @@ class _CustomerProfileSetupScreenState
     "Multan",
   ];
 
+  final nameController = TextEditingController();
+  final phoneController = TextEditingController();
+  final areaController = TextEditingController();
+  final addressController = TextEditingController();
+
+  // save customer profile
+  Future<void> saveCustomerProfile() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+
+      await FirebaseFirestore.instance.collection("users").doc(uid).set({
+        "uid": uid,
+        "role": "customer",
+        "name": nameController.text.trim(),
+        "phone": phoneController.text.trim(),
+        "city": selectedCity,
+        "area": areaController.text.trim(),
+        "address": addressController.text.trim(),
+        "profileCompleted": true,
+        "updatedAt": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,15 +76,30 @@ class _CustomerProfileSetupScreenState
               const SizedBox(height: 28),
               _sectionTitle("Personal Information"),
               const SizedBox(height: 14),
-              _textField("Full Name", "Enter your full name", Icons.person),
+              _textField(
+                "Full Name",
+                "Enter your full name",
+                Icons.person,
+                nameController,
+              ),
               const SizedBox(height: 16),
-              _textField("Phone Number", "+92 300 0000000", Icons.phone),
+              _textField(
+                "Phone Number",
+                "+92 300 0000000",
+                Icons.phone,
+                phoneController,
+              ),
               const SizedBox(height: 16),
               _cityDropdown(),
               const SizedBox(height: 26),
               _sectionTitle("Address Details"),
               const SizedBox(height: 14),
-              _textField("Area / Street", "Example: Hayatabad Phase 3", Icons.location_on),
+              _textField(
+                "Area / Street",
+                "Example: Hayatabad Phase 3",
+                Icons.location_on,
+                areaController,
+              ),
               const SizedBox(height: 16),
               _addressField(),
               const SizedBox(height: 30),
@@ -109,10 +159,7 @@ class _CustomerProfileSetupScreenState
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF2563EB),
-            Color(0xFF60A5FA),
-          ],
+          colors: [Color(0xFF2563EB), Color(0xFF60A5FA)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -228,12 +275,18 @@ class _CustomerProfileSetupScreenState
     );
   }
 
-  Widget _textField(String label, String hint, IconData icon) {
+  Widget _textField(
+    String label,
+    String hint,
+    IconData icon,
+    TextEditingController controller,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _label(label),
         TextField(
+          controller: controller,
           decoration: _inputDecoration(hint, icon),
         ),
       ],
@@ -321,6 +374,7 @@ class _CustomerProfileSetupScreenState
       children: [
         _label("Complete Address"),
         TextField(
+          controller: addressController,
           maxLines: 4,
           decoration: _inputDecoration(
             "House no, street, landmark...",
@@ -336,12 +390,8 @@ class _CustomerProfileSetupScreenState
       height: 60,
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          // Handle form submission
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
-          );
+        onPressed: () async {
+          await saveCustomerProfile();
         },
         style: ElevatedButton.styleFrom(
           elevation: 0,

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/Role_selection_screen/role_selection.dart';
 import 'package:skill_link/screens/customer_screens/profile/customer_profile_setup_screen.dart';
@@ -16,6 +18,86 @@ class _AuthScreenState extends State<AuthScreen> {
   bool isLogin = false;
   bool isEmail = true;
   bool hidePassword = true;
+
+  final nameController = TextEditingController();
+  final emailController = TextEditingController();
+  final phoneController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // sign up function
+  Future<void> signUp() async {
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      await _firestore.collection("users").doc(credential.user!.uid).set({
+        "uid": credential.user!.uid,
+        "name": nameController.text.trim(),
+        "email": emailController.text.trim(),
+        "role": widget.role,
+        "profileCompleted": false,
+        "createdAt": FieldValue.serverTimestamp(),
+      });
+
+      if (widget.role == "worker") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const WorkerProfileSetupScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CustomerProfileSetupScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      debugPrint("Firebase Auth Error Code===== ${e.code}");
+      debugPrint("Firebase Auth Error Message ${e.message}");
+      debugPrint("EMAIL: ${emailController.text.trim()}");
+      debugPrint("PASSWORD: ${passwordController.text.trim()}");
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? e.code)));
+    }
+  }
+
+  // login function
+  Future<void> login() async {
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      final uid = _auth.currentUser!.uid;
+
+      final userDoc = await _firestore.collection("users").doc(uid).get();
+
+      final role = userDoc["role"];
+
+      if (role == "worker") {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const WorkerProfileSetupScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CustomerProfileSetupScreen()),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -183,8 +265,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
           if (!isLogin) ...[
             _field(
+              controller: nameController,
               label: "Full Name",
-              hint: "Ahmad Khan",
+              hint: "Your Name",
               icon: Icons.person_outline_rounded,
               primaryColor: primaryColor,
             ),
@@ -192,6 +275,7 @@ class _AuthScreenState extends State<AuthScreen> {
           ],
 
           _field(
+            controller: emailController,
             label: isEmail ? "Email Address" : "Phone Number",
             hint: isEmail ? "you@example.com" : "+92 300 0000000",
             icon: isEmail ? Icons.email_outlined : Icons.phone_outlined,
@@ -364,12 +448,14 @@ class _AuthScreenState extends State<AuthScreen> {
     required String hint,
     required IconData icon,
     required Color primaryColor,
+    required TextEditingController controller,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _label(label),
         TextField(
+          controller: controller,
           decoration: _inputDecoration(
             hint: hint,
             icon: icon,
@@ -386,6 +472,7 @@ class _AuthScreenState extends State<AuthScreen> {
       children: [
         _label("Password"),
         TextField(
+          controller: passwordController,
           obscureText: hidePassword,
           decoration:
               _inputDecoration(
@@ -394,7 +481,9 @@ class _AuthScreenState extends State<AuthScreen> {
                 primaryColor: primaryColor,
               ).copyWith(
                 suffixIcon: IconButton(
-                  onPressed: () => setState(() => hidePassword = !hidePassword),
+                  onPressed: () {
+                    setState(() => hidePassword = !hidePassword);
+                  },
                   icon: Icon(
                     hidePassword
                         ? Icons.visibility_outlined
@@ -453,23 +542,13 @@ class _AuthScreenState extends State<AuthScreen> {
       height: 58,
       width: double.infinity,
       child: ElevatedButton(
-       onPressed: () {
-  if (widget.role == "worker") {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const WorkerProfileSetupScreen(),
-      ),
-    );
-  } else {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const CustomerProfileSetupScreen(),
-      ),
-    );
-  }
-},
+        onPressed: () {
+          if (isLogin) {
+            login();
+          } else {
+            signUp();
+          }
+        },
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: primaryColor,

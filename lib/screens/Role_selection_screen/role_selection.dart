@@ -4,6 +4,13 @@ import 'package:skill_link/screens/auth_screens/auth_screen.dart';
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
 
+  void _selectRole(BuildContext context, String role) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => AuthScreen(role: role)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,17 +79,9 @@ class RoleSelectionScreen extends StatelessWidget {
                 subtitle:
                     "Post your work request and hire trusted professionals near you.",
                 icon: Icons.person_search_rounded,
-                gradientColors: const [
-                  Color(0xFF2563EB),
-                  Color(0xFF06B6D4),
-                ],
+                gradientColors: const [Color(0xFF2563EB), Color(0xFF06B6D4)],
                 buttonText: "Continue as Customer",
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AuthScreen(role: "customer")),
-                  );
-                },
+                onTap: () => _selectRole(context, "customer"),
               ),
 
               const SizedBox(height: 22),
@@ -92,17 +91,9 @@ class RoleSelectionScreen extends StatelessWidget {
                 subtitle:
                     "Find nearby jobs, send offers, complete work and grow your income.",
                 icon: Icons.handyman_rounded,
-                gradientColors: const [
-                  Color(0xFF10B981),
-                  Color(0xFF059669),
-                ],
+                gradientColors: const [Color(0xFF10B981), Color(0xFF059669)],
                 buttonText: "Continue as Worker",
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AuthScreen(role: "worker")),
-                  );
-                },
+                onTap: () => _selectRole(context, "worker"),
               ),
 
               const Spacer(),
