@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
-import 'package:skill_link/screens/customer_screens/customer_my_request_scree/customer_myrequest_screen.dart';
+import 'package:skill_link/screens/customer_screens/customer_my_request_scree/request_tracking_screen.dart';
 
 class Request extends StatefulWidget {
   const Request({super.key});
@@ -50,24 +50,28 @@ class _RequestState extends State<Request> {
 
       final uid = FirebaseAuth.instance.currentUser!.uid;
 
-      await FirebaseFirestore.instance.collection("requests").add({
-        "customerId": uid,
-        "category": selectedCategory,
-        "urgency": selectedUrgency,
-        "title": titleController.text.trim(),
-        "description": descriptionController.text.trim(),
-        "location": locationController.text.trim(),
-        "budget": budgetController.text.trim(),
-        "status": "pending",
-        "workerId": null,
-        "createdAt": FieldValue.serverTimestamp(),
-      });
+      final requestRef = await FirebaseFirestore.instance
+          .collection("requests")
+          .add({
+            "customerId": uid,
+            "category": selectedCategory,
+            "urgency": selectedUrgency,
+            "title": titleController.text.trim(),
+            "description": descriptionController.text.trim(),
+            "location": locationController.text.trim(),
+            "budget": budgetController.text.trim(),
+            "status": "searching",
+            "workerId": null,
+            "createdAt": FieldValue.serverTimestamp(),
+          });
 
       setState(() => isLoading = false);
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const CustomerMyRequestsScreen()),
+        MaterialPageRoute(
+          builder: (_) => RequestTrackingScreen(requestId: requestRef.id),
+        ),
       );
     } catch (e) {
       setState(() => isLoading = false);

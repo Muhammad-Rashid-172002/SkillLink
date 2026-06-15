@@ -48,3 +48,6 @@ app.*.map.json
 lib/firebase_options.dart
 ios/Runner/GoogleService-Info.plist
 android/app/google-services.json
+
+# Google Maps API Key
+android/local.properties

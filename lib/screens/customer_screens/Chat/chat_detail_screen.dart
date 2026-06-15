@@ -1,11 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class ChatDetailScreen extends StatefulWidget {
+  final String chatId;
   final String workerName;
   final String workerSkill;
 
   const ChatDetailScreen({
     super.key,
+    required this.chatId,
     required this.workerName,
     required this.workerSkill,
   });
@@ -17,42 +21,40 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController messageController = TextEditingController();
 
-  final List<Map<String, dynamic>> messages = [
-    {
-      "text": "Assalamualaikum, mujhe electrician chahiye.",
-      "isMe": true,
-    },
-    {
-      "text": "Wa alaikum salam, main available hoon.",
-      "isMe": false,
-    },
-    {
-      "text": "Aap kab aa sakte hain?",
-      "isMe": true,
-    },
-    {
-      "text": "Main today 4 PM aa sakta hoon.",
-      "isMe": false,
-    },
-  ];
-
-  void sendMessage() {
+  Future<void> sendMessage() async {
     final text = messageController.text.trim();
-
     if (text.isEmpty) return;
 
-    setState(() {
-      messages.add({
-        "text": text,
-        "isMe": true,
-      });
-    });
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
     messageController.clear();
+
+    await FirebaseFirestore.instance
+        .collection("chats")
+        .doc(widget.chatId)
+        .collection("messages")
+        .add({
+      "senderId": uid,
+      "text": text,
+      "createdAt": FieldValue.serverTimestamp(),
+    });
+
+    await FirebaseFirestore.instance.collection("chats").doc(widget.chatId).set({
+      "lastMessage": text,
+      "updatedAt": FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  void dispose() {
+    messageController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -101,14 +103,50 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[index];
-                return _messageBubble(
-                  text: message["text"],
-                  isMe: message["isMe"],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection("chats")
+                  .doc(widget.chatId)
+                  .collection("messages")
+                  .orderBy("createdAt", descending: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF2563EB),
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      "No messages yet. Start the conversation.",
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  );
+                }
+
+                final messages = snapshot.data!.docs;
+
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final data =
+                        messages[index].data() as Map<String, dynamic>;
+
+                    final isMe = data["senderId"] == currentUserId;
+
+                    return _messageBubble(
+                      text: data["text"] ?? "",
+                      isMe: isMe,
+                    );
+                  },
                 );
               },
             ),

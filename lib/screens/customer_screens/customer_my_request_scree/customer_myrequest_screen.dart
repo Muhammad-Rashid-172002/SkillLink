@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/customer_screens/customer_my_request_scree/request_tracking_screen.dart';
 import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
 
 class CustomerMyRequestsScreen extends StatefulWidget {
@@ -15,7 +16,6 @@ class _CustomerMyRequestsScreenState extends State<CustomerMyRequestsScreen> {
   int selectedTab = 0;
 
   final tabs = ["Pending", "Accepted", "Completed"];
-
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +93,7 @@ class _CustomerMyRequestsScreenState extends State<CustomerMyRequestsScreen> {
                           "budget": data["budget"] ?? "",
                           "status": _capitalize(data["status"] ?? ""),
                           "time": "Recently",
-                        });
+                        }, doc.id);
                       }).toList(),
                     ),
                 ],
@@ -178,7 +178,7 @@ class _CustomerMyRequestsScreenState extends State<CustomerMyRequestsScreen> {
     );
   }
 
-  Widget _requestCard(Map<String, String> request) {
+  Widget _requestCard(Map<String, String> request, String requestId) {
     final status = request["status"]!;
     final statusColor = _statusColor(status);
 
@@ -240,7 +240,17 @@ class _CustomerMyRequestsScreenState extends State<CustomerMyRequestsScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _outlineButton("View Details")),
+              Expanded(
+                child: _outlineButton("View Details", () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          RequestTrackingScreen(requestId: requestId),
+                    ),
+                  );
+                }),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: _primaryButton(
@@ -319,11 +329,11 @@ class _CustomerMyRequestsScreenState extends State<CustomerMyRequestsScreen> {
     );
   }
 
-  Widget _outlineButton(String text) {
+  Widget _outlineButton(String text, VoidCallback onTap) {
     return SizedBox(
       height: 46,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: onTap,
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Color(0xFFE2E8F0)),
           shape: RoundedRectangleBorder(
