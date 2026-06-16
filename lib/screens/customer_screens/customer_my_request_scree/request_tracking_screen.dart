@@ -1,13 +1,28 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-class RequestTrackingScreen extends StatelessWidget {
+class RequestTrackingScreen extends StatefulWidget {
   final String requestId;
 
-  const RequestTrackingScreen({
-    super.key,
-    required this.requestId,
-  });
+  const RequestTrackingScreen({super.key, required this.requestId});
+
+  @override
+  State<RequestTrackingScreen> createState() => _RequestTrackingScreenState();
+}
+
+class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
+  bool searchingDone = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) {
+        setState(() => searchingDone = true);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,26 +37,22 @@ class RequestTrackingScreen extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection("requests")
-            .doc(requestId)
+            .doc(widget.requestId)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(
               child: CircularProgressIndicator(color: Color(0xFF2563EB)),
             );
           }
 
-          if (!snapshot.hasData || !snapshot.data!.exists) {
+          if (!snapshot.data!.exists) {
             return const Center(child: Text("Request not found"));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
           final status = data["status"] ?? "searching";
           final workerId = data["workerId"];
-
-          if (status == "searching" || status == "pending") {
-            return _searchingView(data);
-          }
 
           if (status == "accepted" && workerId != null) {
             return _acceptedView(workerId, data);
@@ -51,8 +62,149 @@ class RequestTrackingScreen extends StatelessWidget {
             return _completedView(data);
           }
 
-          return _searchingView(data);
+          if (!searchingDone) {
+            return _searchingView(data);
+          }
+
+          return _nearestWorkerFinder(data);
         },
+      ),
+    );
+  }
+
+  Widget _nearestWorkerFinder(Map<String, dynamic> requestData) {
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection("users")
+          .where("role", isEqualTo: "worker")
+          .where("skill", isEqualTo: requestData["category"])
+          .limit(1)
+          .get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return _searchingView(requestData);
+        }
+
+        if (snapshot.data!.docs.isEmpty) {
+          return _noWorkerFound(requestData);
+        }
+
+        final workerDoc = snapshot.data!.docs.first;
+        final worker = workerDoc.data() as Map<String, dynamic>;
+
+        return _foundWorkerView(
+          requestData: requestData,
+          workerId: workerDoc.id,
+          worker: worker,
+        );
+      },
+    );
+  }
+
+  Widget _foundWorkerView({
+    required Map<String, dynamic> requestData,
+    required String workerId,
+    required Map<String, dynamic> worker,
+  }) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          Container(
+            height: 110,
+            width: 110,
+            decoration: BoxDecoration(
+              color: const Color(0xFF16A34A).withOpacity(.10),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person_search_rounded,
+              size: 64,
+              color: Color(0xFF16A34A),
+            ),
+          ),
+          const SizedBox(height: 22),
+          const Text(
+            "Nearby Worker Found",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF0F172A),
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "This worker matches your service category.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 28),
+          _workerCard(worker),
+          const SizedBox(height: 20),
+          _requestSummary(requestData),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: _outlineButton(
+                  icon: Icons.call_rounded,
+                  text: "Call",
+                  onTap: () {},
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _primaryButton(
+                  icon: Icons.chat_rounded,
+                  text: "Chat",
+                  onTap: () {},
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 54,
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection("requests")
+                    .doc(widget.requestId)
+                    .update({
+                      "suggestedWorkerId": workerId,
+                      "status": "waiting_worker",
+                      "updatedAt": FieldValue.serverTimestamp(),
+                    });
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Request sent to worker")),
+                );
+              },
+              icon: const Icon(Icons.send_rounded, color: Colors.white),
+              label: const Text(
+                "Send Request to Worker",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -115,13 +267,13 @@ class RequestTrackingScreen extends StatelessWidget {
           .doc(workerId)
           .snapshots(),
       builder: (context, workerSnapshot) {
-        if (workerSnapshot.connectionState == ConnectionState.waiting) {
+        if (!workerSnapshot.hasData) {
           return const Center(
             child: CircularProgressIndicator(color: Color(0xFF2563EB)),
           );
         }
 
-        if (!workerSnapshot.hasData || !workerSnapshot.data!.exists) {
+        if (!workerSnapshot.data!.exists) {
           return const Center(child: Text("Worker profile not found"));
         }
 
@@ -132,18 +284,10 @@ class RequestTrackingScreen extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 20),
-              Container(
-                height: 110,
-                width: 110,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withOpacity(.10),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  size: 72,
-                  color: Color(0xFF16A34A),
-                ),
+              const Icon(
+                Icons.check_circle_rounded,
+                size: 90,
+                color: Color(0xFF16A34A),
               ),
               const SizedBox(height: 22),
               const Text(
@@ -155,45 +299,47 @@ class RequestTrackingScreen extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                "You can now chat or call the worker.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
               const SizedBox(height: 28),
               _workerCard(worker),
               const SizedBox(height: 20),
               _requestSummary(requestData),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: _outlineButton(
-                      icon: Icons.call_rounded,
-                      text: "Call",
-                      onTap: () {},
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _primaryButton(
-                      icon: Icons.chat_rounded,
-                      text: "Chat",
-                      onTap: () {
-                        // yahan baad me ChatDetailScreen open karna
-                      },
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _noWorkerFound(Map<String, dynamic> data) {
+    return Padding(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        children: [
+          const SizedBox(height: 80),
+          const Icon(
+            Icons.person_off_rounded,
+            size: 90,
+            color: Color(0xFF94A3B8),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            "No Worker Found",
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            "No matching worker is available right now.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 28),
+          _requestSummary(data),
+        ],
+      ),
     );
   }
 
@@ -217,14 +363,6 @@ class RequestTrackingScreen extends StatelessWidget {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 12),
-          const Text(
-            "Thanks for using SkillLink.",
-            style: TextStyle(
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
           const SizedBox(height: 30),
           _requestSummary(data),
         ],
@@ -240,24 +378,13 @@ class RequestTrackingScreen extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.05),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
       child: Column(
         children: [
-          Container(
-            height: 86,
-            width: 86,
-            decoration: BoxDecoration(
-              color: const Color(0xFF16A34A).withOpacity(.10),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
+          const CircleAvatar(
+            radius: 44,
+            backgroundColor: Color(0xFFEAFBF0),
+            child: Icon(
               Icons.person_rounded,
               color: Color(0xFF16A34A),
               size: 50,
@@ -280,29 +407,15 @@ class RequestTrackingScreen extends StatelessWidget {
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.star_rounded, color: Color(0xFFF59E0B)),
-              const SizedBox(width: 4),
-              Text(
-                worker["rating"]?.toString() ?? "4.8",
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(width: 14),
-              const Icon(Icons.work_rounded, color: Color(0xFF64748B), size: 18),
-              const SizedBox(width: 4),
-              Text(
-                worker["experience"] ?? "Experience",
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 12),
+          Text(
+            worker["phone"] ?? "",
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(
             worker["location"] ?? "",
             style: const TextStyle(

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
 
 class CustomerProfileSetupScreen extends StatefulWidget {
@@ -31,42 +32,62 @@ class _CustomerProfileSetupScreenState
   final addressController = TextEditingController();
 
   // save customer profile
- Future<void> saveCustomerProfile() async {
-  if (nameController.text.trim().isEmpty ||
-      phoneController.text.trim().isEmpty ||
-      areaController.text.trim().isEmpty ||
-      addressController.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Please fill all required fields")),
-    );
-    return;
+  Future<void> saveCustomerProfile() async {
+    if (nameController.text.trim().isEmpty ||
+        phoneController.text.trim().isEmpty ||
+        areaController.text.trim().isEmpty ||
+        addressController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all required fields")),
+      );
+      return;
+    }
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final position = await getCurrentLocation();
+
+      await FirebaseFirestore.instance.collection("users").doc(uid).set({
+        "uid": uid,
+        "role": "customer",
+        "name": nameController.text.trim(),
+        "phone": phoneController.text.trim(),
+        "city": selectedCity,
+        "area": areaController.text.trim(),
+        "address": addressController.text.trim(),
+        "profileCompleted": true,
+        "updatedAt": FieldValue.serverTimestamp(),
+        "lat": position?.latitude,
+        "lng": position?.longitude,
+      }, SetOptions(merge: true));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
   }
 
-  try {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+  // Get current location
+  Future<Position?> getCurrentLocation() async {
+    LocationPermission permission = await Geolocator.checkPermission();
 
-    await FirebaseFirestore.instance.collection("users").doc(uid).set({
-      "uid": uid,
-      "role": "customer",
-      "name": nameController.text.trim(),
-      "phone": phoneController.text.trim(),
-      "city": selectedCity,
-      "area": areaController.text.trim(),
-      "address": addressController.text.trim(),
-      "profileCompleted": true,
-      "updatedAt": FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString())),
-    );
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition();
   }
-}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

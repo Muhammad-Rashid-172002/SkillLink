@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
 
 class WorkerProfileSetupScreen extends StatefulWidget {
@@ -32,6 +33,22 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
   final locationController = TextEditingController();
   final bioController = TextEditingController();
 
+  // Get current location
+  Future<Position?> getCurrentLocation() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition();
+  }
+
   // save worker profile
   Future<void> saveWorkerProfile() async {
     if (nameController.text.trim().isEmpty ||
@@ -46,6 +63,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     }
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
+      final position = await getCurrentLocation();
 
       await FirebaseFirestore.instance.collection("users").doc(uid).set({
         "uid": uid,
@@ -56,6 +74,8 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
         "experience": experienceController.text.trim(),
         "hourlyRate": rateController.text.trim(),
         "location": locationController.text.trim(),
+        "lat": position?.latitude,
+        "lng": position?.longitude,
         "bio": bioController.text.trim(),
         "profileCompleted": true,
         "updatedAt": FieldValue.serverTimestamp(),
