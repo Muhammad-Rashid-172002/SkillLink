@@ -35,7 +35,7 @@ class WorkerPublicProfileScreen extends StatelessWidget {
       ),
     );
   }
-
+// profile card
   Widget _profileCard() {
     return Container(
       width: double.infinity,
