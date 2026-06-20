@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
-class WorkerJobDetailScreen extends StatelessWidget {
+class WorkerJobDetailScreen extends StatefulWidget {
   final String requestId;
   final String title;
   final String category;
@@ -22,6 +25,11 @@ class WorkerJobDetailScreen extends StatelessWidget {
     required this.urgency,
   });
 
+  @override
+  State<WorkerJobDetailScreen> createState() => _WorkerJobDetailScreenState();
+}
+
+class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
   Future<void> _updateStatus(
     BuildContext context,
     String status,
@@ -51,12 +59,58 @@ class WorkerJobDetailScreen extends StatelessWidget {
 
     await FirebaseFirestore.instance
         .collection("requests")
-        .doc(requestId)
+        .doc(widget.requestId)
         .update(updateData);
 
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> updateWorkerLiveLocation() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    final position = await Geolocator.getCurrentPosition();
+
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    await FirebaseFirestore.instance.collection("users").doc(uid).update({
+      "lat": position.latitude,
+      "lng": position.longitude,
+      "locationUpdatedAt": FieldValue.serverTimestamp(),
+    });
+  }
+
+  Timer? locationTimer;
+
+  void startLiveLocationTimer() {
+    locationTimer?.cancel();
+
+    updateWorkerLiveLocation();
+
+    locationTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      updateWorkerLiveLocation();
+    });
+  }
+
+  void stopLiveLocationTimer() {
+    locationTimer?.cancel();
+    locationTimer = null;
+  }
+
+  @override
+  void dispose() {
+    stopLiveLocationTimer();
+    super.dispose();
   }
 
   @override
@@ -67,7 +121,7 @@ class WorkerJobDetailScreen extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection("requests")
-            .doc(requestId)
+            .doc(widget.requestId)
             .snapshots(),
         builder: (context, snapshot) {
           final data = snapshot.data?.data() as Map<String, dynamic>?;
@@ -79,7 +133,7 @@ class WorkerJobDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  widget.title,
                   style: const TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w900,
@@ -87,17 +141,17 @@ class WorkerJobDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  category,
+                  widget.category,
                   style: const TextStyle(
                     color: Color(0xFF16A34A),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 24),
-                _row(Icons.location_on_outlined, location),
-                _row(Icons.near_me_outlined, distance),
-                _row(Icons.payments_outlined, budget),
-                _row(Icons.priority_high_rounded, urgency),
+                _row(Icons.location_on_outlined, widget.location),
+                _row(Icons.near_me_outlined, widget.distance),
+                _row(Icons.payments_outlined, widget.budget),
+                _row(Icons.priority_high_rounded, widget.urgency),
                 const SizedBox(height: 16),
                 _statusBadge(status),
                 const Spacer(),
@@ -131,6 +185,8 @@ class WorkerJobDetailScreen extends StatelessWidget {
             "on_the_way",
             "Status updated: On The Way",
           );
+
+          startLiveLocationTimer();
         },
       );
     }
@@ -140,6 +196,7 @@ class WorkerJobDetailScreen extends StatelessWidget {
         text: "Start Work",
         color: const Color(0xFFF59E0B),
         onTap: () async {
+          stopLiveLocationTimer();
           await _updateStatus(context, "in_progress", "Work started");
         },
       );
@@ -150,15 +207,28 @@ class WorkerJobDetailScreen extends StatelessWidget {
         text: "Complete Job",
         color: const Color(0xFF16A34A),
         onTap: () async {
+          stopLiveLocationTimer();
           await _updateStatus(context, "completed", "Job completed");
         },
       );
     }
 
-    return _button(
-      text: "Completed",
-      color: const Color(0xFF94A3B8),
-      onTap: () {},
+    return Container(
+      width: double.infinity,
+      height: 56,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(.10),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: const Text(
+        "Job Completed ✅",
+        style: TextStyle(
+          color: Colors.green,
+          fontWeight: FontWeight.w900,
+          fontSize: 16,
+        ),
+      ),
     );
   }
 

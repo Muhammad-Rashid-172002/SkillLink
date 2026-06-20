@@ -13,30 +13,6 @@ class WorkerHomeScreen extends StatefulWidget {
 class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   int selectedIndex = 0;
 
-  // final requests = [
-  //   {
-  //     "name": "Ali Khan",
-  //     "service": "Electric wiring issue",
-  //     "location": "Hayatabad, Peshawar",
-  //     "price": "Rs. 1200",
-  //     "time": "Today, 2:30 PM",
-  //   },
-  //   {
-  //     "name": "Usman Ahmad",
-  //     "service": "Fan installation",
-  //     "location": "University Road",
-  //     "price": "Rs. 900",
-  //     "time": "Today, 5:00 PM",
-  //   },
-  //   {
-  //     "name": "Hamza Shah",
-  //     "service": "Switch board repair",
-  //     "location": "Saddar, Peshawar",
-  //     "price": "Rs. 700",
-  //     "time": "Tomorrow, 11:00 AM",
-  //   },
-  // ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,145 +41,187 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   }
 
   Widget _topHeader() {
-    return Row(
-      children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Hello, Worker 👋",
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("users")
+          .doc(uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() as Map<String, dynamic>?;
+        final name = data?["name"] ?? "Worker";
+
+        return Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Hello, $name 👋",
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    "Manage your jobs",
+                    style: TextStyle(
+                      color: Color(0xFF0F172A),
+                      fontSize: 27,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: 6),
-              Text(
-                "Manage your jobs",
-                style: TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 27,
-                  fontWeight: FontWeight.w900,
-                ),
+            ),
+            Container(
+              height: 52,
+              width: 52,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
               ),
-            ],
-          ),
-        ),
-        Container(
-          height: 52,
-          width: 52,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(.06),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            color: Color(0xFF0F172A),
-          ),
-        ),
-      ],
+              child: const Icon(Icons.notifications_none_rounded),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _earningCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF16A34A), Color(0xFF22C55E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF16A34A).withOpacity(.25),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Today Earnings",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  "Rs. 4,800",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  "3 jobs completed today",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("requests")
+          .where("workerId", isEqualTo: uid)
+          .where("status", isEqualTo: "completed")
+          .snapshots(),
+      builder: (context, snapshot) {
+        final docs = snapshot.data?.docs ?? [];
+        int totalEarnings = 0;
+
+        for (final doc in docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final budgetText = data["budget"]?.toString() ?? "0";
+          final amount =
+              int.tryParse(budgetText.replaceAll(RegExp(r'[^0-9]'), "")) ?? 0;
+          totalEarnings += amount;
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF16A34A), Color(0xFF22C55E)],
             ),
+            borderRadius: BorderRadius.circular(30),
           ),
-          Container(
-            height: 62,
-            width: 62,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.18),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.payments_rounded,
-              color: Colors.white,
-              size: 32,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Total Earnings",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Rs. $totalEarnings",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "${docs.length} jobs completed",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                height: 62,
+                width: 62,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.18),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.payments_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _statsRow() {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     return Row(
       children: [
         Expanded(
-          child: _statCard(
-            title: "Pending",
-            value: "8",
-            icon: Icons.pending_actions_rounded,
-            color: const Color(0xFFF59E0B),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection("requests")
+                .where("status", isEqualTo: "searching")
+                .snapshots(),
+            builder: (context, snapshot) {
+              final count = snapshot.data?.docs.length ?? 0;
+
+              return _statCard(
+                title: "Pending",
+                value: "$count",
+                icon: Icons.pending_actions_rounded,
+                color: const Color(0xFFF59E0B),
+              );
+            },
           ),
         ),
         const SizedBox(width: 14),
         Expanded(
-          child: _statCard(
-            title: "Active Jobs",
-            value: "2",
-            icon: Icons.work_history_rounded,
-            color: const Color(0xFF2563EB),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection("requests")
+                .where("workerId", isEqualTo: uid)
+                .where(
+                  "status",
+                  whereIn: ["accepted", "on_the_way", "in_progress"],
+                )
+                .snapshots(),
+            builder: (context, snapshot) {
+              final count = snapshot.data?.docs.length ?? 0;
+
+              return _statCard(
+                title: "Active Jobs",
+                value: "$count",
+                icon: Icons.work_history_rounded,
+                color: const Color(0xFF2563EB),
+              );
+            },
           ),
         ),
       ],

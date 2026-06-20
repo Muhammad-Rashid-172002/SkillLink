@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/screens/customer_screens/Chat/chat_detail_screen.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/RateWorkerScreen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -53,6 +54,56 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
       ),
       title: Text(title),
       subtitle: Text(subtitle),
+    );
+  }
+
+  Widget _liveWorkerMap(String workerId) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("users")
+          .doc(workerId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return const SizedBox();
+        }
+
+        final worker = snapshot.data!.data() as Map<String, dynamic>;
+
+        final lat = (worker["lat"] ?? 34.0097).toDouble();
+        final lng = (worker["lng"] ?? 71.9970).toDouble();
+
+        final workerPosition = LatLng(lat, lng);
+
+        return Container(
+          height: 220,
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: workerPosition,
+              zoom: 15,
+            ),
+            markers: {
+              Marker(
+                markerId: const MarkerId("worker"),
+                position: workerPosition,
+                infoWindow: InfoWindow(
+                  title: worker["name"] ?? "Worker",
+                  snippet: "Live worker location",
+                ),
+              ),
+            },
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+          ),
+        );
+      },
     );
   }
 
@@ -173,6 +224,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
             return _statusView(
               workerId: workerId,
               requestData: data,
+
               icon: Icons.directions_bike_rounded,
               title: "Worker On The Way",
               subtitle: "Your worker is heading to your location.",
@@ -229,6 +281,7 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
           padding: const EdgeInsets.all(22),
           child: Column(
             children: [
+              _liveWorkerMap(workerId),
               const SizedBox(height: 20),
               Icon(icon, size: 95, color: color),
               const SizedBox(height: 22),

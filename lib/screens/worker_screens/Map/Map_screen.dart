@@ -22,7 +22,6 @@ class _MapSreenState extends State<MapSreen> {
         .collection("requests")
         .where("status", isEqualTo: "searching")
         .where("category", isEqualTo: workerSkill)
-       
         .snapshots();
   }
 
@@ -159,6 +158,7 @@ class _MapSreenState extends State<MapSreen> {
       ),
       clipBehavior: Clip.antiAlias,
       child: GoogleMap(
+        mapType: MapType.normal,
         initialCameraPosition: const CameraPosition(
           target: pabbiCenter,
           zoom: 13,
