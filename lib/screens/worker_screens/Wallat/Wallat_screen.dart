@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/Wallat/payment_method_screen.dart';
@@ -37,9 +39,8 @@ class _WallatScreenState extends State<WallatScreen> {
               const SizedBox(height: 24),
               _sectionTitle("Recent Transactions"),
               const SizedBox(height: 14),
-              _transactionTile("Used 1 lead credit", "-1 Credit", "Today"),
-              _transactionTile("Bought 20 credits", "+20 Credits", "Yesterday"),
-              _transactionTile("Used 1 lead credit", "-1 Credit", "2 days ago"),
+
+              _transactionsList(),
             ],
           ),
         ),
@@ -73,72 +74,67 @@ class _WallatScreenState extends State<WallatScreen> {
   }
 
   Widget _walletCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF16A34A), Color(0xFF22C55E)],
-        ),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF16A34A).withOpacity(.25),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Available Credits",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  "19 Credits",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  "1 credit = 1 customer lead",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("users")
+          .doc(uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() as Map<String, dynamic>?;
+        final credits = data?["credits"] ?? 0;
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF16A34A), Color(0xFF22C55E)],
             ),
+            borderRadius: BorderRadius.circular(30),
           ),
-          Container(
-            height: 62,
-            width: 62,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.18),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.account_balance_wallet_rounded,
+          child: Text(
+            "$credits Credits",
+            style: const TextStyle(
               color: Colors.white,
-              size: 32,
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
             ),
           ),
-        ],
-      ),
+        );
+      },
+    );
+  }
+
+  Widget _transactionsList() {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("transactions")
+          .where("workerId", isEqualTo: uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Text("No transactions yet");
+        }
+
+        return Column(
+          children: snapshot.data!.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final timestamp = data["createdAt"] as Timestamp?;
+
+            return _transactionTile(
+              data["title"] ?? "",
+              data["amount"] ?? "",
+              timestamp == null
+                  ? ""
+                  : "${timestamp.toDate().day}/${timestamp.toDate().month}",
+            );
+          }).toList(),
+        );
+      },
     );
   }
 

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 
@@ -20,34 +22,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     {"title": "Cleaner", "icon": Icons.cleaning_services_rounded},
   ];
 
-  final workers = [
-    {
-      "name": "Ahmad Khan",
-      "skill": "Electrician",
-      "rating": "4.9",
-      "price": "Rs. 800/hr",
-    },
-    {
-      "name": "Usman Ali",
-      "skill": "Plumber",
-      "rating": "4.8",
-      "price": "Rs. 700/hr",
-    },
-    {
-      "name": "Bilal Shah",
-      "skill": "AC Technician",
-      "rating": "4.7",
-      "price": "Rs. 1000/hr",
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      bottomNavigationBar: const CustomerBottomBar(
-        selectedIndex: 0,
-      ),
+      bottomNavigationBar: const CustomerBottomBar(selectedIndex: 0),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
@@ -75,52 +54,62 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 
   Widget _topHeader() {
-    return Row(
-      children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Hello, Rashid 👋",
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("users")
+          .doc(uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String name = "Customer";
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          name = data["name"] ?? "Customer";
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Hello, $name 👋",
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    "Find trusted workers",
+                    style: TextStyle(
+                      color: Color(0xFF0F172A),
+                      fontSize: 27,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: 6),
-              Text(
-                "Find trusted workers",
-                style: TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 27,
-                  fontWeight: FontWeight.w900,
-                ),
+            ),
+            Container(
+              height: 52,
+              width: 52,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
               ),
-            ],
-          ),
-        ),
-        Container(
-          height: 52,
-          width: 52,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(.06),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                color: Color(0xFF0F172A),
               ),
-            ],
-          ),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            color: Color(0xFF0F172A),
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -300,93 +289,133 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 
   Widget _workersList() {
-    return Column(
-      children: workers.map((worker) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(.04),
-                blurRadius: 14,
-                offset: const Offset(0, 8),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("users")
+          .where("role", isEqualTo: "worker")
+          .where("profileCompleted", isEqualTo: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF2563EB)),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _emptyWorkers();
+        }
+
+        final workers = snapshot.data!.docs;
+
+        return Column(
+          children: workers.map((doc) {
+            final worker = doc.data() as Map<String, dynamic>;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(.04),
+                    blurRadius: 14,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                height: 58,
-                width: 58,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB).withOpacity(.10),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: Color(0xFF2563EB),
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      worker["name"]!,
-                      style: const TextStyle(
-                        color: Color(0xFF0F172A),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
+              child: Row(
+                children: [
+                  Container(
+                    height: 58,
+                    width: 58,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withOpacity(.10),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      worker["skill"]!,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: const Icon(
+                      Icons.person_rounded,
+                      color: Color(0xFF2563EB),
+                      size: 32,
                     ),
-                    const SizedBox(height: 7),
-                    Row(
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          color: Color(0xFFF59E0B),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 4),
                         Text(
-                          worker["rating"]!,
+                          worker["name"] ?? "Worker",
                           style: const TextStyle(
                             color: Color(0xFF0F172A),
+                            fontSize: 16,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
+                        const SizedBox(height: 5),
+                        Text(
+                          worker["skill"] ?? "Skilled Worker",
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Color(0xFFF59E0B),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                             (worker["rating"] ?? 0).toString(),
+                              style: const TextStyle(
+                                color: Color(0xFF0F172A),
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                  Text(
+                    worker["hourlyRate"] ?? "N/A",
+                    style: const TextStyle(
+                      color: Color(0xFF2563EB),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                worker["price"]!,
-                style: const TextStyle(
-                  color: Color(0xFF2563EB),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
+    );
+  }
+
+  Widget _emptyWorkers() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: const Text(
+        "No workers found yet",
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w800),
+      ),
     );
   }
 }

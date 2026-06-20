@@ -292,166 +292,197 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     );
   }
 
- Widget _requestList() {
-  final workerId = FirebaseAuth.instance.currentUser!.uid;
+  Widget _requestList() {
+    final workerId = FirebaseAuth.instance.currentUser!.uid;
 
-  return StreamBuilder<QuerySnapshot>(
-    stream: FirebaseFirestore.instance
-        .collection("requests")
-        .where("status", isEqualTo: "pending")
-        .snapshots(),
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFF16A34A),
-          ),
-        );
-      }
-
-      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-        return _emptyJobs();
-      }
-
-      final docs = snapshot.data!.docs;
-
-      return Column(
-        children: docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-
-          return _jobCard(
-            requestId: doc.id,
-            title: data["title"] ?? "",
-            category: data["category"] ?? "",
-            location: data["location"] ?? "",
-            budget: data["budget"] ?? "",
-            urgency: data["urgency"] ?? "Normal",
-            workerId: workerId,
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("users")
+          .doc(workerId)
+          .snapshots(),
+      builder: (context, workerSnapshot) {
+        if (!workerSnapshot.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF16A34A)),
           );
-        }).toList(),
-      );
-    },
-  );
-}
+        }
 
-Widget _jobCard({
-  required String requestId,
-  required String title,
-  required String category,
-  required String location,
-  required String budget,
-  required String urgency,
-  required String workerId,
-}) {
-  return Container(
-    margin: const EdgeInsets.only(bottom: 16),
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(26),
-      border: Border.all(color: const Color(0xFFE2E8F0)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF0F172A),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          category,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 14),
-        _infoRow(Icons.location_on_outlined, location),
-        const SizedBox(height: 8),
-        _infoRow(Icons.payments_outlined, budget),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            Expanded(child: _outlineButton("Reject")),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _acceptButtonReal(
-                requestId: requestId,
-                workerId: workerId,
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
+        final workerData = workerSnapshot.data!.data() as Map<String, dynamic>;
 
-Widget _acceptButtonReal({
-  required String requestId,
-  required String workerId,
-}) {
-  return SizedBox(
-    height: 46,
-    child: ElevatedButton(
-      onPressed: () async {
-        await FirebaseFirestore.instance
-            .collection("requests")
-            .doc(requestId)
-            .update({
-          "status": "accepted",
-          "workerId": workerId,
-          "acceptedAt": FieldValue.serverTimestamp(),
-        });
+        final workerSkill = workerData["skill"] ?? "";
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Job accepted successfully")),
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection("requests")
+              .where("status", isEqualTo: "searching")
+              .where("category", isEqualTo: workerSkill)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF16A34A)),
+              );
+            }
+
+            if (snapshot.data!.docs.isEmpty) {
+              return _emptyJobs();
+            }
+
+            final docs = snapshot.data!.docs;
+
+            return Column(
+              children: docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+
+                return _jobCard(
+                  requestId: doc.id,
+                  title: data["title"] ?? "",
+                  category: data["category"] ?? "",
+                  location: data["location"] ?? "",
+                  budget: data["budget"] ?? "",
+                  urgency: data["urgency"] ?? "Normal",
+                  workerId: workerId,
+                );
+              }).toList(),
+            );
+          },
         );
       },
-      style: ElevatedButton.styleFrom(
-        elevation: 0,
-        backgroundColor: const Color(0xFF16A34A),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-      child: const Text(
-        "Accept",
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    ),
-  );
-}
+    );
+  }
 
-Widget _emptyJobs() {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0xFFE2E8F0)),
-    ),
-    child: const Center(
-      child: Text(
-        "No new job requests found",
-        style: TextStyle(
-          color: Color(0xFF64748B),
-          fontWeight: FontWeight.w800,
+  Widget _jobCard({
+    required String requestId,
+    required String title,
+    required String category,
+    required String location,
+    required String budget,
+    required String urgency,
+    required String workerId,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            category,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _infoRow(Icons.location_on_outlined, location),
+          const SizedBox(height: 8),
+          _infoRow(Icons.payments_outlined, budget),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(child: _outlineButton("Reject")),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _acceptButtonReal(
+                  requestId: requestId,
+                  workerId: workerId,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _acceptButtonReal({
+    required String requestId,
+    required String workerId,
+  }) {
+    return SizedBox(
+      height: 46,
+      child: ElevatedButton(
+        onPressed: () async {
+          final requestDoc = await FirebaseFirestore.instance
+              .collection("requests")
+              .doc(requestId)
+              .get();
+
+          final requestData = requestDoc.data() as Map<String, dynamic>;
+          final customerId = requestData["customerId"];
+          final category = requestData["category"];
+
+          await FirebaseFirestore.instance
+              .collection("requests")
+              .doc(requestId)
+              .update({
+                "status": "accepted",
+                "workerId": workerId,
+                "acceptedAt": FieldValue.serverTimestamp(),
+              });
+
+          await FirebaseFirestore.instance.collection("chats").add({
+            "customerId": customerId,
+            "workerId": workerId,
+            "requestId": requestId,
+            "service": category,
+            "lastMessage": "",
+            "updatedAt": FieldValue.serverTimestamp(),
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Job accepted successfully")),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: const Color(0xFF16A34A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: const Text(
+          "Accept",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
+  Widget _emptyJobs() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: const Center(
+        child: Text(
+          "No new job requests found",
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _infoRow(IconData icon, String text) {
     return Row(
@@ -493,6 +524,4 @@ Widget _emptyJobs() {
       ),
     );
   }
-
- 
 }

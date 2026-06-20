@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/request_tracking_screen.dart';
 
@@ -49,6 +50,7 @@ class _RequestState extends State<Request> {
       setState(() => isLoading = true);
 
       final uid = FirebaseAuth.instance.currentUser!.uid;
+      final position = await getCurrentLocation();
 
       final requestRef = await FirebaseFirestore.instance
           .collection("requests")
@@ -63,6 +65,8 @@ class _RequestState extends State<Request> {
             "status": "searching",
             "workerId": null,
             "createdAt": FieldValue.serverTimestamp(),
+            "lat": position?.latitude,
+            "lng": position?.longitude,
           });
 
       setState(() => isLoading = false);
@@ -79,6 +83,21 @@ class _RequestState extends State<Request> {
         context,
       ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
+  }
+
+  Future<Position?> getCurrentLocation() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition();
   }
 
   @override

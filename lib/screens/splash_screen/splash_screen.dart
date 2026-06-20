@@ -1,5 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
 import 'package:skill_link/screens/onboarding_screen/OnboardingScreen.dart';
+import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,6 +18,51 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
 
+  Future<void> checkUser() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      );
+      return;
+    }
+
+    final doc = await FirebaseFirestore.instance
+        .collection("users")
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      );
+      return;
+    }
+
+    final data = doc.data()!;
+    final role = data["role"];
+
+    if (role == "customer") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+      );
+    } else if (role == "worker") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const WorkerHomeScreen()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -23,21 +72,20 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1400),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.75, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.75,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     _controller.forward();
 
     Future.delayed(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
+      checkUser();
     });
   }
 
@@ -54,11 +102,7 @@ class _SplashScreenState extends State<SplashScreen>
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFF0F172A),
-              Color(0xFF1E40AF),
-              Color(0xFF10B981),
-            ],
+            colors: [Color(0xFF0F172A), Color(0xFF1E40AF), Color(0xFF10B981)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

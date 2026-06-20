@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/customer_screens/Chat/chat_detail_screen.dart';
+import 'package:skill_link/screens/customer_screens/customer_my_request_scree/RateWorkerScreen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RequestTrackingScreen extends StatefulWidget {
   final String requestId;
@@ -13,6 +16,46 @@ class RequestTrackingScreen extends StatefulWidget {
 class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   bool searchingDone = false;
 
+  Widget _timeline(String status) {
+    return Column(
+      children: [
+        _step("Request Sent", "Looking for available workers", true),
+        _step(
+          "Worker Accepted",
+          "Worker accepted your job",
+          [
+            "accepted",
+            "on_the_way",
+            "in_progress",
+            "completed",
+          ].contains(status),
+        ),
+        _step(
+          "On The Way",
+          "Worker is heading to you",
+          ["on_the_way", "in_progress", "completed"].contains(status),
+        ),
+        _step(
+          "Job In Progress",
+          "Work started at your location",
+          ["in_progress", "completed"].contains(status),
+        ),
+        _step("Completed", "Job successfully finished", status == "completed"),
+      ],
+    );
+  }
+
+  Widget _step(String title, String subtitle, bool active) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: active ? Colors.green : Colors.grey.shade300,
+        child: Icon(active ? Icons.check : Icons.circle, color: Colors.white),
+      ),
+      title: Text(title),
+      subtitle: Text(subtitle),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -22,6 +65,75 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         setState(() => searchingDone = true);
       }
     });
+  }
+
+  Future<void> _makePhoneCall(String phone) async {
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Phone number not found")));
+      return;
+    }
+
+    final Uri phoneUri = Uri(scheme: "tel", path: phone);
+
+    if (await canLaunchUrl(phoneUri)) {
+      await launchUrl(phoneUri);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Cannot open phone dialer")));
+    }
+  }
+
+  Future<void> _openChat({
+    required String workerId,
+    required Map<String, dynamic> worker,
+  }) async {
+    final requestDoc = await FirebaseFirestore.instance
+        .collection("requests")
+        .doc(widget.requestId)
+        .get();
+
+    final requestData = requestDoc.data() as Map<String, dynamic>;
+
+    String? chatId = requestData["chatId"];
+
+    if (chatId == null || chatId.isEmpty) {
+      final chatDoc = await FirebaseFirestore.instance.collection("chats").add({
+        "customerId": requestData["customerId"],
+        "workerId": workerId,
+        "requestId": widget.requestId,
+        "service": requestData["category"],
+        "lastMessage": "",
+        "createdAt": FieldValue.serverTimestamp(),
+        "updatedAt": FieldValue.serverTimestamp(),
+      });
+
+      chatId = chatDoc.id;
+
+      await FirebaseFirestore.instance
+          .collection("requests")
+          .doc(widget.requestId)
+          .update({
+            "chatId": chatId,
+            "suggestedWorkerId": workerId,
+            "updatedAt": FieldValue.serverTimestamp(),
+          });
+    }
+
+    if (!mounted) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatDetailScreen(
+          chatId: chatId!,
+          workerName: worker["name"] ?? "Worker",
+          workerSkill: worker["skill"] ?? "Unknown",
+        ),
+      ),
+    );
   }
 
   @override
@@ -57,6 +169,27 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
           if (status == "accepted" && workerId != null) {
             return _acceptedView(workerId, data);
           }
+          if (status == "on_the_way" && workerId != null) {
+            return _statusView(
+              workerId: workerId,
+              requestData: data,
+              icon: Icons.directions_bike_rounded,
+              title: "Worker On The Way",
+              subtitle: "Your worker is heading to your location.",
+              color: const Color(0xFF0EA5E9),
+            );
+          }
+
+          if (status == "in_progress" && workerId != null) {
+            return _statusView(
+              workerId: workerId,
+              requestData: data,
+              icon: Icons.build_circle_rounded,
+              title: "Job In Progress",
+              subtitle: "Work has started at your location.",
+              color: const Color(0xFFF59E0B),
+            );
+          }
 
           if (status == "completed") {
             return _completedView(data);
@@ -69,6 +202,64 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
           return _nearestWorkerFinder(data);
         },
       ),
+    );
+  }
+
+  Widget _statusView({
+    required String workerId,
+    required Map<String, dynamic> requestData,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+  }) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("users")
+          .doc(workerId)
+          .snapshots(),
+      builder: (context, workerSnapshot) {
+        if (!workerSnapshot.hasData) {
+          return Center(child: CircularProgressIndicator(color: color));
+        }
+
+        final worker = workerSnapshot.data!.data() as Map<String, dynamic>;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              Icon(icon, size: 95, color: color),
+              const SizedBox(height: 22),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF0F172A),
+                  fontSize: 25,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 28),
+              _workerCard(worker),
+              const SizedBox(height: 20),
+              _requestSummary(requestData),
+              const SizedBox(height: 20),
+              _timeline(requestData["status"] ?? "searching"),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -155,7 +346,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
                 child: _outlineButton(
                   icon: Icons.call_rounded,
                   text: "Call",
-                  onTap: () {},
+                  onTap: () {
+                    _makePhoneCall(worker["phone"]?.toString() ?? "");
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -163,7 +356,9 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
                 child: _primaryButton(
                   icon: Icons.chat_rounded,
                   text: "Chat",
-                  onTap: () {},
+                  onTap: () {
+                    _openChat(workerId: workerId, worker: worker);
+                  },
                 ),
               ),
             ],
@@ -344,27 +539,70 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   }
 
   Widget _completedView(Map<String, dynamic> data) {
-    return Padding(
+    final reviewed = data["reviewed"] == true;
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(22),
       child: Column(
         children: [
-          const SizedBox(height: 80),
-          const Icon(
-            Icons.task_alt_rounded,
-            size: 110,
-            color: Color(0xFF16A34A),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 40),
+          const Icon(Icons.task_alt, size: 100, color: Colors.green),
+          const SizedBox(height: 20),
+
           const Text(
             "Job Completed",
-            style: TextStyle(
-              color: Color(0xFF0F172A),
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            ),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
           ),
-          const SizedBox(height: 30),
+
+          const SizedBox(height: 20),
           _requestSummary(data),
+          const SizedBox(height: 20),
+          _timeline("completed"),
+          const SizedBox(height: 30),
+
+          if (!reviewed)
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RateWorkerScreen(
+                        workerId: data["workerId"],
+                        requestId: widget.requestId,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.star, color: Colors.white),
+                label: const Text(
+                  "Rate Worker",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(.10),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Text(
+                "Review submitted ✅",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
         ],
       ),
     );

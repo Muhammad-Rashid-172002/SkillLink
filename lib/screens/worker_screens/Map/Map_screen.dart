@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
@@ -16,11 +17,12 @@ class _MapSreenState extends State<MapSreen> {
 
   GoogleMapController? mapController;
 
-  Stream<QuerySnapshot> getRequestsStream() {
+  Stream<QuerySnapshot> getRequestsStream(String workerSkill) {
     return FirebaseFirestore.instance
         .collection("requests")
-        .where("status", isEqualTo: "pending")
-        .orderBy("createdAt", descending: true)
+        .where("status", isEqualTo: "searching")
+        .where("category", isEqualTo: workerSkill)
+       
         .snapshots();
   }
 
@@ -48,45 +50,64 @@ class _MapSreenState extends State<MapSreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       bottomNavigationBar: const WorkerBottomBar(selectedIndex: 1),
       body: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
-          stream: getRequestsStream(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        child: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection("users")
+              .doc(FirebaseAuth.instance.currentUser!.uid)
+              .snapshots(),
+          builder: (context, workerSnapshot) {
+            if (!workerSnapshot.hasData) {
               return const Center(
                 child: CircularProgressIndicator(color: Color(0xFF16A34A)),
               );
             }
 
-            if (snapshot.hasError) {
-              return Center(child: Text(snapshot.error.toString()));
-            }
+            final workerData =
+                workerSnapshot.data!.data() as Map<String, dynamic>;
 
-            final docs = snapshot.data?.docs ?? [];
+            final workerSkill = workerData["skill"] ?? "";
 
-            return Column(
-              children: [
-                _header(docs.length),
-                _googleMap(docs),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _sectionHeader(),
-                        const SizedBox(height: 14),
-                        if (docs.isEmpty)
-                          _emptyState()
-                        else
-                          ...docs.map((doc) {
-                            final data = doc.data() as Map<String, dynamic>;
-                            return _requestCard(doc.id, data);
-                          }),
-                      ],
+            return StreamBuilder<QuerySnapshot>(
+              stream: getRequestsStream(workerSkill),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF16A34A)),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text(snapshot.error.toString()));
+                }
+
+                final docs = snapshot.data?.docs ?? [];
+
+                return Column(
+                  children: [
+                    _header(docs.length),
+                    _googleMap(docs),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _sectionHeader(),
+                            const SizedBox(height: 14),
+                            if (docs.isEmpty)
+                              _emptyState()
+                            else
+                              ...docs.map((doc) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                return _requestCard(doc.id, data);
+                              }),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             );
           },
         ),
@@ -299,6 +320,7 @@ class _MapSreenState extends State<MapSreen> {
             context,
             MaterialPageRoute(
               builder: (_) => WorkerJobDetailScreen(
+                requestId: requestId,
                 title: item["title"] ?? "",
                 category: item["category"] ?? "",
                 location: item["location"] ?? "",
