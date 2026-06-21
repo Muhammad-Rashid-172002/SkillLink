@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class PaymentMethodScreen extends StatelessWidget {
@@ -14,9 +16,7 @@ class PaymentMethodScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text("Payment Method"),
-      ),
+      appBar: AppBar(title: const Text("Payment Method")),
       body: Padding(
         padding: const EdgeInsets.all(22),
         child: Column(
@@ -58,10 +58,7 @@ class PaymentMethodScreen extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            _paymentTile(
-              icon: Icons.payments_rounded,
-              title: "JazzCash",
-            ),
+            _paymentTile(icon: Icons.payments_rounded, title: "JazzCash"),
 
             const Spacer(),
 
@@ -69,14 +66,35 @@ class PaymentMethodScreen extends StatelessWidget {
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
+                  final uid = FirebaseAuth.instance.currentUser!.uid;
+
+                  final int creditsToAdd = int.parse(credits);
+
+                  await FirebaseFirestore.instance
+                      .collection("users")
+                      .doc(uid)
+                      .update({"credits": FieldValue.increment(creditsToAdd)});
+
+                  await FirebaseFirestore.instance
+                      .collection("transactions")
+                      .add({
+                        "workerId": uid,
+                        "title": "Bought $credits credits",
+                        "amount": "+$credits Credits",
+                        "type": "credit_purchase",
+                        "createdAt": FieldValue.serverTimestamp(),
+                      });
+
+                  if (!context.mounted) return;
+
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Payment Integration Coming Soon",
-                      ),
+                    SnackBar(
+                      content: Text("$credits credits added successfully"),
                     ),
                   );
+
+                  Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF16A34A),
@@ -99,10 +117,7 @@ class PaymentMethodScreen extends StatelessWidget {
     );
   }
 
-  Widget _paymentTile({
-    required IconData icon,
-    required String title,
-  }) {
+  Widget _paymentTile({required IconData icon, required String title}) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -113,12 +128,7 @@ class PaymentMethodScreen extends StatelessWidget {
         children: [
           Icon(icon),
           const SizedBox(width: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
           const Spacer(),
           const Icon(Icons.arrow_forward_ios_rounded, size: 16),
         ],

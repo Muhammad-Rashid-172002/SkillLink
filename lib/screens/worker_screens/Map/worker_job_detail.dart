@@ -30,6 +30,32 @@ class WorkerJobDetailScreen extends StatefulWidget {
 }
 
 class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
+
+Future<void> _sendCustomerNotification({
+  required String title,
+  required String message,
+}) async {
+  final requestDoc = await FirebaseFirestore.instance
+      .collection("requests")
+      .doc(widget.requestId)
+      .get();
+
+  final requestData = requestDoc.data();
+  final customerId = requestData?["customerId"];
+
+  if (customerId == null) return;
+
+  await FirebaseFirestore.instance.collection("notifications").add({
+    "userId": customerId,
+    "requestId": widget.requestId,
+    "title": title,
+    "message": message,
+    "isRead": false,
+    "createdAt": FieldValue.serverTimestamp(),
+  });
+}
+
+
   Future<void> _updateStatus(
     BuildContext context,
     String status,
@@ -61,6 +87,27 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
         .collection("requests")
         .doc(widget.requestId)
         .update(updateData);
+
+        String notificationTitle = "";
+String notificationMessage = "";
+
+if (status == "on_the_way") {
+  notificationTitle = "Worker On The Way";
+  notificationMessage = "Your worker is heading to your location.";
+} else if (status == "in_progress") {
+  notificationTitle = "Work Started";
+  notificationMessage = "Worker has started your job.";
+} else if (status == "completed") {
+  notificationTitle = "Job Completed";
+  notificationMessage = "Your job has been completed. Please rate the worker.";
+}
+
+if (notificationTitle.isNotEmpty) {
+  await _sendCustomerNotification(
+    title: notificationTitle,
+    message: notificationMessage,
+  );
+}
 
     ScaffoldMessenger.of(
       context,
@@ -170,7 +217,73 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
         text: "Accept Job",
         color: const Color(0xFF16A34A),
         onTap: () async {
-          await _updateStatus(context, "accepted", "Job accepted successfully");
+          final uid = FirebaseAuth.instance.currentUser!.uid;
+
+          final workerDoc = await FirebaseFirestore.instance
+              .collection("users")
+              .doc(uid)
+              .get();
+
+          final workerData = workerDoc.data() as Map<String, dynamic>;
+          final credits = workerData["credits"] ?? 0;
+
+          if (credits <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  "No credits available. Please buy credits first.",
+                ),
+              ),
+            );
+            return;
+          }
+
+          await FirebaseFirestore.instance.runTransaction((transaction) async {
+            final workerRef = FirebaseFirestore.instance
+                .collection("users")
+                .doc(uid);
+
+            final requestRef = FirebaseFirestore.instance
+                .collection("requests")
+                .doc(widget.requestId);
+
+            final freshWorkerDoc = await transaction.get(workerRef);
+            final freshCredits =
+                (freshWorkerDoc.data()?["credits"] ?? 0) as int;
+
+            if (freshCredits <= 0) {
+              throw Exception("No credits available");
+            }
+
+            transaction.update(workerRef, {
+              "credits": freshCredits - 1,
+              "updatedAt": FieldValue.serverTimestamp(),
+            });
+
+            transaction.update(requestRef, {
+              "status": "accepted",
+              "workerId": uid,
+              "acceptedAt": FieldValue.serverTimestamp(),
+              "updatedAt": FieldValue.serverTimestamp(),
+            });
+
+            final transactionRef = FirebaseFirestore.instance
+                .collection("transactions")
+                .doc();
+
+            transaction.set(transactionRef, {
+              "workerId": uid,
+              "requestId": widget.requestId,
+              "title": "Used 1 lead credit",
+              "amount": "-1 Credit",
+              "type": "lead_used",
+              "createdAt": FieldValue.serverTimestamp(),
+            });
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Job accepted. 1 credit deducted.")),
+          );
         },
       );
     }

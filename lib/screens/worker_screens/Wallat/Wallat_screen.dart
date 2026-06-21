@@ -112,9 +112,10 @@ class _WallatScreenState extends State<WallatScreen> {
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection("transactions")
-          .where("workerId", isEqualTo: uid)
-          .snapshots(),
+    .collection("transactions")
+    .where("workerId", isEqualTo: uid)
+    .orderBy("createdAt", descending: true)
+    .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Text("No transactions yet");
