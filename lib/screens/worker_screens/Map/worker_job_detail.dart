@@ -30,30 +30,30 @@ class WorkerJobDetailScreen extends StatefulWidget {
 }
 
 class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
+  Future<void> _sendCustomerNotification({
+    required String title,
+    required String message,
+  }) async {
+    final requestDoc = await FirebaseFirestore.instance
+        .collection("requests")
+        .doc(widget.requestId)
+        .get();
 
-Future<void> _sendCustomerNotification({
-  required String title,
-  required String message,
-}) async {
-  final requestDoc = await FirebaseFirestore.instance
-      .collection("requests")
-      .doc(widget.requestId)
-      .get();
+    final requestData = requestDoc.data();
+    final customerId = requestData?["customerId"];
 
-  final requestData = requestDoc.data();
-  final customerId = requestData?["customerId"];
+    if (customerId == null) return;
 
-  if (customerId == null) return;
+    await FirebaseFirestore.instance.collection("notifications").add({
+      "userId": customerId,
+      "requestId": widget.requestId,
+      "title": title,
+      "message": message,
+      "isRead": false,
+      "createdAt": FieldValue.serverTimestamp(),
+    });
+  }
 
-  await FirebaseFirestore.instance.collection("notifications").add({
-    "userId": customerId,
-    "requestId": widget.requestId,
-    "title": title,
-    "message": message,
-    "isRead": false,
-    "createdAt": FieldValue.serverTimestamp(),
-  });
-}
 
 
   Future<void> _updateStatus(
@@ -88,26 +88,27 @@ Future<void> _sendCustomerNotification({
         .doc(widget.requestId)
         .update(updateData);
 
-        String notificationTitle = "";
-String notificationMessage = "";
+    String notificationTitle = "";
+    String notificationMessage = "";
 
-if (status == "on_the_way") {
-  notificationTitle = "Worker On The Way";
-  notificationMessage = "Your worker is heading to your location.";
-} else if (status == "in_progress") {
-  notificationTitle = "Work Started";
-  notificationMessage = "Worker has started your job.";
-} else if (status == "completed") {
-  notificationTitle = "Job Completed";
-  notificationMessage = "Your job has been completed. Please rate the worker.";
-}
+    if (status == "on_the_way") {
+      notificationTitle = "Worker On The Way";
+      notificationMessage = "Your worker is heading to your location.";
+    } else if (status == "in_progress") {
+      notificationTitle = "Work Started";
+      notificationMessage = "Worker has started your job.";
+    } else if (status == "completed") {
+      notificationTitle = "Job Completed";
+      notificationMessage =
+          "Your job has been completed. Please rate the worker.";
+    }
 
-if (notificationTitle.isNotEmpty) {
-  await _sendCustomerNotification(
-    title: notificationTitle,
-    message: notificationMessage,
-  );
-}
+    if (notificationTitle.isNotEmpty) {
+      await _sendCustomerNotification(
+        title: notificationTitle,
+        message: notificationMessage,
+      );
+    }
 
     ScaffoldMessenger.of(
       context,
@@ -280,6 +281,10 @@ if (notificationTitle.isNotEmpty) {
               "createdAt": FieldValue.serverTimestamp(),
             });
           });
+          await _sendCustomerNotification(
+  title: "Job Accepted",
+  message: "Your job has been accepted by a worker.",
+);
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Job accepted. 1 credit deducted.")),
