@@ -24,7 +24,7 @@ class _MapSreenState extends State<MapSreen> {
         .where("category", isEqualTo: workerSkill)
         .snapshots();
   }
-
+//
   Set<Marker> _buildMarkers(List<QueryDocumentSnapshot> docs) {
     return docs.map((doc) {
       final data = doc.data() as Map<String, dynamic>;
