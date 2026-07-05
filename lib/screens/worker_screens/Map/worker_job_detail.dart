@@ -307,7 +307,7 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
           startLiveLocationTimer();
         },
       );
-    }
+    }//
 
     if (status == "on_the_way") {
       return _button(
