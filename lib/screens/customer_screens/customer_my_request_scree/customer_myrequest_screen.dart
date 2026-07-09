@@ -349,7 +349,7 @@ class _CustomerMyRequestsScreenState extends State<CustomerMyRequestsScreen> {
         ),
       ),
     );
-  }
+  } 
 
   Widget _primaryButton(String text) {
     return SizedBox(
