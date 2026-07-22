@@ -34,15 +34,35 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         .doc(widget.chatId)
         .collection("messages")
         .add({
-      "senderId": uid,
-      "text": text,
+          "senderId": uid,
+          "text": text,
+          "createdAt": FieldValue.serverTimestamp(),
+        });
+
+    await FirebaseFirestore.instance.collection("chats").doc(widget.chatId).set(
+      {"lastMessage": text, "updatedAt": FieldValue.serverTimestamp()},
+      SetOptions(merge: true),
+    );
+    final chatDoc = await FirebaseFirestore.instance
+        .collection("chats")
+        .doc(widget.chatId)
+        .get();
+
+    final chatData = chatDoc.data()!;
+
+    final receiverId = chatData["customerId"] == uid
+        ? chatData["workerId"]
+        : chatData["customerId"];
+
+    await FirebaseFirestore.instance.collection("notifications").add({
+      "userId": receiverId,
+      "title": "New Chat Message",
+      "message": text,
+      "type": "chat",
+      "chatId": widget.chatId,
+      "isRead": false,
       "createdAt": FieldValue.serverTimestamp(),
     });
-
-    await FirebaseFirestore.instance.collection("chats").doc(widget.chatId).set({
-      "lastMessage": text,
-      "updatedAt": FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
   }
 
   @override
@@ -65,10 +85,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           children: [
             CircleAvatar(
               backgroundColor: const Color(0xFF2563EB).withOpacity(.10),
-              child: const Icon(
-                Icons.person_rounded,
-                color: Color(0xFF2563EB),
-              ),
+              child: const Icon(Icons.person_rounded, color: Color(0xFF2563EB)),
             ),
             const SizedBox(width: 12),
             Column(
@@ -94,10 +111,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.call_rounded),
-          ),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.call_rounded)),
         ],
       ),
       body: Column(
@@ -113,9 +127,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF2563EB),
-                    ),
+                    child: CircularProgressIndicator(color: Color(0xFF2563EB)),
                   );
                 }
 
@@ -137,15 +149,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final data =
-                        messages[index].data() as Map<String, dynamic>;
+                    final data = messages[index].data() as Map<String, dynamic>;
 
                     final isMe = data["senderId"] == currentUserId;
 
-                    return _messageBubble(
-                      text: data["text"] ?? "",
-                      isMe: isMe,
-                    );
+                    return _messageBubble(text: data["text"] ?? "", isMe: isMe);
                   },
                 );
               },
@@ -157,10 +165,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  Widget _messageBubble({
-    required String text,
-    required bool isMe,
-  }) {
+  Widget _messageBubble({required String text, required bool isMe}) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -200,9 +205,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0)),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
       ),
       child: SafeArea(
         top: false,

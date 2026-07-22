@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/Notification_screen/notification_screen.dart';
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -95,17 +96,66 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ],
               ),
             ),
-            Container(
-              height: 52,
-              width: 52,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(
-                Icons.notifications_none_rounded,
-                color: Color(0xFF0F172A),
-              ),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection("notifications")
+                  .where("userId", isEqualTo: uid)
+                  .where("isRead", isEqualTo: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final unreadCount = snapshot.data?.docs.length ?? 0;
+
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationScreen(),
+                      ),
+                    );
+                  },
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        height: 52,
+                        width: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Icon(Icons.notifications_none_rounded),
+                      ),
+
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 20,
+                              minHeight: 20,
+                            ),
+                            child: Text(
+                              unreadCount > 99 ? "99+" : "$unreadCount",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         );
@@ -374,7 +424,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                             (worker["rating"] ?? 0).toString(),
+                              (worker["rating"] ?? 0).toString(),
                               style: const TextStyle(
                                 color: Color(0xFF0F172A),
                                 fontWeight: FontWeight.w900,

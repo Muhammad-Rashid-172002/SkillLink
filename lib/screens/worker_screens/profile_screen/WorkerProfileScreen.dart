@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
+import 'package:skill_link/screens/worker_screens/menuTiles/CompletedJobsScreen.dart';
+import 'package:skill_link/screens/worker_screens/menuTiles/ReviewsScreen.dart';
+import 'package:skill_link/screens/worker_screens/menuTiles/SettingsScreen.dart';
+import 'package:skill_link/screens/worker_screens/menuTiles/Wallet_screen.dart';
 
 class WorkerProfileScreen extends StatelessWidget {
   const WorkerProfileScreen({super.key});
@@ -50,12 +54,78 @@ class WorkerProfileScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 24),
-                  _menuTile(Icons.work_rounded, "Completed Jobs"),
-                  _menuTile(Icons.account_balance_wallet_rounded, "Wallet & Earnings"),
-                  _menuTile(Icons.star_rounded, "Reviews & Ratings"),
-                  _menuTile(Icons.settings_rounded, "Settings"),
-                  _menuTile(Icons.support_agent_rounded, "Help & Support"),
-                  _menuTile(Icons.privacy_tip_rounded, "Privacy Policy"),
+                _menuTile(
+  Icons.work_rounded,
+  "Completed Jobs",
+  () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CompletedJobsScreen(),
+      ),
+    );
+  },
+),
+
+_menuTile(
+  Icons.account_balance_wallet_rounded,
+  "Wallet & Earnings",
+  () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const WalletScreen(),
+      ),
+    );
+  },
+),
+
+_menuTile(
+  Icons.star_rounded,
+  "Reviews & Ratings",
+  () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ReviewsRatingsScreen(),
+      ),
+    );
+  },
+),
+
+_menuTile(
+  Icons.settings_rounded,
+  "Settings",
+  () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const SettingsScreen(),
+      ),
+    );
+  },
+),
+
+_menuTile(
+  Icons.support_agent_rounded,
+  "Help & Support",
+  () {
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(
+    //     builder: (_) => const HelpSupportScreen(),
+    //   ),
+    // );
+  },
+),
+
+_menuTile(
+  Icons.privacy_tip_rounded,
+  "Privacy Policy",
+  () {
+   
+  },
+),
 
                   const SizedBox(height: 24),
 
@@ -149,20 +219,36 @@ class WorkerProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _menuTile(IconData icon, String title) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+Widget _menuTile(
+  IconData icon,
+  String title,
+  VoidCallback onTap,
+) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: ListTile(
+      onTap: onTap,
+      leading: Icon(
+        icon,
+        color: const Color(0xFF16A34A),
       ),
-      child: ListTile(
-        leading: Icon(icon, color: const Color(0xFF16A34A)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+        ),
       ),
-    );
-  }
+      trailing: const Icon(
+        Icons.arrow_forward_ios_rounded,
+        size: 16,
+      ),
+    ),
+  );
+}
 }
 
 class _StatCard extends StatelessWidget {

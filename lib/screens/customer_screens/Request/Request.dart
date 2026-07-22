@@ -68,6 +68,25 @@ class _RequestState extends State<Request> {
             "lat": position?.latitude,
             "lng": position?.longitude,
           });
+      // Get all workers
+      final workers = await FirebaseFirestore.instance
+          .collection("users")
+          .where("role", isEqualTo: "worker")
+          .get();
+          print("Workers Found: ${workers.docs.length}");
+
+      for (final worker in workers.docs) {
+         print("Sending notification to ${worker.id}");
+        await FirebaseFirestore.instance.collection("notifications").add({
+          "userId": worker.id,
+          "requestId": requestRef.id,
+          "title": "New Job Available",
+          "message": "${selectedCategory} job posted near you.",
+          "type": "job",
+          "isRead": false,
+          "createdAt": FieldValue.serverTimestamp(),
+        });
+      }
 
       setState(() => isLoading = false);
 
