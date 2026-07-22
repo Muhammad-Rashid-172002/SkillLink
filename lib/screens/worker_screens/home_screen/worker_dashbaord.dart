@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/Notification_screen/notification_screen.dart';
+import 'package:skill_link/screens/worker_screens/All_jobs/all_job_screen.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
+import 'package:skill_link/screens/worker_screens/home_screen/JobsByStatusScreen.dart';
 
 class WorkerHomeScreen extends StatefulWidget {
   const WorkerHomeScreen({super.key});
@@ -12,6 +15,7 @@ class WorkerHomeScreen extends StatefulWidget {
 
 class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   int selectedIndex = 0;
+  final uid = FirebaseAuth.instance.currentUser!.uid;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +34,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
               const SizedBox(height: 24),
               _statsRow(),
               const SizedBox(height: 28),
-              _sectionHeader("New Job Requests", "View all"),
+              _sectionHeader(context, "Recent Jobs", "See All"),
               const SizedBox(height: 16),
               _requestList(),
             ],
@@ -78,14 +82,67 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                 ],
               ),
             ),
-            Container(
-              height: 52,
-              width: 52,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(Icons.notifications_none_rounded),
+
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection("notifications")
+                  .where("userId", isEqualTo: uid)
+                  .where("isRead", isEqualTo: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final unreadCount = snapshot.data?.docs.length ?? 0;
+
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationScreen(),
+                      ),
+                    );
+                  },
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        height: 52,
+                        width: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Icon(Icons.notifications_none_rounded),
+                      ),
+
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 20,
+                              minHeight: 20,
+                            ),
+                            child: Text(
+                              unreadCount > 99 ? "99+" : "$unreadCount",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         );
@@ -197,11 +254,24 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                 value: "$count",
                 icon: Icons.pending_actions_rounded,
                 color: const Color(0xFFF59E0B),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const JobsByStatusScreen(
+                        title: "Pending Jobs",
+                        status: "searching",
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),
         ),
+
         const SizedBox(width: 14),
+
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
@@ -220,6 +290,17 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                 value: "$count",
                 icon: Icons.work_history_rounded,
                 color: const Color(0xFF2563EB),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const JobsByStatusScreen(
+                        title: "Active Jobs",
+                        status: "active",
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -233,60 +314,41 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     required String value,
     required IconData icon,
     required Color color,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.04),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 44,
-            width: 44,
-            decoration: BoxDecoration(
-              color: color.withOpacity(.12),
-              shape: BoxShape.circle,
+    return InkWell(
+      borderRadius: BorderRadius.circular(22),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Column(
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withOpacity(.12),
+              child: Icon(icon, color: color),
             ),
-            child: Icon(icon, color: color, size: 23),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                ),
+            const SizedBox(height: 10),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: color,
               ),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 4),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _sectionHeader(String title, String action) {
+  Widget _sectionHeader(BuildContext context, String title, String action) {
     return Row(
       children: [
         Text(
@@ -298,12 +360,20 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           ),
         ),
         const Spacer(),
-        Text(
-          action,
-          style: const TextStyle(
-            color: Color(0xFF16A34A),
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AllJobsScreen()),
+            );
+          },
+          child: Text(
+            action,
+            style: const TextStyle(
+              color: Color(0xFF16A34A),
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ],
