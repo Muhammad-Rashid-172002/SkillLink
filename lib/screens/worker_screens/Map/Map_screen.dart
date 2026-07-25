@@ -29,20 +29,11 @@ class _MapSreenState extends State<MapSreen> {
   Stream<QuerySnapshot<Map<String, dynamic>>> getRequestsStream(
     String workerSkill,
   ) {
-  return FirebaseFirestore.instance
-    .collection('requests')
-    .where('status', isEqualTo: 'searching')
-    .where('category', isEqualTo: workerSkill)
-    .where(
-      Filter.or(
-        Filter("workerId", isNull: true),
-        Filter(
-          "workerId",
-          isEqualTo: FirebaseAuth.instance.currentUser!.uid,
-        ),
-      ),
-    )
-    .snapshots();
+    return FirebaseFirestore.instance
+        .collection('requests')
+        .where('status', isEqualTo: 'searching')
+        .where('category', isEqualTo: workerSkill)
+        .snapshots();
   }
 
   Set<Marker> _buildMarkers(
@@ -117,7 +108,24 @@ class _MapSreenState extends State<MapSreen> {
                   return _fullPageError('Unable to load nearby job requests.');
                 }
 
-                final docs = snapshot.data?.docs ?? [];
+                final documents = snapshot.data?.docs ?? [];
+
+                final String currentWorkerId =
+                    FirebaseAuth.instance.currentUser!.uid;
+
+                final docs = documents.where((doc) {
+                  final data = doc.data();
+
+                  final String assignedWorkerId =
+                      data['workerId']?.toString().trim() ?? '';
+
+                  final bool isPublic = assignedWorkerId.isEmpty;
+
+                  final bool isForCurrentWorker =
+                      assignedWorkerId == currentWorkerId;
+
+                  return isPublic || isForCurrentWorker;
+                }).toList();
 
                 return RefreshIndicator(
                   color: _primary,

@@ -73,20 +73,70 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final reviewText = _reviewController.text.trim();
+      final firestore = FirebaseFirestore.instance;
 
-      await FirebaseFirestore.instance.collection('reviews').add({
-        'workerId': widget.workerId,
-        'customerId': user.uid,
-        'requestId': widget.requestId,
-        'rating': _selectedRating,
-        'review': reviewText,
-        'createdAt': FieldValue.serverTimestamp(),
+      final requestRef = firestore.collection('requests').doc(widget.requestId);
+
+      final reviewRef = firestore.collection('reviews').doc(widget.requestId);
+
+      String assignedWorkerId = '';
+
+      await firestore.runTransaction((transaction) async {
+        final requestSnapshot = await transaction.get(requestRef);
+
+        if (!requestSnapshot.exists) {
+          throw Exception('Request not found');
+        }
+
+        final requestData = requestSnapshot.data()!;
+
+        final customerId = requestData['customerId'] as String?;
+        final workerId = requestData['workerId'] as String?;
+        final status = requestData['status'] as String?;
+        final reviewed = requestData['reviewed'] == true;
+
+        if (customerId != user.uid) {
+          throw Exception('You cannot review this request');
+        }
+
+        if (status != 'completed') {
+          throw Exception('This job is not completed yet');
+        }
+
+        if (workerId == null || workerId.isEmpty) {
+          throw Exception('No worker is assigned to this job');
+        }
+
+        if (workerId != widget.workerId) {
+          throw Exception('Worker information does not match');
+        }
+
+        if (reviewed) {
+          throw Exception('You have already reviewed this worker');
+        }
+
+        assignedWorkerId = workerId;
+
+        transaction.set(reviewRef, {
+          'workerId': assignedWorkerId,
+          'customerId': user.uid,
+          'requestId': widget.requestId,
+          'rating': _selectedRating,
+          'review': _reviewController.text.trim(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(requestRef, {
+          'reviewed': true,
+          'reviewPending': false,
+          'reviewedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
 
-      final reviewsSnapshot = await FirebaseFirestore.instance
+      final reviewsSnapshot = await firestore
           .collection('reviews')
-          .where('workerId', isEqualTo: widget.workerId)
+          .where('workerId', isEqualTo: assignedWorkerId)
           .get();
 
       double totalRating = 0;
@@ -100,43 +150,29 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
       }
 
       final reviewCount = reviewsSnapshot.docs.length;
-      final averageRating =
-          reviewCount == 0 ? 0 : totalRating / reviewCount;
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.workerId)
-          .update({
-        'rating': double.parse(
-          averageRating.toStringAsFixed(1),
-        ),
+      final averageRating = reviewCount == 0 ? 0 : totalRating / reviewCount;
+
+      await firestore.collection('users').doc(assignedWorkerId).update({
+        'rating': double.parse(averageRating.toStringAsFixed(1)),
         'totalReviews': reviewCount,
-      });
-
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .doc(widget.requestId)
-          .update({
-        'reviewed': true,
-        'reviewedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       if (!mounted) return;
 
       _showMessage('Review submitted successfully.');
 
-      await Future<void>.delayed(
-        const Duration(milliseconds: 450),
-      );
+      await Future<void>.delayed(const Duration(milliseconds: 450));
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
     } catch (error) {
       if (!mounted) return;
 
       _showMessage(
-        'Review could not be submitted. ${error.toString()}',
+        error.toString().replaceFirst('Exception: ', ''),
         isError: true,
       );
     } finally {
@@ -155,10 +191,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
           Positioned(
             top: -150,
             right: -120,
-            child: _ambientCircle(
-              size: 330,
-              color: _primary.withOpacity(0.09),
-            ),
+            child: _ambientCircle(size: 330, color: _primary.withOpacity(0.09)),
           ),
           Positioned(
             bottom: -165,
@@ -175,49 +208,41 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
-                      20,
-                      12,
-                      20,
-                      36,
-                    ),
-                    child: StreamBuilder<
-                        DocumentSnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(widget.workerId)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        final worker = snapshot.data?.data();
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
+                    child:
+                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(widget.workerId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            final worker = snapshot.data?.data();
 
-                        return Column(
-                          children: [
-                            _heroCard(),
-                            const SizedBox(height: 18),
-                            if (worker != null) ...[
-                              _workerSummary(worker),
-                              const SizedBox(height: 18),
-                            ],
-                            _ratingCard(),
-                            const SizedBox(height: 18),
-                            _reviewCard(),
-                            const SizedBox(height: 18),
-                            _privacyNote(),
-                            const SizedBox(height: 20),
-                            _submitButton(),
-                          ],
-                        );
-                      },
-                    ),
+                            return Column(
+                              children: [
+                                _heroCard(),
+                                const SizedBox(height: 18),
+                                if (worker != null) ...[
+                                  _workerSummary(worker),
+                                  const SizedBox(height: 18),
+                                ],
+                                _ratingCard(),
+                                const SizedBox(height: 18),
+                                _reviewCard(),
+                                const SizedBox(height: 18),
+                                _privacyNote(),
+                                const SizedBox(height: 20),
+                                _submitButton(),
+                              ],
+                            );
+                          },
+                        ),
                   ),
                 ),
               ],
             ),
           ),
-          if (_isLoading)
-            Positioned.fill(
-              child: _submittingOverlay(),
-            ),
+          if (_isLoading) Positioned.fill(child: _submittingOverlay()),
         ],
       ),
     );
@@ -225,12 +250,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
 
   Widget _topBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        14,
-        20,
-        12,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
       child: Row(
         children: [
           Material(
@@ -317,12 +337,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
   Widget _heroCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        22,
-        20,
-        20,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -372,9 +387,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.15),
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.20),
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.20)),
                 ),
                 child: const Icon(
                   Icons.workspace_premium_rounded,
@@ -411,17 +424,9 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
     );
   }
 
-  Widget _workerSummary(
-    Map<String, dynamic> worker,
-  ) {
-    final name = _fallback(
-      worker['name'],
-      'Skilled worker',
-    );
-    final skill = _fallback(
-      worker['skill'],
-      'Professional service',
-    );
+  Widget _workerSummary(Map<String, dynamic> worker) {
+    final name = _fallback(worker['name'], 'Skilled worker');
+    final skill = _fallback(worker['skill'], 'Professional service');
     final city = _fallback(
       worker['city'] ?? worker['location'],
       'Location unavailable',
@@ -430,8 +435,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
     final totalReviews = _intValue(
       worker['totalReviews'] ?? worker['reviewsCount'],
     );
-    final verified =
-        worker['isVerified'] == true || worker['verified'] == true;
+    final verified = worker['isVerified'] == true || worker['verified'] == true;
 
     return Container(
       width: double.infinity,
@@ -454,9 +458,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
             height: 62,
             width: 62,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_primary, _secondary],
-              ),
+              gradient: const LinearGradient(colors: [_primary, _secondary]),
               borderRadius: BorderRadius.circular(20),
             ),
             alignment: Alignment.center,
@@ -535,10 +537,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
           ),
           const SizedBox(width: 9),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: _warning.withOpacity(0.10),
               borderRadius: BorderRadius.circular(13),
@@ -547,11 +546,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: _warning,
-                      size: 14,
-                    ),
+                    const Icon(Icons.star_rounded, color: _warning, size: 14),
                     const SizedBox(width: 4),
                     Text(
                       rating.toStringAsFixed(1),
@@ -622,53 +617,37 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
           const SizedBox(height: 18),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              5,
-              (index) {
-                final starValue = index + 1;
-                final selected =
-                    starValue <= _selectedRating;
+            children: List.generate(5, (index) {
+              final starValue = index + 1;
+              final selected = starValue <= _selectedRating;
 
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedRating = starValue;
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration:
-                          const Duration(milliseconds: 220),
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 3,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? _warning.withOpacity(0.11)
-                            : const Color(0xFFF8FAFC),
-                        borderRadius:
-                            BorderRadius.circular(15),
-                        border: Border.all(
-                          color: selected
-                              ? _warning
-                              : _border,
-                        ),
-                      ),
-                      child: Icon(
-                        selected
-                            ? Icons.star_rounded
-                            : Icons.star_border_rounded,
-                        color: _warning,
-                        size: selected ? 29 : 27,
-                      ),
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedRating = starValue;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? _warning.withOpacity(0.11)
+                          : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: selected ? _warning : _border),
+                    ),
+                    child: Icon(
+                      selected ? Icons.star_rounded : Icons.star_border_rounded,
+                      color: _warning,
+                      size: selected ? 29 : 27,
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            }),
           ),
           const SizedBox(height: 17),
           AnimatedContainer(
@@ -676,8 +655,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: _ratingColor(_selectedRating)
-                  .withOpacity(0.09),
+              color: _ratingColor(_selectedRating).withOpacity(0.09),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -686,8 +664,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
                   height: 39,
                   width: 39,
                   decoration: BoxDecoration(
-                    color: _ratingColor(_selectedRating)
-                        .withOpacity(0.12),
+                    color: _ratingColor(_selectedRating).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(13),
                   ),
                   child: Icon(
@@ -699,14 +676,12 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
                 const SizedBox(width: 11),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         title,
                         style: TextStyle(
-                          color:
-                              _ratingColor(_selectedRating),
+                          color: _ratingColor(_selectedRating),
                           fontSize: 11.5,
                           fontWeight: FontWeight.w900,
                         ),
@@ -761,11 +736,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
         children: [
           const Row(
             children: [
-              Icon(
-                Icons.rate_review_outlined,
-                color: _primary,
-                size: 20,
-              ),
+              Icon(Icons.rate_review_outlined, color: _primary, size: 20),
               SizedBox(width: 8),
               Text(
                 'Write a review',
@@ -817,16 +788,11 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
               contentPadding: const EdgeInsets.all(15),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(17),
-                borderSide: const BorderSide(
-                  color: _border,
-                ),
+                borderSide: const BorderSide(color: _border),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(17),
-                borderSide: const BorderSide(
-                  color: _primary,
-                  width: 1.5,
-                ),
+                borderSide: const BorderSide(color: _primary, width: 1.5),
               ),
             ),
           ),
@@ -842,18 +808,12 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
       decoration: BoxDecoration(
         color: _primary.withOpacity(0.07),
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(
-          color: _primary.withOpacity(0.12),
-        ),
+        border: Border.all(color: _primary.withOpacity(0.12)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.info_outline_rounded,
-            color: _primary,
-            size: 18,
-          ),
+          Icon(Icons.info_outline_rounded, color: _primary, size: 18),
           SizedBox(width: 9),
           Expanded(
             child: Text(
@@ -881,22 +841,15 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
           elevation: 0,
           foregroundColor: Colors.white,
           backgroundColor: _primary,
-          disabledBackgroundColor:
-              _primary.withOpacity(0.55),
+          disabledBackgroundColor: _primary.withOpacity(0.55),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(19),
           ),
         ),
-        icon: const Icon(
-          Icons.send_rounded,
-          size: 18,
-        ),
+        icon: const Icon(Icons.send_rounded, size: 18),
         label: const Text(
           'Submit review',
-          style: TextStyle(
-            fontSize: 12.2,
-            fontWeight: FontWeight.w900,
-          ),
+          style: TextStyle(fontSize: 12.2, fontWeight: FontWeight.w900),
         ),
       ),
     );
@@ -923,10 +876,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
           child: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(
-                color: _primary,
-                strokeWidth: 2.7,
-              ),
+              CircularProgressIndicator(color: _primary, strokeWidth: 2.7),
               SizedBox(height: 16),
               Text(
                 'Submitting your review',
@@ -968,10 +918,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
     return Icons.sentiment_very_satisfied_rounded;
   }
 
-  String _fallback(
-    dynamic value,
-    String fallback,
-  ) {
+  String _fallback(dynamic value, String fallback) {
     final text = value?.toString().trim() ?? '';
     return text.isEmpty ? fallback : text;
   }
@@ -979,19 +926,13 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
   double _doubleValue(dynamic value) {
     if (value is num) return value.toDouble();
 
-    return double.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        0;
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   int _intValue(dynamic value) {
     if (value is num) return value.toInt();
 
-    return int.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        0;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   String _initials(String name) {
@@ -1004,9 +945,7 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
     if (parts.isEmpty) return 'SW';
 
     if (parts.length == 1) {
-      return parts.first
-          .substring(0, 1)
-          .toUpperCase();
+      return parts.first.substring(0, 1).toUpperCase();
     }
 
     return '${parts.first.substring(0, 1)}'
@@ -1014,18 +953,14 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
         .toUpperCase();
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(18),
-          backgroundColor:
-              isError ? _danger : _textPrimary,
+          backgroundColor: isError ? _danger : _textPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -1054,22 +989,13 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
       );
   }
 
-  Widget _ambientCircle({
-    required double size,
-    required Color color,
-  }) {
+  Widget _ambientCircle({required double size, required Color color}) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 50,
-        sigmaY: 50,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
       child: Container(
         height: size,
         width: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }

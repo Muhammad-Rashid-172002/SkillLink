@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 
 class WorkerJobDetailScreen extends StatefulWidget {
   final String requestId;
@@ -64,22 +65,24 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
       "updatedAt": FieldValue.serverTimestamp(),
     };
 
-    if (status == "accepted") {
-      updateData["workerId"] = FirebaseAuth.instance.currentUser!.uid;
-      updateData["acceptedAt"] = FieldValue.serverTimestamp();
-    }
+ if (status == "accepted") {
+  updateData["workerId"] = FirebaseAuth.instance.currentUser!.uid;
+  updateData["acceptedAt"] = FieldValue.serverTimestamp();
+}
 
-    if (status == "on_the_way") {
-      updateData["onTheWayAt"] = FieldValue.serverTimestamp();
-    }
+if (status == "on_the_way") {
+  updateData["onTheWayAt"] = FieldValue.serverTimestamp();
+}
 
-    if (status == "in_progress") {
-      updateData["startedAt"] = FieldValue.serverTimestamp();
-    }
+if (status == "in_progress") {
+  updateData["startedAt"] = FieldValue.serverTimestamp();
+}
 
-    if (status == "completed") {
-      updateData["completedAt"] = FieldValue.serverTimestamp();
-    }
+if (status == "completed") {
+  updateData["completedAt"] = FieldValue.serverTimestamp();
+  updateData["reviewPending"] = true;
+  updateData["reviewed"] = false;
+}
 
     await FirebaseFirestore.instance
         .collection("requests")
@@ -296,13 +299,7 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
           final credits = workerData["credits"] ?? 0;
 
           if (credits <= 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  "No credits available. Please buy credits first.",
-                ),
-              ),
-            );
+            _showNoCreditsDialog();
             return;
           }
 
@@ -429,6 +426,158 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showNoCreditsDialog() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "No Credits",
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (_, __, ___) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 30,
+                    offset: Offset(0, 15),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    height: 78,
+                    width: 78,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4E5),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFFFC107),
+                        width: 2,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.account_balance_wallet_rounded,
+                      size: 40,
+                      color: Color(0xFFF59E0B),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    "Insufficient Credits",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  const Text(
+                    "You don't have enough credits to accept this job.\n\nPurchase more credits to continue receiving customer requests.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+
+                  const SizedBox(height: 26),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            "Maybe Later",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF475569),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: const Color(0xFF16A34A),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(52),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.shopping_cart_checkout_rounded,
+                          ),
+                          label: const Text(
+                            "Buy Credits",
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const WallatScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (_, animation, __, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutBack,
+            ),
+            child: child,
+          ),
+        );
+      },
     );
   }
 

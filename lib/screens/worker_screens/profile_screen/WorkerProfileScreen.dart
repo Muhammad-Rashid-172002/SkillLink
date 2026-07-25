@@ -7,6 +7,7 @@ import 'package:skill_link/screens/worker_screens/menuTiles/CompletedJobsScreen.
 import 'package:skill_link/screens/worker_screens/menuTiles/ReviewsScreen.dart';
 import 'package:skill_link/screens/worker_screens/menuTiles/Wallet_screen.dart';
 import 'package:skill_link/screens/worker_screens/menuTiles/help_support_screen_modern.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class WorkerProfileScreen extends StatelessWidget {
   const WorkerProfileScreen({super.key});
@@ -18,6 +19,7 @@ class WorkerProfileScreen extends StatelessWidget {
   static const Color _textPrimary = Color(0xFF0F172A);
   static const Color _textSecondary = Color(0xFF64748B);
   static const Color _border = Color(0xFFE7ECF3);
+  static const Color _danger = Color(0xFFDC2626);
 
   @override
   Widget build(BuildContext context) {
@@ -187,17 +189,8 @@ class WorkerProfileScreen extends StatelessWidget {
                                             'Review how your data is protected',
                                         iconBackground: const Color(0xFFF3F4F6),
                                         iconColor: const Color(0xFF475569),
-                                        onTap: () {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Privacy Policy screen will be connected here.',
-                                              ),
-                                            ),
-                                          );
-                                        },
+                                        onTap: () =>
+                                            _openPrivacyPolicy(context),
                                       ),
                                     ],
                                   ),
@@ -226,6 +219,64 @@ class WorkerProfileScreen extends StatelessWidget {
               ),
       ),
     );
+  }
+
+  Future<void> _openPrivacyPolicy(BuildContext context) async {
+    final Uri uri = Uri.parse('https://skilllinkprivacypolicy.vercel.app');
+
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+      if (!opened && context.mounted) {
+        _showMessage(context, 'Could not open Privacy Policy.', isError: true);
+      }
+    } catch (e) {
+      debugPrint('Privacy Policy error: $e');
+
+      if (!context.mounted) return;
+
+      _showMessage(context, 'Could not open Privacy Policy.', isError: true);
+    }
+  }
+
+  void _showMessage(
+    BuildContext context,
+    String message, {
+    bool isError = false,
+  }) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(18),
+          backgroundColor: isError ? _danger : _textPrimary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          content: Row(
+            children: [
+              Icon(
+                isError
+                    ? Icons.error_outline_rounded
+                    : Icons.check_circle_outline_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
   }
 
   Widget _header(BuildContext context) {

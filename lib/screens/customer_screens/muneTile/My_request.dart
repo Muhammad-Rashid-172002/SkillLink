@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/customer_screens/customer_my_request_scree/RateWorkerScreen.dart';
 
 class MyRequestsScreen extends StatelessWidget {
   const MyRequestsScreen({super.key});
@@ -60,8 +61,7 @@ class MyRequestsScreen extends StatelessWidget {
                     return _buildMessageState(
                       icon: Icons.error_outline_rounded,
                       title: 'Unable to load requests',
-                      subtitle:
-                          'Your requests could not be loaded right now.',
+                      subtitle: 'Your requests could not be loaded right now.',
                     );
                   }
 
@@ -88,12 +88,7 @@ class MyRequestsScreen extends StatelessWidget {
                       Expanded(
                         child: ListView.separated(
                           physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(
-                            16,
-                            2,
-                            16,
-                            110,
-                          ),
+                          padding: const EdgeInsets.fromLTRB(16, 2, 16, 110),
                           itemCount: requests.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 14),
@@ -101,16 +96,15 @@ class MyRequestsScreen extends StatelessWidget {
                             final document = requests[index];
 
                             return _RequestCard(
+                              requestId: document.id,
                               data: document.data(),
                               onCancel: () => _cancelRequest(
                                 context,
                                 document.id,
                                 document.data(),
                               ),
-                              onDelete: () => _deleteRequest(
-                                context,
-                                document.id,
-                              ),
+                              onDelete: () =>
+                                  _deleteRequest(context, document.id),
                             );
                           },
                         ),
@@ -128,12 +122,7 @@ class MyRequestsScreen extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        14,
-        20,
-        18,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
@@ -226,7 +215,7 @@ class MyRequestsScreen extends StatelessWidget {
     for (final request in requests) {
       final status =
           request.data()['status']?.toString().toLowerCase().trim() ??
-              'pending';
+          'pending';
 
       if (status == 'completed') {
         completed++;
@@ -248,10 +237,7 @@ class MyRequestsScreen extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            _primary,
-            _primaryDark,
-          ],
+          colors: [_primary, _primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -301,9 +287,7 @@ class MyRequestsScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(.14),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(.16),
-                      ),
+                      border: Border.all(color: Colors.white.withOpacity(.16)),
                     ),
                     child: const Icon(
                       Icons.insights_outlined,
@@ -406,24 +390,15 @@ class MyRequestsScreen extends StatelessWidget {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 13,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 13),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(.11),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(.13),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(.13)),
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: 18,
-          ),
+          Icon(icon, color: Colors.white, size: 18),
           const SizedBox(height: 7),
           Text(
             value,
@@ -452,10 +427,7 @@ class MyRequestsScreen extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(
-            color: _primary,
-            strokeWidth: 2.5,
-          ),
+          CircularProgressIndicator(color: _primary, strokeWidth: 2.5),
           SizedBox(height: 14),
           Text(
             'Loading your requests...',
@@ -480,10 +452,7 @@ class MyRequestsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(28),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 30,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(28),
@@ -506,11 +475,7 @@ class MyRequestsScreen extends StatelessWidget {
                   color: _primary.withOpacity(.09),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  icon,
-                  color: _primary,
-                  size: 37,
-                ),
+                child: Icon(icon, color: _primary, size: 37),
               ),
               const SizedBox(height: 18),
               Text(
@@ -560,8 +525,7 @@ class MyRequestsScreen extends StatelessWidget {
     final confirmed = await _showConfirmationDialog(
       context,
       title: 'Cancel request?',
-      message:
-          'This request will no longer be available to the worker.',
+      message: 'This request will no longer be available to the worker.',
       confirmText: 'Cancel Request',
       icon: Icons.cancel_outlined,
     );
@@ -573,17 +537,14 @@ class MyRequestsScreen extends StatelessWidget {
           .collection('requests')
           .doc(requestId)
           .update({
-        'status': 'cancelled',
-        'cancelledAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'status': 'cancelled',
+            'cancelledAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (!context.mounted) return;
 
-      _showSnackBar(
-        context,
-        message: 'Request cancelled successfully.',
-      );
+      _showSnackBar(context, message: 'Request cancelled successfully.');
     } on FirebaseException catch (error) {
       if (!context.mounted) return;
 
@@ -595,15 +556,11 @@ class MyRequestsScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _deleteRequest(
-    BuildContext context,
-    String requestId,
-  ) async {
+  Future<void> _deleteRequest(BuildContext context, String requestId) async {
     final confirmed = await _showConfirmationDialog(
       context,
       title: 'Delete request?',
-      message:
-          'This request will be permanently removed from your history.',
+      message: 'This request will be permanently removed from your history.',
       confirmText: 'Delete',
       icon: Icons.delete_outline_rounded,
     );
@@ -618,10 +575,7 @@ class MyRequestsScreen extends StatelessWidget {
 
       if (!context.mounted) return;
 
-      _showSnackBar(
-        context,
-        message: 'Request deleted successfully.',
-      );
+      _showSnackBar(context, message: 'Request deleted successfully.');
     } on FirebaseException catch (error) {
       if (!context.mounted) return;
 
@@ -670,11 +624,7 @@ class MyRequestsScreen extends StatelessWidget {
                     color: _danger.withOpacity(.09),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    icon,
-                    color: _danger,
-                    size: 34,
-                  ),
+                  child: Icon(icon, color: _danger, size: 34),
                 ),
                 const SizedBox(height: 18),
                 Text(
@@ -702,8 +652,7 @@ class MyRequestsScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () =>
-                            Navigator.pop(dialogContext, false),
+                        onPressed: () => Navigator.pop(dialogContext, false),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(52),
                           side: const BorderSide(color: _border),
@@ -723,8 +672,7 @@ class MyRequestsScreen extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () =>
-                            Navigator.pop(dialogContext, true),
+                        onPressed: () => Navigator.pop(dialogContext, true),
                         style: ElevatedButton.styleFrom(
                           elevation: 0,
                           backgroundColor: _danger,
@@ -776,21 +724,12 @@ class MyRequestsScreen extends StatelessWidget {
           margin: const EdgeInsets.all(16),
           duration: const Duration(seconds: 2),
           content: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 15,
-              vertical: 14,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isError
-                    ? const [
-                        Color(0xFFDC2626),
-                        Color(0xFFEF4444),
-                      ]
-                    : const [
-                        Color(0xFF16A34A),
-                        Color(0xFF14B8A6),
-                      ],
+                    ? const [Color(0xFFDC2626), Color(0xFFEF4444)]
+                    : const [Color(0xFF16A34A), Color(0xFF14B8A6)],
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
@@ -811,9 +750,7 @@ class MyRequestsScreen extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isError
-                        ? Icons.error_rounded
-                        : Icons.check_circle_rounded,
+                    isError ? Icons.error_rounded : Icons.check_circle_rounded,
                     color: Colors.white,
                     size: 21,
                   ),
@@ -841,8 +778,10 @@ class _RequestCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final VoidCallback onCancel;
   final VoidCallback onDelete;
+  final String requestId;
 
   const _RequestCard({
+    required this.requestId,
     required this.data,
     required this.onCancel,
     required this.onDelete,
@@ -862,26 +801,32 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = _value(data['title'], 'Service Request');
     final category = _value(data['category'], 'General Service');
-    final description =
-        _value(data['description'], 'No description provided.');
-    final location =
-        _value(data['location'], 'Location not provided');
+    final description = _value(data['description'], 'No description provided.');
+    final location = _value(data['location'], 'Location not provided');
     final budget = _formatBudget(data['budget']);
     final urgency = _value(data['urgency'], 'Normal');
     final workerName = _value(data['workerName'], '');
     final workerId = _value(data['workerId'], '');
     final requestType = _value(data['requestType'], '');
-    final isDirectRequest =
-        workerId.isNotEmpty || requestType == 'direct';
+    final isDirectRequest = workerId.isNotEmpty || requestType == 'direct';
     final status = _value(data['status'], 'pending').toLowerCase();
     final createdAt = MyRequestsScreen._getDate(data['createdAt']);
     final statusStyle = _statusStyle(status);
 
     final canCancel = status == 'pending';
-    final canDelete = status == 'cancelled' ||
+    final canDelete =
+        status == 'cancelled' ||
         status == 'canceled' ||
         status == 'completed' ||
         status == 'rejected';
+    final reviewed = data['reviewed'] == true;
+    final reviewPending = data['reviewPending'] == true;
+
+    final canReview =
+        status == 'completed' &&
+        workerId.isNotEmpty &&
+        !reviewed &&
+        reviewPending;
 
     return Container(
       decoration: BoxDecoration(
@@ -936,8 +881,7 @@ class _RequestCard extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               title,
@@ -1043,8 +987,8 @@ class _RequestCard extends StatelessWidget {
                           label: 'Request Type',
                           value: isDirectRequest
                               ? workerName.isNotEmpty
-                                  ? workerName
-                                  : 'Direct request'
+                                    ? workerName
+                                    : 'Direct request'
                               : 'Public request',
                           color: _purple,
                         ),
@@ -1052,10 +996,7 @@ class _RequestCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 15),
-                  const Divider(
-                    height: 1,
-                    color: _border,
-                  ),
+                  const Divider(height: 1, color: _border),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -1076,8 +1017,7 @@ class _RequestCard extends StatelessWidget {
                       const SizedBox(width: 9),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
                               'Created',
@@ -1102,10 +1042,7 @@ class _RequestCard extends StatelessWidget {
                       if (canCancel)
                         TextButton.icon(
                           onPressed: onCancel,
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            size: 16,
-                          ),
+                          icon: const Icon(Icons.close_rounded, size: 16),
                           label: const Text('Cancel'),
                           style: TextButton.styleFrom(
                             foregroundColor: _danger,
@@ -1135,6 +1072,35 @@ class _RequestCard extends StatelessWidget {
                         ),
                     ],
                   ),
+                  if (canReview) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final submitted = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RateWorkerScreen(
+                                workerId: workerId,
+                                requestId: requestId,
+                              ),
+                            ),
+                          );
+
+                          if (submitted == true && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Thank you for your review.'),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.star_rounded),
+                        label: const Text('Rate Worker'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1146,25 +1112,16 @@ class _RequestCard extends StatelessWidget {
 
   Widget _statusChip(_StatusStyle style) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: style.color.withOpacity(.10),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: style.color.withOpacity(.15),
-        ),
+        border: Border.all(color: style.color.withOpacity(.15)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            style.icon,
-            color: style.color,
-            size: 13,
-          ),
+          Icon(style.icon, color: style.color, size: 13),
           const SizedBox(width: 5),
           Text(
             style.label,
@@ -1190,9 +1147,7 @@ class _RequestCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withOpacity(.055),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: color.withOpacity(.12),
-        ),
+        border: Border.all(color: color.withOpacity(.12)),
       ),
       child: Row(
         children: [
@@ -1203,11 +1158,7 @@ class _RequestCard extends StatelessWidget {
               color: color.withOpacity(.10),
               borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 16,
-            ),
+            child: Icon(icon, color: color, size: 16),
           ),
           const SizedBox(width: 9),
           Expanded(
@@ -1294,35 +1245,18 @@ class _RequestCard extends StatelessWidget {
         );
       case 'cancelled':
       case 'canceled':
-        return const _StatusStyle(
-          'Cancelled',
-          _danger,
-          Icons.cancel_outlined,
-        );
+        return const _StatusStyle('Cancelled', _danger, Icons.cancel_outlined);
       case 'rejected':
-        return const _StatusStyle(
-          'Rejected',
-          _danger,
-          Icons.block_rounded,
-        );
+        return const _StatusStyle('Rejected', _danger, Icons.block_rounded);
       default:
-        return const _StatusStyle(
-          'Pending',
-          _warning,
-          Icons.schedule_rounded,
-        );
+        return const _StatusStyle('Pending', _warning, Icons.schedule_rounded);
     }
   }
 
-  static String _value(
-    dynamic value,
-    String fallback,
-  ) {
+  static String _value(dynamic value, String fallback) {
     final text = value?.toString().trim() ?? '';
 
-    return text.isEmpty || text.toLowerCase() == 'null'
-        ? fallback
-        : text;
+    return text.isEmpty || text.toLowerCase() == 'null' ? fallback : text;
   }
 
   static String _formatBudget(dynamic value) {
@@ -1332,9 +1266,7 @@ class _RequestCard extends StatelessWidget {
       return 'Budget not provided';
     }
 
-    return budget.toLowerCase().startsWith('rs')
-        ? budget
-        : 'Rs $budget';
+    return budget.toLowerCase().startsWith('rs') ? budget : 'Rs $budget';
   }
 
   static String _formatDate(DateTime date) {
@@ -1373,9 +1305,5 @@ class _StatusStyle {
   final Color color;
   final IconData icon;
 
-  const _StatusStyle(
-    this.label,
-    this.color,
-    this.icon,
-  );
+  const _StatusStyle(this.label, this.color, this.icon);
 }

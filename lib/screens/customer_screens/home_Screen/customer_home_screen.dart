@@ -4,8 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/Notification_screen/notification_screen.dart';
-import 'package:skill_link/screens/customer_screens/Request/Request.dart';
+import 'package:skill_link/models/service_data.dart';
+import 'package:skill_link/screens/customer_screens/Request/Request.dart'
+    hide ServiceOption;
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
+import 'package:skill_link/screens/customer_screens/home_Screen/AllServicesScreen.dart';
+import 'package:skill_link/screens/customer_screens/home_Screen/top_rated_workers_screen.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -31,39 +35,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   String _searchQuery = '';
   int _selectedCategory = -1;
 
-  final List<ServiceCategory> _categories = const [
-    ServiceCategory(
-      title: 'Electrician',
-      icon: Icons.electrical_services_rounded,
-      accent: Color(0xFFFFB703),
-    ),
-    ServiceCategory(
-      title: 'Plumber',
-      icon: Icons.plumbing_rounded,
-      accent: Color(0xFF06B6D4),
-    ),
-    ServiceCategory(
-      title: 'Painter',
-      icon: Icons.format_paint_rounded,
-      accent: Color(0xFF8B5CF6),
-    ),
-    ServiceCategory(
-      title: 'Carpenter',
-      icon: Icons.carpenter_rounded,
-      accent: Color(0xFFF97316),
-    ),
-    ServiceCategory(
-      title: 'AC Repair',
-      icon: Icons.ac_unit_rounded,
-      accent: Color(0xFF0EA5E9),
-    ),
-    ServiceCategory(
-      title: 'Cleaner',
-      icon: Icons.cleaning_services_rounded,
-      accent: Color(0xFF10B981),
-    ),
-  ];
-
+  final List<ServiceOption> _categories = allServices;
   @override
   void dispose() {
     _searchController.dispose();
@@ -136,14 +108,35 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           title: 'Popular services',
                           subtitle: 'Choose a service to get started',
                           action: 'See all',
+                          onActionTap: () async {
+                            final selectedService =
+                                await Navigator.push<String>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AllServicesScreen(),
+                                  ),
+                                );
+
+                            if (selectedService == null || !context.mounted)
+                              return;
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    Request(selectedService: selectedService),
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 15),
                         _categoriesGrid(),
                         const SizedBox(height: 28),
                         _sectionHeader(
                           title: 'Top professionals',
-                          subtitle: 'Trusted workers near your area',
+                          subtitle: 'Highest-rated trusted workers',
                           action: 'View all',
+                          onActionTap: _openAllWorkers,
                         ),
                         const SizedBox(height: 15),
                         _workersList(),
@@ -156,6 +149,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _openAllWorkers() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TopRatedWorkersScreen()),
     );
   }
 
@@ -626,6 +626,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     required String title,
     required String subtitle,
     required String action,
+    required VoidCallback onActionTap,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -656,9 +657,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
         ),
         TextButton(
-          onPressed: () {
-            _showFeatureMessage('$action screen can be connected here.');
-          },
+          onPressed: onActionTap,
           style: TextButton.styleFrom(
             foregroundColor: _primary,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -692,7 +691,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     }
 
     return GridView.builder(
-      itemCount: filtered.length,
+      itemCount: filtered.length > 6 ? 6 : filtered.length,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -714,16 +713,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             onTap: () {
               setState(() => _selectedCategory = originalIndex);
 
-              _showFeatureMessage('${category.title} service selected.');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => Request(selectedService: category.title),
+                ),
+              );
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 250),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: selected ? category.accent.withOpacity(0.08) : _surface,
+                color: selected ? category.color.withOpacity(0.08) : _surface,
                 borderRadius: BorderRadius.circular(21),
                 border: Border.all(
-                  color: selected ? category.accent : _border,
+                  color: selected ? category.color : _border,
                   width: selected ? 1.5 : 1,
                 ),
                 boxShadow: const [
@@ -741,14 +745,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     height: 45,
                     width: 45,
                     decoration: BoxDecoration(
-                      color: category.accent.withOpacity(0.11),
+                      color: category.color.withOpacity(0.11),
                       borderRadius: BorderRadius.circular(15),
                     ),
-                    child: Icon(
-                      category.icon,
-                      color: category.accent,
-                      size: 23,
-                    ),
+                    child: Icon(category.icon, color: category.color, size: 23),
                   ),
                   const SizedBox(height: 11),
                   Text(
@@ -767,7 +767,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   Text(
                     selected ? 'Selected' : 'Explore',
                     style: TextStyle(
-                      color: selected ? category.accent : _textSecondary,
+                      color: selected ? category.color : _textSecondary,
                       fontSize: 8.8,
                       fontWeight: FontWeight.w800,
                     ),
@@ -793,12 +793,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           return _errorCard('Unable to load workers right now.');
         }
 
-        var workers = snapshot.data?.docs ?? [];
+        var workers = [...?snapshot.data?.docs];
+
+        // Highest-rated worker sabse pehle
+        workers.sort((a, b) {
+          final ratingA = _toDouble(a.data()['rating']);
+          final ratingB = _toDouble(b.data()['rating']);
+
+          return ratingB.compareTo(ratingA);
+        });
 
         if (_searchQuery.isNotEmpty) {
           workers = workers.where((doc) {
             final data = doc.data();
+
             final name = data['name']?.toString().toLowerCase() ?? '';
+
             final skill = data['skill']?.toString().toLowerCase() ?? '';
 
             return name.contains(_searchQuery) || skill.contains(_searchQuery);
@@ -809,8 +819,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           return _emptyWorkers();
         }
 
+        // Home screen par sirf top 3 workers
+        final topWorkers = workers.take(3).toList();
+
         return Column(
-          children: workers.take(6).map((doc) {
+          children: topWorkers.map((doc) {
             return _workerCard(workerId: doc.id, worker: doc.data());
           }).toList(),
         );
@@ -1296,8 +1309,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     if (value is num) return value.toDouble();
     return double.tryParse(value?.toString() ?? '') ?? 0;
   }
-
-
 
   String _formatRate(dynamic value) {
     final text = value?.toString().trim() ?? '';

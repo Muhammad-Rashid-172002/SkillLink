@@ -34,19 +34,13 @@ class PaymentMethodScreen extends StatelessWidget {
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  18,
-                  20,
-                  120,
-                ),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildPackageCard(),
                     const SizedBox(height: 20),
-                 
-                
+
                     const SizedBox(height: 20),
                     _buildSectionTitle(
                       icon: Icons.account_balance_outlined,
@@ -70,12 +64,7 @@ class PaymentMethodScreen extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        16,
-        20,
-        18,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
@@ -165,10 +154,7 @@ class PaymentMethodScreen extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            _primary,
-            _secondary,
-          ],
+          colors: [_primary, _secondary],
         ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
@@ -213,9 +199,7 @@ class PaymentMethodScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(.15),
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(.18),
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(.18)),
                 ),
                 child: const Icon(
                   Icons.toll_rounded,
@@ -257,9 +241,7 @@ class PaymentMethodScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(.15),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(.18),
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(.18)),
                 ),
                 child: Text(
                   price,
@@ -291,11 +273,7 @@ class PaymentMethodScreen extends StatelessWidget {
             color: _primary.withOpacity(.09),
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Icon(
-            icon,
-            color: _primary,
-            size: 19,
-          ),
+          child: Icon(icon, color: _primary, size: 19),
         ),
         const SizedBox(width: 11),
         Expanded(
@@ -326,7 +304,6 @@ class PaymentMethodScreen extends StatelessWidget {
     );
   }
 
- 
   Widget _buildBankCard(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -355,10 +332,7 @@ class PaymentMethodScreen extends StatelessWidget {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFFB91C1C),
-                      Color(0xFFDC2626),
-                    ],
+                    colors: [Color(0xFFB91C1C), Color(0xFFDC2626)],
                   ),
                   borderRadius: BorderRadius.circular(17),
                 ),
@@ -394,10 +368,7 @@ class PaymentMethodScreen extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                 decoration: BoxDecoration(
                   color: _primary.withOpacity(.09),
                   borderRadius: BorderRadius.circular(12),
@@ -417,67 +388,106 @@ class PaymentMethodScreen extends StatelessWidget {
           const SizedBox(height: 18),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(15),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(17),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(color: _border),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "ACCOUNT NUMBER",
-                        style: TextStyle(
-                          color: _textSecondary,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: .7,
-                        ),
-                      ),
-                      SizedBox(height: 7),
-                      SelectableText(
-                        _accountNumber,
-                        style: TextStyle(
-                          color: _textPrimary,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ],
+                const Text(
+                  "BANK ACCOUNT",
+                  style: TextStyle(
+                    color: _textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
                   ),
                 ),
-                Material(
-                  color: _primary.withOpacity(.09),
-                  borderRadius: BorderRadius.circular(13),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(13),
-                    onTap: () {
-                      Clipboard.setData(
-                        const ClipboardData(
-                          text: _accountNumber,
-                        ),
-                      );
 
-                      _showProfessionalSnackBar(
-                        context,
-                        message: "Account number copied successfully",
-                      );
-                    },
-                    child: const SizedBox(
-                      height: 42,
-                      width: 42,
-                      child: Icon(
-                        Icons.copy_rounded,
-                        color: _primary,
-                        size: 18,
+                const SizedBox(height: 18),
+
+                // Account Holder
+                const Text(
+                  "ACCOUNT HOLDER",
+                  style: TextStyle(
+                    color: _textSecondary,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .8,
+                  ),
+                ),
+
+                const SizedBox(height: 5),
+
+                const Text(
+                  "Muhammad Rashid",
+                  style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+
+                const Divider(height: 28),
+
+                // Account Number
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "ACCOUNT NUMBER",
+                            style: TextStyle(
+                              color: _textSecondary,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: .8,
+                            ),
+                          ),
+
+                          SizedBox(height: 5),
+
+                          SelectableText(
+                            _accountNumber,
+                            style: TextStyle(
+                              color: _textPrimary,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
+
+                    Material(
+                      color: _primary.withOpacity(.08),
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () {
+                          Clipboard.setData(
+                            const ClipboardData(text: _accountNumber),
+                          );
+
+                          _showProfessionalSnackBar(
+                            context,
+                            message: "Account number copied successfully",
+                          );
+                        },
+                        child: const SizedBox(
+                          height: 46,
+                          width: 46,
+                          child: Icon(Icons.copy_rounded, color: _primary),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -516,18 +526,12 @@ class PaymentMethodScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF59E0B).withOpacity(.08),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFF59E0B).withOpacity(.18),
-        ),
+        border: Border.all(color: const Color(0xFFF59E0B).withOpacity(.18)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.shield_outlined,
-            color: Color(0xFFF59E0B),
-            size: 20,
-          ),
+          Icon(Icons.shield_outlined, color: Color(0xFFF59E0B), size: 20),
           SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -547,17 +551,10 @@ class PaymentMethodScreen extends StatelessWidget {
 
   Widget _buildBottomPaymentBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        14,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: _border),
-        ),
+        border: Border(top: BorderSide(color: _border)),
         boxShadow: [
           BoxShadow(
             color: Color(0x090F172A),
@@ -573,21 +570,16 @@ class PaymentMethodScreen extends StatelessWidget {
           height: 58,
           child: ElevatedButton(
             onPressed: () async {
-              final uid =
-                  FirebaseAuth.instance.currentUser!.uid;
+              final uid = FirebaseAuth.instance.currentUser!.uid;
 
               final int creditsToAdd = int.parse(credits);
 
               await FirebaseFirestore.instance
                   .collection("users")
                   .doc(uid)
-                  .update({
-                "credits": FieldValue.increment(creditsToAdd),
-              });
+                  .update({"credits": FieldValue.increment(creditsToAdd)});
 
-              await FirebaseFirestore.instance
-                  .collection("transactions")
-                  .add({
+              await FirebaseFirestore.instance.collection("transactions").add({
                 "workerId": uid,
                 "title": "Bought $credits credits",
                 "amount": "+$credits Credits",
@@ -615,11 +607,7 @@ class PaymentMethodScreen extends StatelessWidget {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.lock_outline_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                Icon(Icons.lock_outline_rounded, color: Colors.white, size: 20),
                 SizedBox(width: 9),
                 Text(
                   "Continue Payment",
@@ -651,17 +639,9 @@ class PaymentMethodScreen extends StatelessWidget {
         margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 2),
         content: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                _primary,
-                _secondary,
-              ],
-            ),
+            gradient: const LinearGradient(colors: [_primary, _secondary]),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(

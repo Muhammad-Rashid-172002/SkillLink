@@ -2,7 +2,8 @@ import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:skill_link/screens/customer_screens/Request/Request.dart';
+import 'package:skill_link/models/service_data.dart';
+import 'package:skill_link/screens/customer_screens/Request/Request.dart' hide ServiceOption;
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
 
@@ -31,44 +32,14 @@ class _ExploreState extends State<Explore> {
   String _selectedSort = 'Top Rated';
   bool _showOnlyAvailable = false;
 
-  final List<ServiceCategory> _categories = const [
-    ServiceCategory(
-      title: 'All',
-      icon: Icons.grid_view_rounded,
-      accent: Color(0xFF2563EB),
-    ),
-    ServiceCategory(
-      title: 'Electrician',
-      icon: Icons.electrical_services_rounded,
-      accent: Color(0xFFF59E0B),
-    ),
-    ServiceCategory(
-      title: 'Plumber',
-      icon: Icons.plumbing_rounded,
-      accent: Color(0xFF06B6D4),
-    ),
-    ServiceCategory(
-      title: 'Painter',
-      icon: Icons.format_paint_rounded,
-      accent: Color(0xFF8B5CF6),
-    ),
-    ServiceCategory(
-      title: 'Carpenter',
-      icon: Icons.carpenter_rounded,
-      accent: Color(0xFFF97316),
-    ),
-    ServiceCategory(
-      title: 'AC Repair',
-      icon: Icons.ac_unit_rounded,
-      accent: Color(0xFF0EA5E9),
-    ),
-    ServiceCategory(
-      title: 'Cleaner',
-      icon: Icons.cleaning_services_rounded,
-      accent: Color(0xFF10B981),
-    ),
-  ];
-
+List<ServiceOption> get _categories => const [
+  ServiceOption(
+    title: 'All',
+    icon: Icons.grid_view_rounded,
+    color: Color(0xFF2563EB),
+  ),
+  ...allServices,
+];
   Stream<QuerySnapshot<Map<String, dynamic>>> get _workersStream {
     return FirebaseFirestore.instance
         .collection('users')
@@ -502,11 +473,11 @@ class _ExploreState extends State<Explore> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: selected
-                      ? category.accent.withOpacity(0.10)
+                      ? category.color.withOpacity(0.10)
                       : _surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: selected ? category.accent : _border,
+                    color: selected ? category.color : _border,
                     width: selected ? 1.5 : 1,
                   ),
                   boxShadow: const [
@@ -524,12 +495,12 @@ class _ExploreState extends State<Explore> {
                       height: 42,
                       width: 42,
                       decoration: BoxDecoration(
-                        color: category.accent.withOpacity(0.11),
+                        color: category.color.withOpacity(0.11),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
                         category.icon,
-                        color: category.accent,
+                        color: category.color,
                         size: 22,
                       ),
                     ),
@@ -540,7 +511,7 @@ class _ExploreState extends State<Explore> {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: selected ? category.accent : _textPrimary,
+                        color: selected ? category.color : _textPrimary,
                         fontSize: 10.3,
                         fontWeight: FontWeight.w900,
                       ),

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/customer_screens/customer_my_request_scree/RateWorkerScreen.dart';
 
 class NotificationScreen extends StatelessWidget {
   const NotificationScreen({super.key});
@@ -35,10 +36,7 @@ class NotificationScreen extends StatelessWidget {
           Positioned(
             top: -150,
             right: -120,
-            child: _ambientCircle(
-              size: 330,
-              color: _primary.withOpacity(0.09),
-            ),
+            child: _ambientCircle(size: 330, color: _primary.withOpacity(0.09)),
           ),
           Positioned(
             bottom: -165,
@@ -56,16 +54,12 @@ class NotificationScreen extends StatelessWidget {
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return _loadingScreen(context);
                 }
 
                 if (snapshot.hasError) {
-                  return _errorScreen(
-                    context,
-                    snapshot.error.toString(),
-                  );
+                  return _errorScreen(context, snapshot.error.toString());
                 }
 
                 final notifications = snapshot.data?.docs ?? [];
@@ -87,42 +81,35 @@ class NotificationScreen extends StatelessWidget {
                     ),
                     slivers: [
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(
-                          20,
-                          14,
-                          20,
-                          40,
-                        ),
+                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 40),
                         sliver: SliverList(
-                          delegate: SliverChildListDelegate(
-                            [
-                              _topBar(
-                                context: context,
-                                unreadCount: unreadCount,
-                                uid: uid,
-                              ),
-                              const SizedBox(height: 20),
-                              _heroCard(
-                                total: notifications.length,
-                                unread: unreadCount,
-                              ),
-                              const SizedBox(height: 22),
-                              _sectionHeader(
-                                total: notifications.length,
-                                unread: unreadCount,
-                              ),
-                              const SizedBox(height: 14),
-                              if (notifications.isEmpty)
-                                _emptyState()
-                              else
-                                ...notifications.map(
-                                  (doc) => _notificationCard(
-                                    context: context,
-                                    doc: doc,
-                                  ),
+                          delegate: SliverChildListDelegate([
+                            _topBar(
+                              context: context,
+                              unreadCount: unreadCount,
+                              uid: uid,
+                            ),
+                            const SizedBox(height: 20),
+                            _heroCard(
+                              total: notifications.length,
+                              unread: unreadCount,
+                            ),
+                            const SizedBox(height: 22),
+                            _sectionHeader(
+                              total: notifications.length,
+                              unread: unreadCount,
+                            ),
+                            const SizedBox(height: 14),
+                            if (notifications.isEmpty)
+                              _emptyState()
+                            else
+                              ...notifications.map(
+                                (doc) => _notificationCard(
+                                  context: context,
+                                  doc: doc,
                                 ),
-                            ],
-                          ),
+                              ),
+                          ]),
                         ),
                       ),
                     ],
@@ -199,31 +186,19 @@ class NotificationScreen extends StatelessWidget {
         ),
         if (unreadCount > 0)
           TextButton.icon(
-            onPressed: () => _markAllAsRead(
-              context,
-              uid,
-            ),
+            onPressed: () => _markAllAsRead(context, uid),
             style: TextButton.styleFrom(
               foregroundColor: _primary,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 11,
-                vertical: 9,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
               backgroundColor: _primary.withOpacity(0.08),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(13),
               ),
             ),
-            icon: const Icon(
-              Icons.done_all_rounded,
-              size: 16,
-            ),
+            icon: const Icon(Icons.done_all_rounded, size: 16),
             label: const Text(
               'Mark all',
-              style: TextStyle(
-                fontSize: 9.7,
-                fontWeight: FontWeight.w900,
-              ),
+              style: TextStyle(fontSize: 9.7, fontWeight: FontWeight.w900),
             ),
           )
         else
@@ -231,9 +206,7 @@ class NotificationScreen extends StatelessWidget {
             height: 46,
             width: 46,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_primary, _secondary],
-              ),
+              gradient: const LinearGradient(colors: [_primary, _secondary]),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -253,18 +226,10 @@ class NotificationScreen extends StatelessWidget {
     );
   }
 
-  Widget _heroCard({
-    required int total,
-    required int unread,
-  }) {
+  Widget _heroCard({required int total, required int unread}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        18,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -310,8 +275,7 @@ class NotificationScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -319,10 +283,8 @@ class NotificationScreen extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color:
-                            Colors.white.withOpacity(0.14),
-                        borderRadius:
-                            BorderRadius.circular(20),
+                        color: Colors.white.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
                         'NOTIFICATION CENTER',
@@ -353,8 +315,7 @@ class NotificationScreen extends StatelessWidget {
                           ? 'New job, chat and payment updates will appear here.'
                           : 'You have $total notifications in your activity history.',
                       style: TextStyle(
-                        color:
-                            Colors.white.withOpacity(0.82),
+                        color: Colors.white.withOpacity(0.82),
                         fontSize: 11.2,
                         height: 1.45,
                         fontWeight: FontWeight.w600,
@@ -370,10 +331,7 @@ class NotificationScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.14),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color:
-                        Colors.white.withOpacity(0.18),
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.18)),
                 ),
                 child: Stack(
                   alignment: Alignment.center,
@@ -389,20 +347,12 @@ class NotificationScreen extends StatelessWidget {
                         right: 16,
                         child: Container(
                           height: 20,
-                          constraints: const BoxConstraints(
-                            minWidth: 20,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                          ),
+                          constraints: const BoxConstraints(minWidth: 20),
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
                           decoration: BoxDecoration(
                             color: _warning,
-                            borderRadius:
-                                BorderRadius.circular(10),
-                            border: Border.all(
-                              color: Colors.white,
-                              width: 2,
-                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 2),
                           ),
                           alignment: Alignment.center,
                           child: Text(
@@ -425,10 +375,7 @@ class NotificationScreen extends StatelessWidget {
     );
   }
 
-  Widget _sectionHeader({
-    required int total,
-    required int unread,
-  }) {
+  Widget _sectionHeader({required int total, required int unread}) {
     return Row(
       children: [
         const Expanded(
@@ -457,10 +404,7 @@ class NotificationScreen extends StatelessWidget {
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 7,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
             color: unread > 0
                 ? _primary.withOpacity(0.09)
@@ -478,12 +422,9 @@ class NotificationScreen extends StatelessWidget {
               ),
               const SizedBox(width: 5),
               Text(
-                unread > 0
-                    ? '$unread unread'
-                    : '$total total',
+                unread > 0 ? '$unread unread' : '$total total',
                 style: TextStyle(
-                  color:
-                      unread > 0 ? _primary : _success,
+                  color: unread > 0 ? _primary : _success,
                   fontSize: 9.4,
                   fontWeight: FontWeight.w900,
                 ),
@@ -500,19 +441,22 @@ class NotificationScreen extends StatelessWidget {
     required QueryDocumentSnapshot<Map<String, dynamic>> doc,
   }) {
     final data = doc.data();
-    final title = _fallback(
-      data['title'],
-      'Notification',
-    );
-    final message = _fallback(
-      data['message'],
-      'You have a new update.',
-    );
+    final title = _fallback(data['title'], 'Notification');
+    final message = _fallback(data['message'], 'You have a new update.');
     final isRead = data['isRead'] == true;
     final type = _notificationType(
       title: title,
       explicitType: data['type']?.toString(),
     );
+    final notificationType =
+        data['type']?.toString().toLowerCase().trim() ?? '';
+
+    final isCompletedNotification =
+        title.toLowerCase().contains('completed') ||
+        notificationType == 'job_completed' ||
+        notificationType == 'completed';
+
+    final reviewed = data['reviewed'] == true;
 
     return Dismissible(
       key: ValueKey(doc.id),
@@ -522,10 +466,7 @@ class NotificationScreen extends StatelessWidget {
         await doc.reference.delete();
 
         if (context.mounted) {
-          _showMessage(
-            context,
-            'Notification deleted.',
-          );
+          _showMessage(context, 'Notification deleted.');
         }
       },
       background: Container(
@@ -548,11 +489,7 @@ class NotificationScreen extends StatelessWidget {
               ),
             ),
             SizedBox(width: 8),
-            Icon(
-              Icons.delete_outline_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
+            Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
           ],
         ),
       ),
@@ -561,18 +498,136 @@ class NotificationScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           borderRadius: BorderRadius.circular(22),
-          onTap: () async {
-            if (!isRead) {
-              await doc.reference.update({
-                'isRead': true,
-                'readAt': FieldValue.serverTimestamp(),
-              });
-            }
 
-            if (context.mounted) {
+          onTap: () async {
+            try {
+              if (!isRead) {
+                await doc.reference.update({
+                  'isRead': true,
+                  'readAt': FieldValue.serverTimestamp(),
+                });
+              }
+
+              final notificationType =
+                  data['type']?.toString().toLowerCase().trim() ?? '';
+
+              final requestId = data['requestId']?.toString().trim() ?? '';
+
+              String workerId = data['workerId']?.toString().trim() ?? '';
+
+              final isCompletedNotification =
+                  title.toLowerCase().contains('completed') ||
+                  notificationType == 'job_completed' ||
+                  notificationType == 'completed';
+
+              if (!isCompletedNotification) {
+                if (context.mounted) {
+                  _showMessage(context, 'Notification marked as read.');
+                }
+                return;
+              }
+
+              if (requestId.isEmpty) {
+                if (!context.mounted) return;
+
+                _showMessage(
+                  context,
+                  'Request information was not found.',
+                  isError: true,
+                );
+                return;
+              }
+
+              final requestSnapshot = await FirebaseFirestore.instance
+                  .collection('requests')
+                  .doc(requestId)
+                  .get();
+
+              if (!requestSnapshot.exists) {
+                if (!context.mounted) return;
+
+                _showMessage(
+                  context,
+                  'This job request was not found.',
+                  isError: true,
+                );
+                return;
+              }
+
+              final requestData = requestSnapshot.data() ?? {};
+
+              if (workerId.isEmpty) {
+                workerId = requestData['workerId']?.toString().trim() ?? '';
+              }
+
+              final reviewed = requestData['reviewed'] == true;
+              final reviewPending = requestData['reviewPending'] == true;
+
+              final status =
+                  requestData['status']?.toString().toLowerCase().trim() ?? '';
+
+              if (!context.mounted) return;
+
+              if (reviewed) {
+                _showMessage(context, 'You have already reviewed this worker.');
+                return;
+              }
+
+              if (status != 'completed') {
+                _showMessage(
+                  context,
+                  'You can rate the worker after the job is completed.',
+                  isError: true,
+                );
+                return;
+              }
+
+              if (!reviewPending) {
+                _showMessage(
+                  context,
+                  'Review is not available for this job.',
+                  isError: true,
+                );
+                return;
+              }
+
+              if (workerId.isEmpty) {
+                _showMessage(
+                  context,
+                  'Worker information was not found.',
+                  isError: true,
+                );
+                return;
+              }
+
+              final submitted = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RateWorkerScreen(
+                    requestId: requestId,
+                    workerId: workerId,
+                  ),
+                ),
+              );
+
+              if (submitted == true && context.mounted) {
+                _showMessage(context, 'Thank you for rating the worker.');
+              }
+            } on FirebaseException catch (error) {
+              if (!context.mounted) return;
+
               _showMessage(
                 context,
-                'Notification marked as read.',
+                error.message ?? 'Unable to open notification.',
+                isError: true,
+              );
+            } catch (error) {
+              if (!context.mounted) return;
+
+              _showMessage(
+                context,
+                'Unable to open notification.',
+                isError: true,
               );
             }
           },
@@ -581,20 +636,39 @@ class NotificationScreen extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 13),
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: isRead
+              gradient: isCompletedNotification && !reviewed
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFFFFBEB), Color(0xFFFFF7ED)],
+                    )
+                  : null,
+
+              // Normal notifications ke liye white/light background
+              color: isCompletedNotification && !reviewed
+                  ? null
+                  : isRead
                   ? _surface
                   : type.color.withOpacity(0.055),
+
               borderRadius: BorderRadius.circular(22),
+
               border: Border.all(
-                color: isRead
+                color: isCompletedNotification && !reviewed
+                    ? const Color(0xFFF59E0B).withOpacity(0.35)
+                    : isRead
                     ? _border
                     : type.color.withOpacity(0.22),
+                width: isCompletedNotification && !reviewed ? 1.4 : 1,
               ),
-              boxShadow: const [
+
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x070F172A),
-                  blurRadius: 15,
-                  offset: Offset(0, 7),
+                  color: isCompletedNotification && !reviewed
+                      ? const Color(0xFFF59E0B).withOpacity(0.12)
+                      : const Color(0x070F172A),
+                  blurRadius: isCompletedNotification && !reviewed ? 20 : 15,
+                  offset: const Offset(0, 7),
                 ),
               ],
             ),
@@ -605,20 +679,23 @@ class NotificationScreen extends StatelessWidget {
                   height: 50,
                   width: 50,
                   decoration: BoxDecoration(
-                    color: type.color.withOpacity(0.11),
+                    color: isCompletedNotification
+                        ? const Color(0xFFF59E0B).withOpacity(0.13)
+                        : type.color.withOpacity(0.11),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
-                    type.icon,
-                    color: type.color,
+                    isCompletedNotification ? Icons.star_rounded : type.icon,
+                    color: isCompletedNotification
+                        ? const Color(0xFFF59E0B)
+                        : type.color,
                     size: 24,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
@@ -647,8 +724,7 @@ class NotificationScreen extends StatelessWidget {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color:
-                                        type.color.withOpacity(0.30),
+                                    color: type.color.withOpacity(0.30),
                                     blurRadius: 7,
                                   ),
                                 ],
@@ -670,6 +746,48 @@ class NotificationScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
+                      if (isCompletedNotification && !reviewed) ...[
+                        const SizedBox(height: 11),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withOpacity(0.11),
+                            borderRadius: BorderRadius.circular(13),
+                            border: Border.all(
+                              color: const Color(0xFFF59E0B).withOpacity(0.20),
+                            ),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(
+                                Icons.touch_app_rounded,
+                                color: Color(0xFFD97706),
+                                size: 17,
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Tap this notification to rate your worker',
+                                  style: TextStyle(
+                                    color: Color(0xFFB45309),
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Color(0xFFD97706),
+                                size: 17,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       Row(
                         children: [
                           Container(
@@ -678,13 +796,25 @@ class NotificationScreen extends StatelessWidget {
                               vertical: 5,
                             ),
                             decoration: BoxDecoration(
-                              color: type.color.withOpacity(0.09),
+                              color: isCompletedNotification && !reviewed
+                                  ? const Color(0xFFF59E0B).withOpacity(0.12)
+                                  : reviewed
+                                  ? _success.withOpacity(0.10)
+                                  : type.color.withOpacity(0.09),
                               borderRadius: BorderRadius.circular(11),
                             ),
                             child: Text(
-                              type.label,
+                              isCompletedNotification && !reviewed
+                                  ? 'Rate worker'
+                                  : reviewed
+                                  ? 'Reviewed'
+                                  : type.label,
                               style: TextStyle(
-                                color: type.color,
+                                color: isCompletedNotification && !reviewed
+                                    ? const Color(0xFFD97706)
+                                    : reviewed
+                                    ? _success
+                                    : type.color,
                                 fontSize: 8.3,
                                 fontWeight: FontWeight.w900,
                               ),
@@ -721,12 +851,7 @@ class NotificationScreen extends StatelessWidget {
   Widget _emptyState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        24,
-        32,
-        24,
-        30,
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 30),
       decoration: BoxDecoration(
         color: _surface,
         borderRadius: BorderRadius.circular(24),
@@ -781,19 +906,10 @@ class NotificationScreen extends StatelessWidget {
 
   Widget _loadingScreen(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        14,
-        20,
-        30,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
       child: Column(
         children: [
-          _topBar(
-            context: context,
-            unreadCount: 0,
-            uid: '',
-          ),
+          _topBar(context: context, unreadCount: 0, uid: ''),
           const SizedBox(height: 24),
           Expanded(
             child: Center(
@@ -830,24 +946,12 @@ class NotificationScreen extends StatelessWidget {
     );
   }
 
-  Widget _errorScreen(
-    BuildContext context,
-    String error,
-  ) {
+  Widget _errorScreen(BuildContext context, String error) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        14,
-        20,
-        30,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
       child: Column(
         children: [
-          _topBar(
-            context: context,
-            unreadCount: 0,
-            uid: '',
-          ),
+          _topBar(context: context, unreadCount: 0, uid: ''),
           const SizedBox(height: 24),
           Expanded(
             child: Center(
@@ -886,7 +990,7 @@ class NotificationScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Please check your internet connection and Firestore index configuration.',
+                      'Please check your internet connection',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: _textSecondary,
@@ -935,11 +1039,7 @@ class NotificationScreen extends StatelessWidget {
               child: const Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.lock_outline_rounded,
-                    color: _primary,
-                    size: 44,
-                  ),
+                  Icon(Icons.lock_outline_rounded, color: _primary, size: 44),
                   SizedBox(height: 15),
                   Text(
                     'Sign in required',
@@ -969,10 +1069,7 @@ class NotificationScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _markAllAsRead(
-    BuildContext context,
-    String uid,
-  ) async {
+  Future<void> _markAllAsRead(BuildContext context, String uid) async {
     if (uid.isEmpty) return;
 
     try {
@@ -984,10 +1081,7 @@ class NotificationScreen extends StatelessWidget {
 
       if (snapshot.docs.isEmpty) {
         if (context.mounted) {
-          _showMessage(
-            context,
-            'No unread notifications.',
-          );
+          _showMessage(context, 'No unread notifications.');
         }
         return;
       }
@@ -1004,25 +1098,16 @@ class NotificationScreen extends StatelessWidget {
       await batch.commit();
 
       if (context.mounted) {
-        _showMessage(
-          context,
-          'All notifications marked as read.',
-        );
+        _showMessage(context, 'All notifications marked as read.');
       }
     } catch (error) {
       if (context.mounted) {
-        _showMessage(
-          context,
-          'Unable to update notifications.',
-          isError: true,
-        );
+        _showMessage(context, 'Unable to update notifications.', isError: true);
       }
     }
   }
 
-  Future<bool?> _confirmDelete(
-    BuildContext context,
-  ) {
+  Future<bool?> _confirmDelete(BuildContext context) {
     return showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1074,8 +1159,7 @@ class NotificationScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () =>
-                          Navigator.pop(context, false),
+                      onPressed: () => Navigator.pop(context, false),
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(0, 48),
                         side: const BorderSide(color: _border),
@@ -1095,8 +1179,7 @@ class NotificationScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () =>
-                          Navigator.pop(context, true),
+                      onPressed: () => Navigator.pop(context, true),
                       style: ElevatedButton.styleFrom(
                         elevation: 0,
                         backgroundColor: _danger,
@@ -1108,9 +1191,7 @@ class NotificationScreen extends StatelessWidget {
                       ),
                       child: const Text(
                         'Delete',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),
                   ),
@@ -1127,11 +1208,9 @@ class NotificationScreen extends StatelessWidget {
     required String title,
     String? explicitType,
   }) {
-    final value =
-        '${explicitType ?? ''} $title'.toLowerCase();
+    final value = '${explicitType ?? ''} $title'.toLowerCase();
 
-    if (value.contains('chat') ||
-        value.contains('message')) {
+    if (value.contains('chat') || value.contains('message')) {
       return const NotificationTypeDesign(
         label: 'Chat',
         icon: Icons.chat_bubble_outline_rounded,
@@ -1160,8 +1239,7 @@ class NotificationScreen extends StatelessWidget {
       );
     }
 
-    if (value.contains('review') ||
-        value.contains('rating')) {
+    if (value.contains('review') || value.contains('rating')) {
       return const NotificationTypeDesign(
         label: 'Review',
         icon: Icons.star_outline_rounded,
@@ -1221,10 +1299,7 @@ class NotificationScreen extends StatelessWidget {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  String _fallback(
-    dynamic value,
-    String fallback,
-  ) {
+  String _fallback(dynamic value, String fallback) {
     final text = value?.toString().trim() ?? '';
     return text.isEmpty ? fallback : text;
   }
@@ -1240,8 +1315,7 @@ class NotificationScreen extends StatelessWidget {
         SnackBar(
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(18),
-          backgroundColor:
-              isError ? _danger : _textPrimary,
+          backgroundColor: isError ? _danger : _textPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -1270,22 +1344,13 @@ class NotificationScreen extends StatelessWidget {
       );
   }
 
-  Widget _ambientCircle({
-    required double size,
-    required Color color,
-  }) {
+  Widget _ambientCircle({required double size, required Color color}) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 50,
-        sigmaY: 50,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
       child: Container(
         height: size,
         width: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }

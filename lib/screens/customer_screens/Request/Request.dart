@@ -10,7 +10,8 @@ import 'package:skill_link/screens/customer_screens/customer_my_request_scree/re
 
 class Request extends StatefulWidget {
   final String? selectedWorkerId;
-  const Request({super.key, this.selectedWorkerId});
+  final String? selectedService;
+  const Request({super.key, this.selectedWorkerId, this.selectedService});
 
   @override
   State<Request> createState() => _RequestState();
@@ -33,28 +34,35 @@ class _RequestState extends State<Request> {
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _budgetController = TextEditingController();
 
-  String _selectedCategory = 'Electrician';
+  String _selectedCategory = 'AC Repair';
   String _selectedUrgency = 'Normal';
 
   bool _isSubmitting = false;
   bool _isGettingLocation = false;
   bool _useCurrentLocation = true;
+  double? _customerLatitude;
+  double? _customerLongitude;
 
   final List<ServiceOption> _categories = const [
     ServiceOption(
-      title: 'Electrician',
-      icon: Icons.electrical_services_rounded,
-      color: Color(0xFFF59E0B),
+      title: 'AC Repair',
+      icon: Icons.ac_unit_rounded,
+      color: Color(0xFF0EA5E9),
     ),
     ServiceOption(
-      title: 'Plumber',
-      icon: Icons.plumbing_rounded,
-      color: Color(0xFF06B6D4),
+      title: 'Appliance Repair',
+      icon: Icons.home_repair_service_rounded,
+      color: Color(0xFF14B8A6),
     ),
     ServiceOption(
-      title: 'Painter',
-      icon: Icons.format_paint_rounded,
-      color: Color(0xFF8B5CF6),
+      title: 'Beautician',
+      icon: Icons.face_retouching_natural_rounded,
+      color: Color(0xFFEC4899),
+    ),
+    ServiceOption(
+      title: 'Car Mechanic',
+      icon: Icons.car_repair_rounded,
+      color: Color(0xFF6366F1),
     ),
     ServiceOption(
       title: 'Carpenter',
@@ -62,17 +70,66 @@ class _RequestState extends State<Request> {
       color: Color(0xFFF97316),
     ),
     ServiceOption(
-      title: 'AC Repair',
-      icon: Icons.ac_unit_rounded,
-      color: Color(0xFF0EA5E9),
-    ),
-    ServiceOption(
       title: 'Cleaner',
       icon: Icons.cleaning_services_rounded,
       color: Color(0xFF10B981),
     ),
+    ServiceOption(
+      title: 'Electrician',
+      icon: Icons.electrical_services_rounded,
+      color: Color(0xFFF59E0B),
+    ),
+    ServiceOption(
+      title: 'Gardener',
+      icon: Icons.grass_rounded,
+      color: Color(0xFF22C55E),
+    ),
+    ServiceOption(
+      title: 'Home Painter',
+      icon: Icons.format_paint_rounded,
+      color: Color(0xFF8B5CF6),
+    ),
+    ServiceOption(
+      title: 'Internet Technician',
+      icon: Icons.router_rounded,
+      color: Color(0xFF3B82F6),
+    ),
+    ServiceOption(
+      title: 'Mobile Repair',
+      icon: Icons.phone_android_rounded,
+      color: Color(0xFF0F766E),
+    ),
+    ServiceOption(
+      title: 'Pest Control',
+      icon: Icons.pest_control_rounded,
+      color: Color(0xFF84CC16),
+    ),
+    ServiceOption(
+      title: 'Plumber',
+      icon: Icons.plumbing_rounded,
+      color: Color(0xFF06B6D4),
+    ),
+    ServiceOption(
+      title: 'Security Guard',
+      icon: Icons.security_rounded,
+      color: Color(0xFF475569),
+    ),
+    ServiceOption(
+      title: 'Solar Technician',
+      icon: Icons.solar_power_rounded,
+      color: Color(0xFFFACC15),
+    ),
+    ServiceOption(
+      title: 'Tailor',
+      icon: Icons.checkroom_rounded,
+      color: Color(0xFFA855F7),
+    ),
+    ServiceOption(
+      title: 'Welder',
+      icon: Icons.construction_rounded,
+      color: Color(0xFFEF4444),
+    ),
   ];
-
   final List<UrgencyOption> _urgencies = const [
     UrgencyOption(
       title: 'Normal',
@@ -93,6 +150,19 @@ class _RequestState extends State<Request> {
       color: Color(0xFFDC2626),
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    final service = widget.selectedService?.trim();
+
+    if (service != null &&
+        service.isNotEmpty &&
+        _categories.any((item) => item.title == service)) {
+      _selectedCategory = service;
+    }
+  }
 
   @override
   void dispose() {
@@ -122,6 +192,16 @@ class _RequestState extends State<Request> {
     }
 
     if (_isSubmitting) return;
+
+    // Auto get GPS location if enabled
+    if (_useCurrentLocation &&
+        (_customerLatitude == null || _customerLongitude == null)) {
+      await _fillCurrentLocation();
+
+      if (_customerLatitude == null || _customerLongitude == null) {
+        return;
+      }
+    }
 
     final String? selectedWorkerId =
         widget.selectedWorkerId?.trim().isNotEmpty == true
@@ -153,6 +233,8 @@ class _RequestState extends State<Request> {
 
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
+            'latitude': _customerLatitude,
+            'longitude': _customerLongitude,
           });
 
       if (isDirectRequest) {
@@ -285,6 +367,9 @@ class _RequestState extends State<Request> {
     if (!mounted) return;
 
     if (position != null) {
+      _customerLatitude = position.latitude;
+      _customerLongitude = position.longitude;
+
       _locationController.text =
           '${position.latitude.toStringAsFixed(5)}, '
           '${position.longitude.toStringAsFixed(5)}';

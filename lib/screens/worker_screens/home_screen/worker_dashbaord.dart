@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:skill_link/Notification_screen/notification_screen.dart';
 import 'package:skill_link/screens/worker_screens/All_jobs/all_job_screen.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
+import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 import 'package:skill_link/screens/worker_screens/home_screen/JobsByStatusScreen.dart';
 
 class WorkerHomeScreen extends StatefulWidget {
@@ -423,157 +424,232 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   }
 
   Widget _statsRow() {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('requests')
-                .where('status', isEqualTo: 'searching')
-                .snapshots(),
-            builder: (context, snapshot) {
-              return _statCard(
-                title: 'Available',
-                subtitle: 'New job requests',
-                value: '${snapshot.data?.docs.length ?? 0}',
-                icon: Icons.work_outline_rounded,
-                accentColor: const Color(0xFFF59E0B),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const JobsByStatusScreen(
-                        title: 'Pending Jobs',
-                        status: 'searching',
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
+        const Text(
+          'Job overview',
+          style: TextStyle(
+            color: _textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.3,
           ),
         ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('requests')
-                .where('workerId', isEqualTo: uid)
-                .where(
-                  'status',
-                  whereIn: ['accepted', 'on_the_way', 'in_progress'],
-                )
-                .snapshots(),
-            builder: (context, snapshot) {
-              return _statCard(
-                title: 'Active',
-                subtitle: 'Jobs in progress',
-                value: '${snapshot.data?.docs.length ?? 0}',
-                icon: Icons.flash_on_rounded,
-                accentColor: const Color(0xFF2563EB),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const JobsByStatusScreen(
-                        title: 'Active Jobs',
-                        status: 'active',
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
+        const SizedBox(height: 5),
+        const Text(
+          'Track your current work activity',
+          style: TextStyle(
+            color: _textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
           ),
+        ),
+        const SizedBox(height: 14),
+
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('requests')
+              .where('status', isEqualTo: 'searching')
+              .snapshots(),
+          builder: (context, availableSnapshot) {
+            final availableCount = availableSnapshot.data?.docs.length ?? 0;
+
+            return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('requests')
+                  .where('workerId', isEqualTo: uid)
+                  .where(
+                    'status',
+                    whereIn: ['accepted', 'on_the_way', 'in_progress'],
+                  )
+                  .snapshots(),
+              builder: (context, activeSnapshot) {
+                final activeCount = activeSnapshot.data?.docs.length ?? 0;
+
+                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('requests')
+                      .where('workerId', isEqualTo: uid)
+                      .where('status', isEqualTo: 'completed')
+                      .snapshots(),
+                  builder: (context, completedSnapshot) {
+                    final completedCount =
+                        completedSnapshot.data?.docs.length ?? 0;
+
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: _border),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x080F172A),
+                            blurRadius: 22,
+                            offset: Offset(0, 9),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _professionalStatCard(
+                              title: 'Available',
+                              value: '$availableCount',
+                              icon: Icons.work_outline_rounded,
+                              accentColor: const Color(0xFFF59E0B),
+                              backgroundColor: const Color(0xFFFFF7E8),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const JobsByStatusScreen(
+                                      title: 'Available Jobs',
+                                      status: 'searching',
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+
+                          _statsVerticalDivider(),
+
+                          Expanded(
+                            child: _professionalStatCard(
+                              title: 'Active',
+                              value: '$activeCount',
+                              icon: Icons.bolt_rounded,
+                              accentColor: const Color(0xFF2563EB),
+                              backgroundColor: const Color(0xFFEEF4FF),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const JobsByStatusScreen(
+                                      title: 'Active Jobs',
+                                      status: 'active',
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+
+                          _statsVerticalDivider(),
+
+                          Expanded(
+                            child: _professionalStatCard(
+                              title: 'Completed',
+                              value: '$completedCount',
+                              icon: Icons.task_alt_rounded,
+                              accentColor: const Color(0xFF16A34A),
+                              backgroundColor: const Color(0xFFECFDF3),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const JobsByStatusScreen(
+                                      title: 'Completed Jobs',
+                                      status: 'completed',
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
         ),
       ],
     );
   }
 
-  Widget _statCard({
+  Widget _professionalStatCard({
     required String title,
-    required String subtitle,
     required String value,
     required IconData icon,
     required Color accentColor,
+    required Color backgroundColor,
     required VoidCallback onTap,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: _border),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x090F172A),
-                blurRadius: 18,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 13),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    height: 41,
-                    width: 41,
-                    decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.11),
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: Icon(icon, color: accentColor, size: 22),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.arrow_outward_rounded,
-                    size: 18,
-                    color: accentColor.withOpacity(0.8),
-                  ),
-                ],
+              Container(
+                height: 42,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: accentColor, size: 21),
               ),
-              const SizedBox(height: 17),
+
+              const SizedBox(height: 11),
+
               Text(
                 value,
+                maxLines: 1,
                 style: const TextStyle(
                   color: _textPrimary,
-                  fontSize: 27,
+                  fontSize: 23,
                   height: 1,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.6,
                 ),
               ),
+
               const SizedBox(height: 7),
+
               Text(
                 title,
-                style: const TextStyle(
-                  color: _textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: _textSecondary,
                   fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+
+              const SizedBox(height: 9),
+
+              Container(
+                height: 4,
+                width: 24,
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.75),
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _statsVerticalDivider() {
+    return Container(
+      height: 92,
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      color: _border,
     );
   }
 
@@ -685,7 +761,19 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
               return _errorState('Unable to load job requests');
             }
 
-            final docs = snapshot.data?.docs ?? [];
+            final documents = snapshot.data?.docs ?? [];
+
+            final docs = documents
+                .where((doc) {
+                  final data = doc.data();
+
+                  final String assignedWorkerId =
+                      data['workerId']?.toString().trim() ?? '';
+
+                  return assignedWorkerId.isEmpty || assignedWorkerId == uid;
+                })
+                .take(2)
+                .toList();
 
             if (docs.isEmpty) {
               return _emptyJobs(
@@ -976,6 +1064,158 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     );
   }
 
+  void _showNoCreditsDialog() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "No Credits",
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (_, __, ___) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 30,
+                    offset: Offset(0, 15),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    height: 78,
+                    width: 78,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4E5),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFFFC107),
+                        width: 2,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.account_balance_wallet_rounded,
+                      size: 40,
+                      color: Color(0xFFF59E0B),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    "Insufficient Credits",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  const Text(
+                    "You don't have enough credits to accept this job.\n\nPurchase more credits to continue receiving customer requests.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+
+                  const SizedBox(height: 26),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            "Maybe Later",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF475569),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: const Color(0xFF16A34A),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(52),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.shopping_cart_checkout_rounded,
+                          ),
+                          label: const Text(
+                            "Buy Credits",
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const WallatScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (_, animation, __, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutBack,
+            ),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _acceptJob({
     required String requestId,
     required String workerId,
@@ -983,6 +1223,26 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     setState(() => _acceptingRequestIds.add(requestId));
 
     try {
+      //  Check worker credits first
+      final workerDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(workerId)
+          .get();
+
+      final workerData = workerDoc.data() ?? {};
+
+      final int credits = (workerData['credits'] ?? 0) as int;
+
+      if (credits <= 0) {
+        if (mounted) {
+          _showNoCreditsDialog();
+        }
+
+        setState(() => _acceptingRequestIds.remove(requestId));
+        return;
+      }
+
+      // Continue accepting job
       final requestRef = FirebaseFirestore.instance
           .collection('requests')
           .doc(requestId);
@@ -1016,6 +1276,11 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           'workerId': workerId,
           'acceptedAt': FieldValue.serverTimestamp(),
         });
+        final workerRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(workerId);
+
+        transaction.update(workerRef, {'credits': FieldValue.increment(-1)});
       });
 
       final existingChat = await FirebaseFirestore.instance

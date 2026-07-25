@@ -28,15 +28,14 @@ class JobsByStatusScreen extends StatelessWidget {
 
     if (status == "searching") {
       query = query.where("status", isEqualTo: "searching");
-    } else {
+    } else if (status == "active") {
       query = query
-          .where("status", isEqualTo: "searching")
-          .where(
-            Filter.or(
-              Filter("workerId", isNull: true),
-              Filter("workerId", isEqualTo: uid),
-            ),
-          );
+          .where("workerId", isEqualTo: uid)
+          .where("status", whereIn: ["accepted", "on_the_way", "in_progress"]);
+    } else if (status == "completed") {
+      query = query
+          .where("workerId", isEqualTo: uid)
+          .where("status", isEqualTo: "completed");
     }
 
     final bool isAvailableJobs = status == "searching";
@@ -59,7 +58,23 @@ class JobsByStatusScreen extends StatelessWidget {
                     return _buildLoadingState();
                   }
 
-                  final jobs = snapshot.data!.docs;
+                  final documents = snapshot.data!.docs;
+
+                  final jobs = isAvailableJobs
+                      ? documents.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+
+                          final String assignedWorkerId =
+                              data['workerId']?.toString().trim() ?? '';
+
+                          final bool isPublic = assignedWorkerId.isEmpty;
+
+                          final bool isForCurrentWorker =
+                              assignedWorkerId == uid;
+
+                          return isPublic || isForCurrentWorker;
+                        }).toList()
+                      : documents;
 
                   if (jobs.isEmpty) {
                     return _buildEmptyState(isAvailableJobs: isAvailableJobs);
