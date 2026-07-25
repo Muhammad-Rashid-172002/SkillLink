@@ -1,6 +1,9 @@
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
 
@@ -12,19 +15,19 @@ class WorkerProfileSetupScreen extends StatefulWidget {
       _WorkerProfileSetupScreenState();
 }
 
-class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
-  String selectedSkill = "Electrician";
+class _WorkerProfileSetupScreenState
+    extends State<WorkerProfileSetupScreen> {
+  static const Color _background = Color(0xFFF4F7FB);
+  static const Color _surface = Colors.white;
+  static const Color _primary = Color(0xFF16A34A);
+  static const Color _secondary = Color(0xFF14B8A6);
+  static const Color _textPrimary = Color(0xFF0F172A);
+  static const Color _textSecondary = Color(0xFF64748B);
+  static const Color _border = Color(0xFFE2E8F0);
+  static const Color _danger = Color(0xFFDC2626);
+  static const Color _warning = Color(0xFFF59E0B);
 
-  final skills = [
-    "Electrician",
-    "Plumber",
-    "Painter",
-    "Carpenter",
-    "Mechanic",
-    "AC Technician",
-    "Cleaner",
-    "Mason",
-  ];
+  final _formKey = GlobalKey<FormState>();
 
   final nameController = TextEditingController();
   final phoneController = TextEditingController();
@@ -33,167 +36,1014 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
   final locationController = TextEditingController();
   final bioController = TextEditingController();
 
-  // Get current location
-  Future<Position?> getCurrentLocation() async {
-    LocationPermission permission = await Geolocator.checkPermission();
+  final List<String> skills = const [
+    'Electrician',
+    'Plumber',
+    'Painter',
+    'Carpenter',
+    'Mechanic',
+    'AC Technician',
+    'Cleaner',
+    'Mason',
+  ];
 
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
+  String selectedSkill = 'Electrician';
 
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      return null;
-    }
+  bool _isSaving = false;
+  bool _isGettingLocation = false;
+  bool _locationCaptured = false;
 
-    return await Geolocator.getCurrentPosition();
+  Position? _currentPosition;
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    phoneController.dispose();
+    experienceController.dispose();
+    rateController.dispose();
+    locationController.dispose();
+    bioController.dispose();
+    super.dispose();
   }
 
-  // save worker profile
-  Future<void> saveWorkerProfile() async {
-    if (nameController.text.trim().isEmpty ||
-        phoneController.text.trim().isEmpty ||
-        experienceController.text.trim().isEmpty ||
-        rateController.text.trim().isEmpty ||
-        locationController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all required fields")),
+  Future<Position?> _getCurrentLocation() async {
+    try {
+      final serviceEnabled =
+          await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        _showMessage(
+          'Please turn on location services.',
+          isError: true,
+        );
+        return null;
+      }
+
+      var permission =
+          await Geolocator.checkPermission();
+
+      if (permission ==
+          LocationPermission.denied) {
+        permission =
+            await Geolocator.requestPermission();
+      }
+
+      if (permission ==
+          LocationPermission.denied) {
+        _showMessage(
+          'Location permission was denied.',
+          isError: true,
+        );
+        return null;
+      }
+
+      if (permission ==
+          LocationPermission.deniedForever) {
+        _showLocationSettingsDialog();
+        return null;
+      }
+
+      return Geolocator.getCurrentPosition(
+        desiredAccuracy:
+            LocationAccuracy.high,
+      );
+    } catch (error) {
+      _showMessage(
+        'Unable to get location. ${error.toString()}',
+        isError: true,
+      );
+      return null;
+    }
+  }
+
+  Future<void> _captureLocation() async {
+    if (_isGettingLocation) return;
+
+    setState(() => _isGettingLocation = true);
+
+    final position = await _getCurrentLocation();
+
+    if (!mounted) return;
+
+    setState(() {
+      _isGettingLocation = false;
+
+      if (position != null) {
+        _currentPosition = position;
+        _locationCaptured = true;
+      }
+    });
+
+    if (position != null) {
+      _showMessage(
+        'Current location captured successfully.',
+      );
+    }
+  }
+
+  Future<void> _saveWorkerProfile() async {
+    FocusScope.of(context).unfocus();
+
+    if (_isSaving) return;
+
+    final isValid =
+        _formKey.currentState?.validate() ?? false;
+
+    if (!isValid) {
+      _showMessage(
+        'Please complete all required fields.',
+        isError: true,
       );
       return;
     }
-    try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      final position = await getCurrentLocation();
 
-      await FirebaseFirestore.instance.collection("users").doc(uid).set({
-        "uid": uid,
-        "role": "worker",
-        "name": nameController.text.trim(),
-        "phone": phoneController.text.trim(),
-        "skill": selectedSkill,
-        "experience": experienceController.text.trim(),
-        "hourlyRate": rateController.text.trim(),
-        "location": locationController.text.trim(),
-        "lat": position?.latitude,
-        "lng": position?.longitude,
-        "bio": bioController.text.trim(),
-        "profileCompleted": true,
-        "updatedAt": FieldValue.serverTimestamp(),
+    final currentUser =
+        FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      _showMessage(
+        'Your session expired. Please login again.',
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      Position? position = _currentPosition;
+
+      if (position == null) {
+        position = await _getCurrentLocation();
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .set({
+        'uid': currentUser.uid,
+        'role': 'worker',
+        'name': nameController.text.trim(),
+        'phone': phoneController.text.trim(),
+        'skill': selectedSkill,
+        'experience':
+            experienceController.text.trim(),
+        'hourlyRate':
+            rateController.text.trim(),
+        'location':
+            locationController.text.trim(),
+        'lat': position?.latitude,
+        'lng': position?.longitude,
+        'bio': bioController.text.trim(),
+        'profileCompleted': true,
+        'isOnline': true,
+        'updatedAt':
+            FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      if (!mounted) return;
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const WorkerHomeScreen()),
+        MaterialPageRoute(
+          builder: (_) =>
+              const WorkerHomeScreen(),
+        ),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    } catch (error) {
+      if (!mounted) return;
+
+      _showMessage(
+        'Profile could not be saved. ${error.toString()}',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
-//
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _topBar(context),
-              const SizedBox(height: 24),
-              _headerCard(),
-              const SizedBox(height: 26),
-              _profilePhoto(),
-              const SizedBox(height: 28),
-              _sectionTitle("Basic Information"),
-              const SizedBox(height: 14),
-              _textField(
-                "Full Name",
-                "Enter your full name",
-                Icons.person,
-                nameController,
-              ),
-              const SizedBox(height: 16),
-              _textField(
-                "Phone Number",
-                "+92 300 0000000",
-                Icons.phone,
-                phoneController,
-              ),
-              const SizedBox(height: 16),
-              _skillDropdown(),
-              const SizedBox(height: 26),
-              _sectionTitle("Work Details"),
-              const SizedBox(height: 14),
-              _textField(
-                "Experience",
-                "Example: 3 years",
-                Icons.work,
-                experienceController,
-              ),
-              const SizedBox(height: 16),
-              _textField(
-                "Hourly Rate",
-                "Example: Rs. 800",
-                Icons.payments,
-                rateController,
-              ),
-              const SizedBox(height: 16),
-              _textField(
-                "Location",
-                "City / Area",
-                Icons.location_on,
-                locationController,
-              ),
-              const SizedBox(height: 16),
-              _bioField(),
-              const SizedBox(height: 30),
-              _submitButton(),
-            ],
+      backgroundColor: _background,
+      body: Stack(
+        children: [
+          Positioned(
+            top: -150,
+            right: -120,
+            child: _ambientCircle(
+              size: 340,
+              color: _primary.withOpacity(0.09),
+            ),
           ),
-        ),
+          Positioned(
+            bottom: -170,
+            left: -140,
+            child: _ambientCircle(
+              size: 360,
+              color: _secondary.withOpacity(0.06),
+            ),
+          ),
+          SafeArea(
+            child: Form(
+              key: _formKey,
+              child: CustomScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior
+                        .onDrag,
+                physics:
+                    const BouncingScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding:
+                        const EdgeInsets.fromLTRB(
+                      20,
+                      14,
+                      20,
+                      36,
+                    ),
+                    sliver: SliverList(
+                      delegate:
+                          SliverChildListDelegate(
+                        [
+                          _topBar(),
+                          const SizedBox(height: 20),
+                          _heroCard(),
+                          const SizedBox(height: 18),
+                          _progressCard(),
+                          const SizedBox(height: 20),
+                          _profilePhoto(),
+                          const SizedBox(height: 24),
+                          _sectionHeader(
+                            icon: Icons
+                                .person_outline_rounded,
+                            title:
+                                'Basic information',
+                            subtitle:
+                                'Tell customers who you are',
+                          ),
+                          const SizedBox(height: 12),
+                          _formCard(
+                            children: [
+                              _professionalField(
+                                label: 'Full name',
+                                hint:
+                                    'Enter your full name',
+                                icon:
+                                    Icons.person_outline_rounded,
+                                controller:
+                                    nameController,
+                                validator: (value) {
+                                  if (value == null ||
+                                      value
+                                          .trim()
+                                          .isEmpty) {
+                                    return 'Full name is required';
+                                  }
+
+                                  if (value
+                                          .trim()
+                                          .length <
+                                      3) {
+                                    return 'Enter a valid full name';
+                                  }
+
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(
+                                height: 15,
+                              ),
+                              _professionalField(
+                                label:
+                                    'Phone number',
+                                hint:
+                                    '+92 300 0000000',
+                                icon:
+                                    Icons.phone_outlined,
+                                controller:
+                                    phoneController,
+                                keyboardType:
+                                    TextInputType.phone,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter
+                                      .allow(
+                                    RegExp(r'[0-9+\-\s]'),
+                                  ),
+                                ],
+                                validator: (value) {
+                                  final text =
+                                      value?.trim() ??
+                                          '';
+
+                                  if (text.isEmpty) {
+                                    return 'Phone number is required';
+                                  }
+
+                                  if (text.length < 10) {
+                                    return 'Enter a valid phone number';
+                                  }
+
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(
+                                height: 15,
+                              ),
+                              _skillDropdown(),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          _sectionHeader(
+                            icon:
+                                Icons.handyman_outlined,
+                            title: 'Work details',
+                            subtitle:
+                                'Add your experience and service pricing',
+                          ),
+                          const SizedBox(height: 12),
+                          _formCard(
+                            children: [
+                              _professionalField(
+                                label:
+                                    'Work experience',
+                                hint:
+                                    'Example: 3 years',
+                                icon:
+                                    Icons.work_outline_rounded,
+                                controller:
+                                    experienceController,
+                                validator: (value) {
+                                  if (value == null ||
+                                      value
+                                          .trim()
+                                          .isEmpty) {
+                                    return 'Experience is required';
+                                  }
+
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(
+                                height: 15,
+                              ),
+                              _professionalField(
+                                label:
+                                    'Hourly rate',
+                                hint:
+                                    'Example: 800',
+                                icon:
+                                    Icons.payments_outlined,
+                                controller:
+                                    rateController,
+                                keyboardType:
+                                    TextInputType.number,
+                                prefixText: 'Rs. ',
+                                inputFormatters: [
+                                  FilteringTextInputFormatter
+                                      .digitsOnly,
+                                ],
+                                validator: (value) {
+                                  final rate =
+                                      int.tryParse(
+                                    value?.trim() ??
+                                        '',
+                                  );
+
+                                  if (rate == null ||
+                                      rate <= 0) {
+                                    return 'Enter a valid hourly rate';
+                                  }
+
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          _sectionHeader(
+                            icon: Icons
+                                .location_on_outlined,
+                            title:
+                                'Service location',
+                            subtitle:
+                                'Help nearby customers discover you',
+                          ),
+                          const SizedBox(height: 12),
+                          _locationCard(),
+                          const SizedBox(height: 20),
+                          _sectionHeader(
+                            icon:
+                                Icons.description_outlined,
+                            title:
+                                'Professional summary',
+                            subtitle:
+                                'Describe your skills and work quality',
+                          ),
+                          const SizedBox(height: 12),
+                          _bioCard(),
+                          const SizedBox(height: 24),
+                          _privacyNote(),
+                          const SizedBox(height: 18),
+                          _submitButton(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isSaving)
+            Positioned.fill(
+              child: _savingOverlay(),
+            ),
+        ],
       ),
     );
   }
-// topbar
-  Widget _topBar(BuildContext context) {
+
+  Widget _topBar() {
     return Row(
       children: [
-        GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            height: 48,
-            width: 48,
+        Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(15),
+          child: InkWell(
+            borderRadius:
+                BorderRadius.circular(15),
+            onTap: () =>
+                Navigator.maybePop(context),
+            child: Container(
+              height: 46,
+              width: 46,
+              decoration: BoxDecoration(
+                color: _surface,
+                borderRadius:
+                    BorderRadius.circular(15),
+                border:
+                    Border.all(color: _border),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x070F172A),
+                    blurRadius: 14,
+                    offset: Offset(0, 7),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_rounded,
+                color: _textPrimary,
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Worker profile',
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'Complete your professional account',
+                style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 10.3,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 7,
+          ),
+          decoration: BoxDecoration(
+            color: _primary.withOpacity(0.09),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: const Row(
+            children: [
+              Icon(
+                Icons.shield_outlined,
+                color: _primary,
+                size: 13,
+              ),
+              SizedBox(width: 5),
+              Text(
+                'SECURE',
+                style: TextStyle(
+                  color: _primary,
+                  fontSize: 8.4,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _heroCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        21,
+        20,
+        20,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_primary, _secondary],
+        ),
+        borderRadius: BorderRadius.circular(29),
+        boxShadow: [
+          BoxShadow(
+            color: _primary.withOpacity(0.24),
+            blurRadius: 28,
+            offset: const Offset(0, 15),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -70,
+            right: -55,
+            child: Container(
+              height: 180,
+              width: 180,
+              decoration: BoxDecoration(
+                color:
+                    Colors.white.withOpacity(0.09),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -100,
+            left: -55,
+            child: Container(
+              height: 180,
+              width: 180,
+              decoration: BoxDecoration(
+                color:
+                    Colors.white.withOpacity(0.07),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white
+                            .withOpacity(0.14),
+                        borderRadius:
+                            BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'WORKER ONBOARDING',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8.8,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.7,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    const Text(
+                      'Build your professional profile',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 23,
+                        height: 1.18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.55,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Add accurate work details so customers can discover and trust your services.',
+                      style: TextStyle(
+                        color:
+                            Colors.white.withOpacity(0.82),
+                        fontSize: 11,
+                        height: 1.45,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Container(
+                height: 88,
+                width: 76,
+                decoration: BoxDecoration(
+                  color:
+                      Colors.white.withOpacity(0.14),
+                  borderRadius:
+                      BorderRadius.circular(23),
+                  border: Border.all(
+                    color:
+                        Colors.white.withOpacity(0.18),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.handyman_rounded,
+                  color: Colors.white,
+                  size: 39,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _progressCard() {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x070F172A),
+            blurRadius: 14,
+            offset: Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 42,
+            width: 42,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(.06),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
+              color: _primary.withOpacity(0.09),
+              borderRadius:
+                  BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              color: _primary,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Profile setup progress',
+                  style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 11.4,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 5),
+                ClipRRect(
+                  borderRadius:
+                      BorderRadius.all(
+                    Radius.circular(10),
+                  ),
+                  child: LinearProgressIndicator(
+                    value: 0.75,
+                    minHeight: 6,
+                    color: _primary,
+                    backgroundColor:
+                        Color(0xFFDCFCE7),
+                  ),
                 ),
               ],
             ),
-            child: const Icon(Icons.arrow_back_rounded),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            '75%',
+            style: TextStyle(
+              color: _primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _profilePhoto() {
+    return Center(
+      child: Column(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                height: 104,
+                width: 104,
+                decoration: BoxDecoration(
+                  gradient:
+                      const LinearGradient(
+                    colors: [
+                      _primary,
+                      _secondary,
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          _primary.withOpacity(0.20),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Container(
+                  margin:
+                      const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: _surface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    color: Color(0xFF94A3B8),
+                    size: 48,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: -2,
+                bottom: 5,
+                child: Material(
+                  color: Colors.transparent,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder:
+                        const CircleBorder(),
+                    onTap: () {
+                      _showMessage(
+                        'Profile image picker can be connected here.',
+                      );
+                    },
+                    child: Container(
+                      height: 36,
+                      width: 36,
+                      decoration: BoxDecoration(
+                        gradient:
+                            const LinearGradient(
+                          colors: [
+                            _primary,
+                            _secondary,
+                          ],
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _surface,
+                          width: 3,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt_rounded,
+                        color: Colors.white,
+                        size: 17,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Add profile photo',
+            style: TextStyle(
+              color: _textPrimary,
+              fontSize: 11.3,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          const Text(
+            'A clear photo helps build customer trust',
+            style: TextStyle(
+              color: _textSecondary,
+              fontSize: 9.2,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        Container(
+          height: 39,
+          width: 39,
+          decoration: BoxDecoration(
+            color: _primary.withOpacity(0.09),
+            borderRadius:
+                BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: _primary,
+            size: 19,
           ),
         ),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          decoration: BoxDecoration(
-            color: const Color(0xFF16A34A).withOpacity(.10),
-            borderRadius: BorderRadius.circular(30),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: _textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: _textSecondary,
+                  fontSize: 9.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-          child: const Text(
-            "WORKER SETUP",
-            style: TextStyle(
-              color: Color(0xFF16A34A),
-              fontWeight: FontWeight.w900,
-              fontSize: 12,
+        ),
+      ],
+    );
+  }
+
+  Widget _formCard({
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x070F172A),
+            blurRadius: 15,
+            offset: Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
+        children: children,
+      ),
+    );
+  }
+
+  Widget _professionalField({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    String? Function(String?)? validator,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    String? prefixText,
+    int maxLines = 1,
+    int? maxLength,
+  }) {
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        _fieldLabel(label),
+        TextFormField(
+          controller: controller,
+          validator: validator,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          maxLines: maxLines,
+          maxLength: maxLength,
+          style: const TextStyle(
+            color: _textPrimary,
+            fontSize: 11.2,
+            fontWeight: FontWeight.w700,
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+            ),
+            prefixIcon: Icon(
+              icon,
+              color: _primary,
+              size: 20,
+            ),
+            prefixText: prefixText,
+            prefixStyle: const TextStyle(
+              color: _textPrimary,
+              fontSize: 11.2,
+              fontWeight: FontWeight.w800,
+            ),
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            counterStyle: const TextStyle(
+              color: _textSecondary,
+              fontSize: 8.5,
+              fontWeight: FontWeight.w600,
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 15,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(16),
+              borderSide:
+                  const BorderSide(color: _border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(16),
+              borderSide: const BorderSide(
+                color: _primary,
+                width: 1.5,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(16),
+              borderSide:
+                  const BorderSide(color: _danger),
+            ),
+            focusedErrorBorder:
+                OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(16),
+              borderSide: const BorderSide(
+                color: _danger,
+                width: 1.5,
+              ),
+            ),
+            errorStyle: const TextStyle(
+              color: _danger,
+              fontSize: 8.8,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -201,59 +1051,298 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     );
   }
 
-  Widget _headerCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF16A34A), Color(0xFF22C55E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF16A34A).withOpacity(.25),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+  Widget _fieldLabel(String label) {
+    return Padding(
+      padding:
+          const EdgeInsets.only(left: 2, bottom: 7),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: _textPrimary,
+              fontSize: 10.4,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Text(
+            '*',
+            style: TextStyle(
+              color: _danger,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            height: 62,
-            width: 62,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.18),
-              shape: BoxShape.circle,
+    );
+  }
+
+  Widget _skillDropdown() {
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        _fieldLabel('Main skill'),
+        DropdownButtonFormField<String>(
+          value: selectedSkill,
+          isExpanded: true,
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: _textSecondary,
+          ),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(
+              Icons.handyman_outlined,
+              color: _primary,
+              size: 20,
             ),
-            child: const Icon(
-              Icons.handyman_rounded,
-              color: Colors.white,
-              size: 30,
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            contentPadding:
+                const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 15,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(16),
+              borderSide:
+                  const BorderSide(color: _border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(16),
+              borderSide: const BorderSide(
+                color: _primary,
+                width: 1.5,
+              ),
             ),
           ),
-          const SizedBox(width: 18),
+          items: skills.map((skill) {
+            return DropdownMenuItem<String>(
+              value: skill,
+              child: Text(
+                skill,
+                style: const TextStyle(
+                  color: _textPrimary,
+                  fontSize: 11.2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value == null) return;
+
+            setState(() {
+              selectedSkill = value;
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _locationCard() {
+    return _formCard(
+      children: [
+        _professionalField(
+          label: 'Service area',
+          hint: 'City, area or neighborhood',
+          icon: Icons.location_on_outlined,
+          controller: locationController,
+          validator: (value) {
+            if (value == null ||
+                value.trim().isEmpty) {
+              return 'Service location is required';
+            }
+
+            return null;
+          },
+        ),
+        const SizedBox(height: 13),
+        Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius:
+                BorderRadius.circular(16),
+            onTap: _isGettingLocation
+                ? null
+                : _captureLocation,
+            child: AnimatedContainer(
+              duration:
+                  const Duration(milliseconds: 220),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 13,
+              ),
+              decoration: BoxDecoration(
+                color: _locationCaptured
+                    ? _primary.withOpacity(0.08)
+                    : const Color(0xFFF8FAFC),
+                borderRadius:
+                    BorderRadius.circular(16),
+                border: Border.all(
+                  color: _locationCaptured
+                      ? _primary.withOpacity(0.28)
+                      : _border,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    height: 36,
+                    width: 36,
+                    decoration: BoxDecoration(
+                      color: _primary.withOpacity(0.10),
+                      borderRadius:
+                          BorderRadius.circular(12),
+                    ),
+                    child: _isGettingLocation
+                        ? const Padding(
+                            padding:
+                                EdgeInsets.all(10),
+                            child:
+                                CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: _primary,
+                            ),
+                          )
+                        : Icon(
+                            _locationCaptured
+                                ? Icons
+                                    .check_circle_rounded
+                                : Icons
+                                    .my_location_rounded,
+                            color: _primary,
+                            size: 18,
+                          ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _locationCaptured
+                              ? 'Location captured'
+                              : 'Use current location',
+                          style: const TextStyle(
+                            color: _textPrimary,
+                            fontSize: 10.8,
+                            fontWeight:
+                                FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _locationCaptured
+                              ? 'GPS coordinates are ready'
+                              : 'Improve nearby job recommendations',
+                          style: const TextStyle(
+                            color: _textSecondary,
+                            fontSize: 8.8,
+                            fontWeight:
+                                FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Color(0xFF94A3B8),
+                    size: 13,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _bioCard() {
+    return _formCard(
+      children: [
+        _professionalField(
+          label: 'Short bio',
+          hint:
+              'Tell customers about your experience, specialties and work quality...',
+          icon: Icons.description_outlined,
+          controller: bioController,
+          maxLines: 5,
+          maxLength: 300,
+          validator: (value) {
+            final text = value?.trim() ?? '';
+
+            if (text.isNotEmpty &&
+                text.length < 20) {
+              return 'Write at least 20 characters';
+            }
+
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _privacyNote() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _primary.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: _primary.withOpacity(0.13),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: _primary.withOpacity(0.10),
+              borderRadius:
+                  BorderRadius.circular(11),
+            ),
+            child: const Icon(
+              Icons.verified_user_outlined,
+              color: _primary,
+              size: 17,
+            ),
+          ),
+          const SizedBox(width: 10),
           const Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Complete Your Profile",
+                  'Your information is protected',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
+                    color: _textPrimary,
+                    fontSize: 10.4,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 6),
+                SizedBox(height: 4),
                 Text(
-                  "Add your skills and work details to get jobs",
+                  'Your profile details are used to connect you with relevant customers and nearby jobs.',
                   style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14.5,
+                    color: _textSecondary,
+                    fontSize: 8.8,
+                    height: 1.4,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -265,196 +1354,288 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     );
   }
 
-  Widget _profilePhoto() {
-    return Center(
-      child: Stack(
-        children: [
-          Container(
-            height: 112,
-            width: 112,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 4),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(.08),
-                  blurRadius: 22,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              size: 56,
-              color: Color(0xFF94A3B8),
-            ),
-          ),
-          Positioned(
-            right: 0,
-            bottom: 6,
-            child: Container(
-              height: 36,
-              width: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFF16A34A),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.camera_alt_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Color(0xFF0F172A),
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
-      ),
-    );
-  }
-
-  Widget _textField(
-    String label,
-    String hint,
-    IconData icon,
-    TextEditingController controller,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _label(label),
-        TextField(
-          controller: controller,
-          decoration: _inputDecoration(hint, icon),
-        ),
-      ],
-    );
-  }
-
-  Widget _label(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Color(0xFF334155),
-          fontSize: 14,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint, IconData icon) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(
-        color: Color(0xFF94A3B8),
-        fontWeight: FontWeight.w600,
-      ),
-      prefixIcon: Icon(icon, color: const Color(0xFF94A3B8)),
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Color(0xFF16A34A), width: 1.8),
-      ),
-    );
-  }
-
-  Widget _skillDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _label("Main Skill"),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedSkill,
-              isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded),
-              items: skills.map((skill) {
-                return DropdownMenuItem(
-                  value: skill,
-                  child: Text(
-                    skill,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() => selectedSkill = value!);
-              },
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _bioField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _label("Short Bio"),
-        TextField(
-          controller: bioController,
-          maxLines: 4,
-          decoration: _inputDecoration(
-            "Tell customers about your work experience...",
-            Icons.description_outlined,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _submitButton() {
     return SizedBox(
-      height: 60,
+      height: 58,
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () async {
-          await saveWorkerProfile();
-        },
+        onPressed:
+            _isSaving ? null : _saveWorkerProfile,
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          backgroundColor: const Color(0xFF16A34A),
+          backgroundColor: _primary,
+          disabledBackgroundColor:
+              _primary.withOpacity(0.55),
+          foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius:
+                BorderRadius.circular(18),
           ),
         ),
-        child: const Text(
-          "Save & Continue",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w900,
+        child: Row(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.check_circle_outline_rounded,
+              size: 19,
+            ),
+            const SizedBox(width: 9),
+            Text(
+              _isSaving
+                  ? 'Saving profile...'
+                  : 'Save & continue',
+              style: const TextStyle(
+                fontSize: 12.2,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            if (!_isSaving) ...[
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                size: 18,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _savingOverlay() {
+    return ColoredBox(
+      color: _textPrimary.withOpacity(0.28),
+      child: Center(
+        child: Container(
+          width: 245,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(23),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x220F172A),
+                blurRadius: 30,
+                offset: Offset(0, 15),
+              ),
+            ],
           ),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                color: _primary,
+                strokeWidth: 2.7,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Creating your profile',
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Please wait while we securely save your professional information.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 10.2,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void>
+      _showLocationSettingsDialog() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 58,
+                width: 58,
+                decoration: BoxDecoration(
+                  color: _warning.withOpacity(0.10),
+                  borderRadius:
+                      BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.location_off_outlined,
+                  color: _warning,
+                  size: 29,
+                ),
+              ),
+              const SizedBox(height: 15),
+              const Text(
+                'Location permission required',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 7),
+              const Text(
+                'Location permission is permanently disabled. Open app settings to enable it.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 10.5,
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () =>
+                          Navigator.pop(context),
+                      style:
+                          OutlinedButton.styleFrom(
+                        minimumSize:
+                            const Size(0, 48),
+                        side: const BorderSide(
+                          color: _border,
+                        ),
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(
+                            15,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: _textPrimary,
+                          fontWeight:
+                              FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await Geolocator
+                            .openAppSettings();
+                      },
+                      style:
+                          ElevatedButton.styleFrom(
+                        elevation: 0,
+                        backgroundColor: _primary,
+                        foregroundColor:
+                            Colors.white,
+                        minimumSize:
+                            const Size(0, 48),
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(
+                            15,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'Open settings',
+                        style: TextStyle(
+                          fontWeight:
+                              FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showMessage(
+    String message, {
+    bool isError = false,
+  }) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(18),
+          backgroundColor:
+              isError ? _danger : _textPrimary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          content: Row(
+            children: [
+              Icon(
+                isError
+                    ? Icons.error_outline_rounded
+                    : Icons
+                        .check_circle_outline_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+  }
+
+  Widget _ambientCircle({
+    required double size,
+    required Color color,
+  }) {
+    return ImageFiltered(
+      imageFilter: ImageFilter.blur(
+        sigmaX: 50,
+        sigmaY: 50,
+      ),
+      child: Container(
+        height: size,
+        width: size,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
         ),
       ),
     );

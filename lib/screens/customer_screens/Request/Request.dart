@@ -1,94 +1,182 @@
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/request_tracking_screen.dart';
 
 class Request extends StatefulWidget {
-  const Request({super.key});
+  final String? selectedWorkerId;
+  const Request({super.key, this.selectedWorkerId});
 
   @override
   State<Request> createState() => _RequestState();
 }
 
 class _RequestState extends State<Request> {
-  String selectedCategory = "Electrician";
-  String selectedUrgency = "Normal";
+  static const Color _background = Color(0xFFF4F7FB);
+  static const Color _surface = Colors.white;
+  static const Color _primary = Color(0xFF2563EB);
+  static const Color _secondary = Color(0xFF06B6D4);
+  static const Color _textPrimary = Color(0xFF0F172A);
+  static const Color _textSecondary = Color(0xFF64748B);
+  static const Color _border = Color(0xFFE2E8F0);
+  static const Color _danger = Color(0xFFDC2626);
 
-  final categories = [
-    "Electrician",
-    "Plumber",
-    "Painter",
-    "Carpenter",
-    "AC Repair",
-    "Cleaner",
+  final _formKey = GlobalKey<FormState>();
+
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _budgetController = TextEditingController();
+
+  String _selectedCategory = 'Electrician';
+  String _selectedUrgency = 'Normal';
+
+  bool _isSubmitting = false;
+  bool _isGettingLocation = false;
+  bool _useCurrentLocation = true;
+
+  final List<ServiceOption> _categories = const [
+    ServiceOption(
+      title: 'Electrician',
+      icon: Icons.electrical_services_rounded,
+      color: Color(0xFFF59E0B),
+    ),
+    ServiceOption(
+      title: 'Plumber',
+      icon: Icons.plumbing_rounded,
+      color: Color(0xFF06B6D4),
+    ),
+    ServiceOption(
+      title: 'Painter',
+      icon: Icons.format_paint_rounded,
+      color: Color(0xFF8B5CF6),
+    ),
+    ServiceOption(
+      title: 'Carpenter',
+      icon: Icons.carpenter_rounded,
+      color: Color(0xFFF97316),
+    ),
+    ServiceOption(
+      title: 'AC Repair',
+      icon: Icons.ac_unit_rounded,
+      color: Color(0xFF0EA5E9),
+    ),
+    ServiceOption(
+      title: 'Cleaner',
+      icon: Icons.cleaning_services_rounded,
+      color: Color(0xFF10B981),
+    ),
   ];
 
-  final urgencies = ["Normal", "Urgent", "Emergency"];
+  final List<UrgencyOption> _urgencies = const [
+    UrgencyOption(
+      title: 'Normal',
+      subtitle: 'Within a few hours',
+      icon: Icons.schedule_rounded,
+      color: Color(0xFF2563EB),
+    ),
+    UrgencyOption(
+      title: 'Urgent',
+      subtitle: 'As soon as possible',
+      icon: Icons.bolt_rounded,
+      color: Color(0xFFF59E0B),
+    ),
+    UrgencyOption(
+      title: 'Emergency',
+      subtitle: 'Immediate assistance',
+      icon: Icons.warning_amber_rounded,
+      color: Color(0xFFDC2626),
+    ),
+  ];
 
-  final titleController = TextEditingController();
-  final descriptionController = TextEditingController();
-  final locationController = TextEditingController();
-  final budgetController = TextEditingController();
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _locationController.dispose();
+    _budgetController.dispose();
+    super.dispose();
+  }
 
-  bool isLoading = false;
+  Future<void> _postRequest() async {
+    FocusScope.of(context).unfocus();
 
-  // Post the request to Firestore
-  Future<void> postRequest() async {
-    if (titleController.text.trim().isEmpty ||
-        descriptionController.text.trim().isEmpty ||
-        locationController.text.trim().isEmpty ||
-        budgetController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
+    if (!_formKey.currentState!.validate()) {
+      _showMessage('Please complete all required fields.', isError: true);
       return;
     }
 
-    try {
-      setState(() => isLoading = true);
+    final user = FirebaseAuth.instance.currentUser;
 
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      final position = await getCurrentLocation();
+    if (user == null) {
+      _showMessage(
+        'Please sign in again before posting a request.',
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+    //  Position? position;
+
+      if (_useCurrentLocation) {
+      //  position = await _getCurrentLocation();
+      }
 
       final requestRef = await FirebaseFirestore.instance
-          .collection("requests")
+          .collection('requests')
           .add({
-            "customerId": uid,
-            "category": selectedCategory,
-            "urgency": selectedUrgency,
-            "title": titleController.text.trim(),
-            "description": descriptionController.text.trim(),
-            "location": locationController.text.trim(),
-            "budget": budgetController.text.trim(),
-            "status": "searching",
-            "workerId": null,
-            "createdAt": FieldValue.serverTimestamp(),
-            "lat": position?.latitude,
-            "lng": position?.longitude,
+            'customerId': FirebaseAuth.instance.currentUser!.uid,
+
+            'workerId': widget.selectedWorkerId,
+
+            'title': _titleController.text.trim(),
+            'description': _descriptionController.text.trim(),
+            'category': _selectedCategory,
+            'location': _locationController.text.trim(),
+            'budget': _budgetController.text.trim(),
+            'urgency': _selectedUrgency,
+            'status': 'pending',
+
+            'isDirectRequest': widget.selectedWorkerId != null,
+
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
           });
-      // Get all workers
+
       final workers = await FirebaseFirestore.instance
-          .collection("users")
-          .where("role", isEqualTo: "worker")
+          .collection('users')
+          .where('role', isEqualTo: 'worker')
           .get();
-          print("Workers Found: ${workers.docs.length}");
+
+      final batch = FirebaseFirestore.instance.batch();
 
       for (final worker in workers.docs) {
-         print("Sending notification to ${worker.id}");
-        await FirebaseFirestore.instance.collection("notifications").add({
-          "userId": worker.id,
-          "requestId": requestRef.id,
-          "title": "New Job Available",
-          "message": "${selectedCategory} job posted near you.",
-          "type": "job",
-          "isRead": false,
-          "createdAt": FieldValue.serverTimestamp(),
+        final notificationRef = FirebaseFirestore.instance
+            .collection('notifications')
+            .doc();
+
+        batch.set(notificationRef, {
+          'userId': worker.id,
+          'requestId': requestRef.id,
+          'title': 'New Job Available',
+          'message': '$_selectedCategory job posted near you.',
+          'type': 'job',
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
         });
       }
 
-      setState(() => isLoading = false);
+      await batch.commit();
+
+      if (!mounted) return;
 
       Navigator.pushReplacement(
         context,
@@ -96,102 +184,309 @@ class _RequestState extends State<Request> {
           builder: (_) => RequestTrackingScreen(requestId: requestRef.id),
         ),
       );
-    } catch (e) {
-      setState(() => isLoading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    } catch (error) {
+      if (!mounted) return;
+
+      _showMessage(
+        'Request could not be posted. ${error.toString()}',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
-  Future<Position?> getCurrentLocation() async {
-    LocationPermission permission = await Geolocator.checkPermission();
+  Future<Position?> _getCurrentLocation() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
+      if (!serviceEnabled) {
+        if (mounted) {
+          _showMessage('Please turn on location services.', isError: true);
+        }
+        return null;
+      }
 
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied) {
+        if (mounted) {
+          _showMessage('Location permission was denied.', isError: true);
+        }
+        return null;
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          _showMessage(
+            'Location permission is permanently denied. Enable it from settings.',
+            isError: true,
+          );
+        }
+        return null;
+      }
+
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+    } catch (_) {
+      if (mounted) {
+        _showMessage('Unable to get your current location.', isError: true);
+      }
+
       return null;
     }
+  }
 
-    return await Geolocator.getCurrentPosition();
+  Future<void> _fillCurrentLocation() async {
+    if (_isGettingLocation) return;
+
+    FocusScope.of(context).unfocus();
+
+    setState(() => _isGettingLocation = true);
+
+    final position = await _getCurrentLocation();
+
+    if (!mounted) return;
+
+    if (position != null) {
+      _locationController.text =
+          '${position.latitude.toStringAsFixed(5)}, '
+          '${position.longitude.toStringAsFixed(5)}';
+
+      _showMessage('Current location added successfully.');
+    }
+
+    setState(() => _isGettingLocation = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    final selectedCategory = _categories.firstWhere(
+      (item) => item.title == _selectedCategory,
+    );
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _background,
       bottomNavigationBar: const CustomerBottomBar(selectedIndex: 2),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _header(),
-              const SizedBox(height: 24),
-              _heroCard(),
-              const SizedBox(height: 26),
-              _sectionTitle("Service Details"),
-              const SizedBox(height: 14),
-              _categoryDropdown(),
-              const SizedBox(height: 16),
-              _textField(
-                label: "Problem Title",
-                hint: "Example: Fan is not working",
-                icon: Icons.title_rounded,
-                controller: titleController,
-              ),
-              const SizedBox(height: 16),
-              _descriptionField(),
-              const SizedBox(height: 26),
-              _sectionTitle("Location & Budget"),
-              const SizedBox(height: 14),
-              _textField(
-                label: "Location",
-                hint: "Example: Pabbi Bazar, Nowshera",
-                icon: Icons.location_on_outlined,
-                controller: locationController,
-              ),
-              const SizedBox(height: 16),
-              _textField(
-                label: "Budget",
-                hint: "Example: Rs. 1000",
-                controller: budgetController,
-                icon: Icons.payments_outlined,
-              ),
-              const SizedBox(height: 16),
-              _urgencyDropdown(),
-              const SizedBox(height: 30),
-              _submitButton(),
-            ],
+      body: Stack(
+        children: [
+          Positioned(
+            top: -150,
+            right: -120,
+            child: _ambientCircle(size: 330, color: _primary.withOpacity(0.09)),
           ),
-        ),
+          Positioned(
+            bottom: -160,
+            left: -130,
+            child: _ambientCircle(
+              size: 340,
+              color: _secondary.withOpacity(0.06),
+            ),
+          ),
+          SafeArea(
+            child: Form(
+              key: _formKey,
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        _header(),
+                        const SizedBox(height: 20),
+                        _heroCard(),
+                        const SizedBox(height: 24),
+                        _progressHeader(),
+                        const SizedBox(height: 18),
+                        _sectionCard(
+                          title: 'Choose a service',
+                          subtitle: 'Select the type of professional you need',
+                          icon: Icons.home_repair_service_rounded,
+                          child: _categoryGrid(),
+                        ),
+                        const SizedBox(height: 18),
+                        _sectionCard(
+                          title: 'Describe your problem',
+                          subtitle:
+                              'Add clear details so workers can respond accurately',
+                          icon: Icons.description_outlined,
+                          child: Column(
+                            children: [
+                              _professionalField(
+                                controller: _titleController,
+                                label: 'Problem title',
+                                hint: 'Example: Ceiling fan is not working',
+                                icon: Icons.title_rounded,
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Please enter a problem title';
+                                  }
+
+                                  if (value.trim().length < 5) {
+                                    return 'Title must be at least 5 characters';
+                                  }
+
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 15),
+                              _descriptionField(),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        _sectionCard(
+                          title: 'Location and budget',
+                          subtitle:
+                              'Help workers understand where and how much',
+                          icon: Icons.location_on_outlined,
+                          child: Column(
+                            children: [
+                              _locationField(),
+                              const SizedBox(height: 15),
+                              _professionalField(
+                                controller: _budgetController,
+                                label: 'Estimated budget',
+                                hint: 'Example: 1500',
+                                icon: Icons.payments_outlined,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: false,
+                                    ),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                                prefixText: 'Rs. ',
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Please enter your budget';
+                                  }
+
+                                  final budget = int.tryParse(value.trim());
+
+                                  if (budget == null || budget <= 0) {
+                                    return 'Enter a valid budget amount';
+                                  }
+
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        _sectionCard(
+                          title: 'Set urgency',
+                          subtitle:
+                              'Tell workers how quickly you need assistance',
+                          icon: Icons.speed_rounded,
+                          child: _urgencySelector(),
+                        ),
+                        const SizedBox(height: 18),
+                        _summaryCard(selectedCategory),
+                        const SizedBox(height: 20),
+                        _submitButton(),
+                        const SizedBox(height: 10),
+                        const Center(
+                          child: Text(
+                            'Nearby workers will be notified after posting.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: _textSecondary,
+                              fontSize: 9.8,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isSubmitting) Positioned.fill(child: _submittingOverlay()),
+        ],
       ),
     );
   }
 
   Widget _header() {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Text(
-          "Create Request",
-          style: TextStyle(
-            color: Color(0xFF0F172A),
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
+        Container(
+          height: 50,
+          width: 50,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [_primary, _secondary]),
+            borderRadius: BorderRadius.circular(17),
+            boxShadow: [
+              BoxShadow(
+                color: _primary.withOpacity(0.22),
+                blurRadius: 18,
+                offset: const Offset(0, 9),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.add_task_rounded,
+            color: Colors.white,
+            size: 26,
           ),
         ),
-        SizedBox(height: 6),
-        Text(
-          "Tell us what service you need",
-          style: TextStyle(
-            color: Color(0xFF64748B),
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
+        const SizedBox(width: 13),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Create request',
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.45,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Post a job and connect with nearby professionals',
+                style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 10.7,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: _border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x070F172A),
+                blurRadius: 14,
+                offset: Offset(0, 7),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.help_outline_rounded,
+            color: _primary,
+            size: 21,
           ),
         ),
       ],
@@ -201,104 +496,396 @@ class _RequestState extends State<Request> {
   Widget _heroCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF2563EB), Color(0xFF60A5FA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_primary, _secondary],
         ),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 58,
-            width: 58,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.18),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.add_task_rounded,
-              color: Colors.white,
-              size: 30,
-            ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: _primary.withOpacity(0.24),
+            blurRadius: 28,
+            offset: const Offset(0, 15),
           ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Text(
-              "Post your problem and nearby workers will respond.",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -70,
+            right: -55,
+            child: Container(
+              height: 180,
+              width: 180,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.09),
+                shape: BoxShape.circle,
               ),
             ),
+          ),
+          Positioned(
+            bottom: -90,
+            left: -55,
+            child: Container(
+              height: 180,
+              width: 180,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.07),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'FAST SERVICE REQUEST',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.7,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    const Text(
+                      'Tell us what\nneeds fixing',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        height: 1.12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.7,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    Text(
+                      'Add clear details and nearby professionals will be notified instantly.',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.82),
+                        fontSize: 11.7,
+                        height: 1.45,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Container(
+                height: 108,
+                width: 86,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(25),
+                  border: Border.all(color: Colors.white.withOpacity(0.18)),
+                ),
+                child: const Icon(
+                  Icons.home_repair_service_rounded,
+                  color: Colors.white,
+                  size: 45,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Color(0xFF0F172A),
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
+  Widget _progressHeader() {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x070F172A),
+            blurRadius: 15,
+            offset: Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _stepIndicator(number: '1', label: 'Service', active: true),
+          _stepLine(),
+          _stepIndicator(number: '2', label: 'Details', active: true),
+          _stepLine(),
+          _stepIndicator(number: '3', label: 'Post', active: false),
+        ],
       ),
     );
   }
 
-  Widget _label(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Color(0xFF334155),
-          fontSize: 14,
-          fontWeight: FontWeight.w800,
+  Widget _stepIndicator({
+    required String number,
+    required String label,
+    required bool active,
+  }) {
+    return Column(
+      children: [
+        Container(
+          height: 30,
+          width: 30,
+          decoration: BoxDecoration(
+            color: active ? _primary : const Color(0xFFE8EDF4),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            number,
+            style: TextStyle(
+              color: active ? Colors.white : const Color(0xFF94A3B8),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: TextStyle(
+            color: active ? _textPrimary : _textSecondary,
+            fontSize: 8.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _stepLine() {
+    return Expanded(
+      child: Container(
+        height: 3,
+        margin: const EdgeInsets.fromLTRB(7, 0, 7, 18),
+        decoration: BoxDecoration(
+          color: _primary.withOpacity(0.22),
+          borderRadius: BorderRadius.circular(4),
         ),
       ),
     );
   }
 
-  InputDecoration _inputDecoration(String hint, IconData icon) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(
-        color: Color(0xFF94A3B8),
-        fontWeight: FontWeight.w600,
+  Widget _sectionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 17,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
-      prefixIcon: Icon(icon, color: const Color(0xFF94A3B8)),
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 42,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: _primary.withOpacity(0.09),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: _primary, size: 21),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: _textSecondary,
+                        fontSize: 9.8,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 17),
+          child,
+        ],
       ),
     );
   }
 
-  Widget _textField({
+  Widget _categoryGrid() {
+    return GridView.builder(
+      itemCount: _categories.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 11,
+        crossAxisSpacing: 11,
+        childAspectRatio: 0.92,
+      ),
+      itemBuilder: (context, index) {
+        final category = _categories[index];
+        final selected = _selectedCategory == category.title;
+
+        return Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () {
+              setState(() {
+                _selectedCategory = category.title;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 240),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: selected
+                    ? category.color.withOpacity(0.10)
+                    : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: selected ? category.color : _border,
+                  width: selected ? 1.5 : 1,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          height: 42,
+                          width: 42,
+                          decoration: BoxDecoration(
+                            color: category.color.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(
+                            category.icon,
+                            color: category.color,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 9),
+                        Text(
+                          category.title,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: selected ? category.color : _textPrimary,
+                            fontSize: 9.8,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (selected)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        height: 20,
+                        width: 20,
+                        decoration: BoxDecoration(
+                          color: category.color,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 13,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _professionalField({
+    required TextEditingController controller,
     required String label,
     required String hint,
     required IconData icon,
-    required TextEditingController controller,
+    required String? Function(String?) validator,
+    TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+    String? prefixText,
+    int maxLines = 1,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _label(label),
-        TextField(
+        _fieldLabel(label),
+        TextFormField(
           controller: controller,
-          decoration: _inputDecoration(hint, icon),
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          maxLines: maxLines,
+          validator: validator,
+          style: const TextStyle(
+            color: _textPrimary,
+            fontSize: 11.7,
+            fontWeight: FontWeight.w700,
+          ),
+          decoration: _inputDecoration(
+            hint: hint,
+            icon: icon,
+            prefixText: prefixText,
+          ),
         ),
       ],
     );
@@ -308,115 +895,554 @@ class _RequestState extends State<Request> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _label("Problem Description"),
-        TextField(
-          controller: descriptionController,
-          maxLines: 4,
+        _fieldLabel('Problem description'),
+        TextFormField(
+          controller: _descriptionController,
+          minLines: 4,
+          maxLines: 6,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Please describe your problem';
+            }
+
+            if (value.trim().length < 15) {
+              return 'Description must be at least 15 characters';
+            }
+
+            return null;
+          },
+          style: const TextStyle(
+            color: _textPrimary,
+            fontSize: 11.7,
+            height: 1.45,
+            fontWeight: FontWeight.w700,
+          ),
           decoration: _inputDecoration(
-            "Describe your problem in detail...",
-            Icons.description_outlined,
+            hint:
+                'Explain what happened, when it started and what help you need...',
+            icon: Icons.description_outlined,
+            alignLabelTop: true,
           ),
+        ),
+        const SizedBox(height: 7),
+        const Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: _textSecondary, size: 13),
+            SizedBox(width: 5),
+            Expanded(
+              child: Text(
+                'Clear details help workers send better offers.',
+                style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 8.8,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _categoryDropdown() {
+  Widget _locationField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _label("Service Category"),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: _boxDecoration(),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedCategory,
-              isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded),
-              items: categories.map((item) {
-                return DropdownMenuItem(
-                  value: item,
-                  child: Text(
-                    item,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() => selectedCategory = value!);
-              },
+        _fieldLabel('Service location'),
+        TextFormField(
+          controller: _locationController,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Please enter the service location';
+            }
+
+            return null;
+          },
+          style: const TextStyle(
+            color: _textPrimary,
+            fontSize: 11.7,
+            fontWeight: FontWeight.w700,
+          ),
+          decoration: _inputDecoration(
+            hint: 'Example: Pabbi Bazar, Nowshera',
+            icon: Icons.location_on_outlined,
+            suffix: IconButton(
+              tooltip: 'Use current location',
+              onPressed: _isGettingLocation ? null : _fillCurrentLocation,
+              icon: _isGettingLocation
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        color: _primary,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.my_location_rounded,
+                      color: _primary,
+                      size: 20,
+                    ),
             ),
+          ),
+        ),
+        const SizedBox(height: 9),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: _border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.gps_fixed_rounded, color: _primary, size: 16),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Attach GPS coordinates with this request',
+                  style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 9.6,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Switch.adaptive(
+                value: _useCurrentLocation,
+                activeColor: _primary,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onChanged: (value) {
+                  setState(() {
+                    _useCurrentLocation = value;
+                  });
+                },
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _urgencyDropdown() {
+  Widget _urgencySelector() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _label("Urgency"),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: _boxDecoration(),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedUrgency,
-              isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded),
-              items: urgencies.map((item) {
-                return DropdownMenuItem(
-                  value: item,
-                  child: Text(
-                    item,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() => selectedUrgency = value!);
+      children: _urgencies.map((option) {
+        final selected = _selectedUrgency == option.title;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(17),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(17),
+              onTap: () {
+                setState(() {
+                  _selectedUrgency = option.title;
+                });
               },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 240),
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? option.color.withOpacity(0.09)
+                      : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(17),
+                  border: Border.all(
+                    color: selected ? option.color : _border,
+                    width: selected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      height: 42,
+                      width: 42,
+                      decoration: BoxDecoration(
+                        color: option.color.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(option.icon, color: option.color, size: 21),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            option.title,
+                            style: TextStyle(
+                              color: selected ? option.color : _textPrimary,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            option.subtitle,
+                            style: const TextStyle(
+                              color: _textSecondary,
+                              fontSize: 9.2,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      height: 22,
+                      width: 22,
+                      decoration: BoxDecoration(
+                        color: selected ? option.color : Colors.transparent,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected
+                              ? option.color
+                              : const Color(0xFFCBD5E1),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: selected
+                          ? const Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 14,
+                            )
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ],
+        );
+      }).toList(),
     );
   }
 
-  BoxDecoration _boxDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFE2E8F0)),
+  Widget _summaryCard(ServiceOption selectedCategory) {
+    final urgency = _urgencies.firstWhere(
+      (item) => item.title == _selectedUrgency,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            selectedCategory.color.withOpacity(0.12),
+            urgency.color.withOpacity(0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: selectedCategory.color.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Request summary',
+            style: TextStyle(
+              color: _textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              Expanded(
+                child: _summaryItem(
+                  icon: selectedCategory.icon,
+                  color: selectedCategory.color,
+                  title: 'Service',
+                  value: selectedCategory.title,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _summaryItem(
+                  icon: urgency.icon,
+                  color: urgency.color,
+                  title: 'Urgency',
+                  value: urgency.title,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryItem({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.78),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.11),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: color, size: 17),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _textSecondary,
+                    fontSize: 8.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _textPrimary,
+                    fontSize: 10.3,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _submitButton() {
     return SizedBox(
-      height: 60,
       width: double.infinity,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : postRequest,
+      height: 58,
+      child: ElevatedButton.icon(
+        onPressed: _isSubmitting ? null : _postRequest,
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          backgroundColor: const Color(0xFF2563EB),
+          foregroundColor: Colors.white,
+          backgroundColor: _primary,
+          disabledBackgroundColor: _primary.withOpacity(0.55),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(19),
           ),
+          shadowColor: _primary.withOpacity(0.28),
         ),
-        child: isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
-            : const Text(
-                "Post Request",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+        icon: const Icon(Icons.send_rounded, size: 19),
+        label: const Text(
+          'Post service request',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+        ),
       ),
     );
   }
+
+  Widget _fieldLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, bottom: 8),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: _textPrimary,
+          fontSize: 10.8,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String hint,
+    required IconData icon,
+    String? prefixText,
+    Widget? suffix,
+    bool alignLabelTop = false,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      prefixText: prefixText,
+      prefixStyle: const TextStyle(
+        color: _textPrimary,
+        fontWeight: FontWeight.w800,
+      ),
+      hintStyle: const TextStyle(
+        color: Color(0xFF94A3B8),
+        fontSize: 10.8,
+        fontWeight: FontWeight.w600,
+      ),
+      prefixIcon: Padding(
+        padding: EdgeInsets.only(bottom: alignLabelTop ? 62 : 0),
+        child: Icon(icon, color: const Color(0xFF94A3B8), size: 20),
+      ),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 17),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(17),
+        borderSide: const BorderSide(color: _border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(17),
+        borderSide: const BorderSide(color: _primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(17),
+        borderSide: const BorderSide(color: _danger),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(17),
+        borderSide: const BorderSide(color: _danger, width: 1.5),
+      ),
+      errorStyle: const TextStyle(
+        color: _danger,
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+
+  Widget _submittingOverlay() {
+    return ColoredBox(
+      color: _textPrimary.withOpacity(0.26),
+      child: Center(
+        child: Container(
+          width: 245,
+          padding: const EdgeInsets.all(23),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(23),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x220F172A),
+                blurRadius: 30,
+                offset: Offset(0, 15),
+              ),
+            ],
+          ),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: _primary, strokeWidth: 2.7),
+              SizedBox(height: 16),
+              Text(
+                'Posting your request',
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'We are notifying nearby professionals.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 10.2,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMessage(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(18),
+          backgroundColor: isError ? _danger : _textPrimary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          content: Row(
+            children: [
+              Icon(
+                isError
+                    ? Icons.error_outline_rounded
+                    : Icons.check_circle_outline_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+  }
+
+  Widget _ambientCircle({required double size, required Color color}) {
+    return ImageFiltered(
+      imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+      child: Container(
+        height: size,
+        width: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+    );
+  }
+}
+
+class ServiceOption {
+  final String title;
+  final IconData icon;
+  final Color color;
+
+  const ServiceOption({
+    required this.title,
+    required this.icon,
+    required this.color,
+  });
+}
+
+class UrgencyOption {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+
+  const UrgencyOption({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+  });
 }

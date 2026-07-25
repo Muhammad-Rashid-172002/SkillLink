@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -13,171 +15,459 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
+    with TickerProviderStateMixin {
+  static const Color _navy = Color(0xFF0F172A);
+  static const Color _blue = Color(0xFF2563EB);
+  static const Color _green = Color(0xFF10B981);
 
-  Future<void> checkUser() async {
-    final user = FirebaseAuth.instance.currentUser;
+  late final AnimationController _introController;
+  late final AnimationController _pulseController;
 
-    if (user == null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
-      return;
-    }
+  late final Animation<double> _fadeAnimation;
+  late final Animation<double> _scaleAnimation;
+  late final Animation<Offset> _slideAnimation;
+  late final Animation<double> _pulseAnimation;
 
-    final doc = await FirebaseFirestore.instance
-        .collection("users")
-        .doc(user.uid)
-        .get();
-
-    if (!doc.exists) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
-      return;
-    }
-
-    final data = doc.data()!;
-    final role = data["role"];
-
-    if (role == "customer") {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
-      );
-    } else if (role == "worker") {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const WorkerHomeScreen()),
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
-    }
-  }
+  bool _isCheckingUser = false;
+  String _loadingText = 'Preparing your experience';
 
   @override
   void initState() {
     super.initState();
 
-    _controller = AnimationController(
+    _introController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     );
 
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1300),
+    )..repeat(reverse: true);
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _introController,
+      curve: const Interval(
+        0.0,
+        0.72,
+        curve: Curves.easeOut,
+      ),
+    );
+
     _scaleAnimation = Tween<double>(
-      begin: 0.75,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
-
-    _fadeAnimation = Tween<double>(
-      begin: 0,
+      begin: 0.72,
       end: 1,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+    ).animate(
+      CurvedAnimation(
+        parent: _introController,
+        curve: Curves.easeOutBack,
+      ),
+    );
 
-    _controller.forward();
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.18),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _introController,
+        curve: const Interval(
+          0.25,
+          1,
+          curve: Curves.easeOutCubic,
+        ),
+      ),
+    );
 
-    Future.delayed(const Duration(seconds: 3), () {
-      checkUser();
+    _pulseAnimation = Tween<double>(
+      begin: 0.96,
+      end: 1.04,
+    ).animate(
+      CurvedAnimation(
+        parent: _pulseController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _introController.forward();
+    _startSplashFlow();
+  }
+
+  Future<void> _startSplashFlow() async {
+    await Future<void>.delayed(const Duration(milliseconds: 2200));
+
+    if (!mounted) return;
+
+    setState(() {
+      _loadingText = 'Checking your account';
     });
+
+    await _checkUser();
+  }
+
+  Future<void> _checkUser() async {
+    if (_isCheckingUser) return;
+
+    _isCheckingUser = true;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        _goTo(const OnboardingScreen());
+        return;
+      }
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!mounted) return;
+
+      if (!doc.exists) {
+        _goTo(const OnboardingScreen());
+        return;
+      }
+
+      final data = doc.data();
+      final role = data?['role']?.toString().trim().toLowerCase();
+
+      if (role == 'customer') {
+        _goTo(const CustomerHomeScreen());
+      } else if (role == 'worker') {
+        _goTo(const WorkerHomeScreen());
+      } else {
+        _goTo(const OnboardingScreen());
+      }
+    } on FirebaseException catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _loadingText = 'Unable to connect';
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.message ?? 'Unable to connect. Please try again.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      _goTo(const OnboardingScreen());
+    } catch (_) {
+      if (!mounted) return;
+
+      _goTo(const OnboardingScreen());
+    }
+  }
+
+  void _goTo(Widget screen) {
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 550),
+        pageBuilder: (_, animation, __) => FadeTransition(
+          opacity: animation,
+          child: screen,
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _introController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0F172A), Color(0xFF1E40AF), Color(0xFF10B981)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF07111F),
+                  _navy,
+                  Color(0xFF183A7A),
+                  Color(0xFF0D7C66),
+                ],
+                stops: [0, 0.35, 0.70, 1],
+              ),
+            ),
+          ),
+
+          Positioned(
+            top: -size.width * 0.34,
+            right: -size.width * 0.24,
+            child: _blurCircle(
+              size: size.width * 0.90,
+              color: _blue.withOpacity(0.28),
+            ),
+          ),
+
+          Positioned(
+            bottom: -size.width * 0.38,
+            left: -size.width * 0.26,
+            child: _blurCircle(
+              size: size.width * 0.92,
+              color: _green.withOpacity(0.25),
+            ),
+          ),
+
+          Positioned(
+            top: size.height * 0.16,
+            left: -70,
+            child: Transform.rotate(
+              angle: -0.38,
+              child: Container(
+                height: 170,
+                width: 170,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.05),
+                    width: 1.2,
+                  ),
+                  borderRadius: BorderRadius.circular(46),
+                ),
+              ),
+            ),
+          ),
+
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 28,
+                vertical: 22,
+              ),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Column(
+                  children: [
+                    const Spacer(),
+
+                    ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: ScaleTransition(
+                        scale: _pulseAnimation,
+                        child: _logoCard(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    SlideTransition(
+                      position: _slideAnimation,
+                      child: Column(
+                        children: [
+                          const Text(
+                            'SkillLink',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 42,
+                              height: 1,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Trusted skills. Reliable people.\nWork done with confidence.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.78),
+                              fontSize: 14.5,
+                              height: 1.45,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Spacer(),
+
+                    _loadingSection(),
+
+                    const SizedBox(height: 22),
+
+                    Text(
+                      'Connecting customers with skilled professionals',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.52),
+                        fontSize: 10.8,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _logoCard() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          height: 150,
+          width: 150,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withOpacity(0.06),
           ),
         ),
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  height: 115,
-                  width: 115,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.16),
-                    borderRadius: BorderRadius.circular(34),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.25),
-                      width: 1.4,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
-                        blurRadius: 35,
-                        offset: const Offset(0, 18),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.handyman_rounded,
-                    size: 58,
-                    color: Colors.white,
-                  ),
+
+        Container(
+          height: 126,
+          width: 126,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(38),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.24),
+                Colors.white.withOpacity(0.10),
+              ],
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.28),
+              width: 1.4,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 34,
+                offset: const Offset(0, 18),
+              ),
+              BoxShadow(
+                color: _green.withOpacity(0.18),
+                blurRadius: 42,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(38),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: 14,
+                sigmaY: 14,
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.handyman_rounded,
+                  size: 63,
+                  color: Colors.white,
                 ),
+              ),
+            ),
+          ),
+        ),
 
-                const SizedBox(height: 26),
-
-                const Text(
-                  "SkillLink",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 38,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                Text(
-                  "Find trusted skilled workers near you",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.82),
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-
-                const SizedBox(height: 48),
-
-                SizedBox(
-                  width: 34,
-                  height: 34,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white.withOpacity(0.9),
-                    ),
-                  ),
+        Positioned(
+          right: 7,
+          bottom: 16,
+          child: Container(
+            height: 36,
+            width: 36,
+            decoration: BoxDecoration(
+              color: _green,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white,
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _green.withOpacity(0.35),
+                  blurRadius: 15,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
+            child: const Icon(
+              Icons.check_rounded,
+              color: Colors.white,
+              size: 19,
+            ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _loadingSection() {
+    return Column(
+      children: [
+        SizedBox(
+          width: 220,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(50),
+            child: const LinearProgressIndicator(
+              minHeight: 4,
+              backgroundColor: Color(0x26FFFFFF),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 13),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          child: Text(
+            _loadingText,
+            key: ValueKey(_loadingText),
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.80),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _blurCircle({
+    required double size,
+    required Color color,
+  }) {
+    return ImageFiltered(
+      imageFilter: ImageFilter.blur(
+        sigmaX: 58,
+        sigmaY: 58,
+      ),
+      child: Container(
+        height: size,
+        width: size,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
         ),
       ),
     );
