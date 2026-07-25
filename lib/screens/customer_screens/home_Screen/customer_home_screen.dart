@@ -99,10 +99,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           Positioned(
             top: -130,
             right: -120,
-            child: _ambientCircle(
-              size: 320,
-              color: _primary.withOpacity(0.10),
-            ),
+            child: _ambientCircle(size: 320, color: _primary.withOpacity(0.10)),
           ),
           Positioned(
             bottom: -150,
@@ -116,9 +113,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             child: RefreshIndicator(
               color: _primary,
               onRefresh: () async {
-                await Future<void>.delayed(
-                  const Duration(milliseconds: 650),
-                );
+                await Future<void>.delayed(const Duration(milliseconds: 650));
               },
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
@@ -128,33 +123,31 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
                     sliver: SliverList(
-                      delegate: SliverChildListDelegate(
-                        [
-                          _topHeader(),
-                          const SizedBox(height: 20),
-                          _searchBar(),
-                          const SizedBox(height: 20),
-                          _heroBanner(),
-                          const SizedBox(height: 24),
-                          _quickStats(),
-                          const SizedBox(height: 28),
-                          _sectionHeader(
-                            title: 'Popular services',
-                            subtitle: 'Choose a service to get started',
-                            action: 'See all',
-                          ),
-                          const SizedBox(height: 15),
-                          _categoriesGrid(),
-                          const SizedBox(height: 28),
-                          _sectionHeader(
-                            title: 'Top professionals',
-                            subtitle: 'Trusted workers near your area',
-                            action: 'View all',
-                          ),
-                          const SizedBox(height: 15),
-                          _workersList(),
-                        ],
-                      ),
+                      delegate: SliverChildListDelegate([
+                        _topHeader(),
+                        const SizedBox(height: 20),
+                        _searchBar(),
+                        const SizedBox(height: 20),
+                        _heroBanner(),
+                        const SizedBox(height: 24),
+                        _quickStats(),
+                        const SizedBox(height: 28),
+                        _sectionHeader(
+                          title: 'Popular services',
+                          subtitle: 'Choose a service to get started',
+                          action: 'See all',
+                        ),
+                        const SizedBox(height: 15),
+                        _categoriesGrid(),
+                        const SizedBox(height: 28),
+                        _sectionHeader(
+                          title: 'Top professionals',
+                          subtitle: 'Trusted workers near your area',
+                          action: 'View all',
+                        ),
+                        const SizedBox(height: 15),
+                        _workersList(),
+                      ]),
                     ),
                   ),
                 ],
@@ -186,9 +179,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               height: 52,
               width: 52,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [_primary, _secondary],
-                ),
+                gradient: const LinearGradient(colors: [_primary, _secondary]),
                 borderRadius: BorderRadius.circular(17),
                 boxShadow: [
                   BoxShadow(
@@ -279,9 +270,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             borderRadius: BorderRadius.circular(17),
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const NotificationScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const NotificationScreen()),
               );
             },
             child: Stack(
@@ -324,10 +313,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFEF4444),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _background,
-                          width: 2,
-                        ),
+                        border: Border.all(color: _background, width: 2),
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -389,15 +375,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             child: IconButton(
               tooltip: 'Filters',
               onPressed: () {
-                _showFeatureMessage(
-                  'Advanced filters can be connected here.',
-                );
+                _showFeatureMessage('Advanced filters can be connected here.');
               },
-              icon: const Icon(
-                Icons.tune_rounded,
-                color: _primary,
-                size: 19,
-              ),
+              icon: const Icon(Icons.tune_rounded, color: _primary, size: 19),
             ),
           ),
           border: InputBorder.none,
@@ -508,9 +488,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => Request(),
-                            ),
+                            MaterialPageRoute(builder: (context) => Request()),
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -521,10 +499,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        icon: const Icon(
-                          Icons.add_rounded,
-                          size: 18,
-                        ),
+                        icon: const Icon(Icons.add_rounded, size: 18),
                         label: const Text(
                           'Post a request',
                           style: TextStyle(
@@ -544,9 +519,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.14),
                   borderRadius: BorderRadius.circular(26),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.20),
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.20)),
                 ),
                 child: const Icon(
                   Icons.home_repair_service_rounded,
@@ -601,10 +574,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 14,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
       decoration: BoxDecoration(
         color: _surface,
         borderRadius: BorderRadius.circular(18),
@@ -626,11 +596,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               color: color.withOpacity(0.10),
               borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 18,
-            ),
+            child: Icon(icon, color: color, size: 18),
           ),
           const SizedBox(height: 9),
           Text(
@@ -695,10 +661,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           },
           style: TextButton.styleFrom(
             foregroundColor: _primary,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 5,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           ),
           child: Row(
             children: [
@@ -710,10 +673,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
               ),
               const SizedBox(width: 3),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 10,
-              ),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 10),
             ],
           ),
         ),
@@ -754,17 +714,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             onTap: () {
               setState(() => _selectedCategory = originalIndex);
 
-              _showFeatureMessage(
-                '${category.title} service selected.',
-              );
+              _showFeatureMessage('${category.title} service selected.');
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 250),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: selected
-                    ? category.accent.withOpacity(0.08)
-                    : _surface,
+                color: selected ? category.accent.withOpacity(0.08) : _surface,
                 borderRadius: BorderRadius.circular(21),
                 border: Border.all(
                   color: selected ? category.accent : _border,
@@ -811,9 +767,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   Text(
                     selected ? 'Selected' : 'Explore',
                     style: TextStyle(
-                      color: selected
-                          ? category.accent
-                          : _textSecondary,
+                      color: selected ? category.accent : _textSecondary,
                       fontSize: 8.8,
                       fontWeight: FontWeight.w800,
                     ),
@@ -836,9 +790,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         }
 
         if (snapshot.hasError) {
-          return _errorCard(
-            'Unable to load workers right now.',
-          );
+          return _errorCard('Unable to load workers right now.');
         }
 
         var workers = snapshot.data?.docs ?? [];
@@ -849,8 +801,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             final name = data['name']?.toString().toLowerCase() ?? '';
             final skill = data['skill']?.toString().toLowerCase() ?? '';
 
-            return name.contains(_searchQuery) ||
-                skill.contains(_searchQuery);
+            return name.contains(_searchQuery) || skill.contains(_searchQuery);
           }).toList();
         }
 
@@ -860,15 +811,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
         return Column(
           children: workers.take(6).map((doc) {
-            final worker = doc.data();
-            return _workerCard(worker);
+            return _workerCard(workerId: doc.id, worker: doc.data());
           }).toList(),
         );
       },
     );
   }
 
-  Widget _workerCard(Map<String, dynamic> worker) {
+  Widget _workerCard({
+    required String workerId,
+    required Map<String, dynamic> worker,
+  }) {
     final name = worker['name']?.toString().trim().isNotEmpty == true
         ? worker['name'].toString().trim()
         : 'Skilled Worker';
@@ -882,7 +835,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         : 'Nearby';
 
     final rating = _toDouble(worker['rating']);
-    final completedJobs = _toInt(worker['completedJobs']);
     final hourlyRate = _formatRate(worker['hourlyRate']);
 
     return Container(
@@ -935,10 +887,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       decoration: BoxDecoration(
                         color: _success,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _surface,
-                          width: 3,
-                        ),
+                        border: Border.all(color: _surface, width: 3),
                       ),
                     ),
                   ),
@@ -1030,50 +979,53 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(11),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _workerMetric(
-                    icon: Icons.star_rounded,
-                    iconColor: _warning,
-                    value: rating.toStringAsFixed(1),
-                    label: 'Rating',
-                  ),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('requests')
+                .where('workerId', isEqualTo: workerId)
+                .where('status', isEqualTo: 'completed')
+                .snapshots(),
+            builder: (context, snapshot) {
+              final int completedJobs = snapshot.data?.docs.length ?? 0;
+
+              return Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(15),
                 ),
-                Container(
-                  width: 1,
-                  height: 28,
-                  color: _border,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _workerMetric(
+                        icon: Icons.star_rounded,
+                        iconColor: _warning,
+                        value: rating.toStringAsFixed(1),
+                        label: 'Rating',
+                      ),
+                    ),
+                    Container(width: 1, height: 28, color: _border),
+                    Expanded(
+                      child: _workerMetric(
+                        icon: Icons.work_outline_rounded,
+                        iconColor: _primary,
+                        value: completedJobs.toString(),
+                        label: 'Jobs',
+                      ),
+                    ),
+                    Container(width: 1, height: 28, color: _border),
+                    Expanded(
+                      child: _workerMetric(
+                        icon: Icons.schedule_rounded,
+                        iconColor: _success,
+                        value: 'Active',
+                        label: 'Status',
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: _workerMetric(
-                    icon: Icons.work_outline_rounded,
-                    iconColor: _primary,
-                    value: '$completedJobs',
-                    label: 'Jobs',
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 28,
-                  color: _border,
-                ),
-                Expanded(
-                  child: _workerMetric(
-                    icon: Icons.schedule_rounded,
-                    iconColor: _success,
-                    value: 'Active',
-                    label: 'Status',
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
           const SizedBox(height: 13),
           Row(
@@ -1081,9 +1033,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (context) =>  WorkerPublicProfileScreen(workerId: worker['uid'])
-                    ));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            WorkerPublicProfileScreen(workerId: workerId),
+                      ),
+                    );
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _textPrimary,
@@ -1105,8 +1061,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    _showFeatureMessage(
-                      'Request flow for $name can be connected here.',
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            Request(selectedWorkerId: workerId),
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -1144,11 +1104,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: iconColor,
-              size: 14,
-            ),
+            Icon(icon, color: iconColor, size: 14),
             const SizedBox(width: 4),
             Flexible(
               child: Text(
@@ -1210,11 +1166,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       ),
       child: const Column(
         children: [
-          Icon(
-            Icons.person_search_rounded,
-            color: _primary,
-            size: 40,
-          ),
+          Icon(Icons.person_search_rounded, color: _primary, size: 40),
           SizedBox(height: 12),
           Text(
             'No professionals found',
@@ -1250,11 +1202,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       ),
       child: const Column(
         children: [
-          Icon(
-            Icons.search_off_rounded,
-            color: _textSecondary,
-            size: 36,
-          ),
+          Icon(Icons.search_off_rounded, color: _textSecondary, size: 36),
           SizedBox(height: 10),
           Text(
             'No matching service found',
@@ -1276,16 +1224,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFFEF2F2),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFFECACA),
-        ),
+        border: Border.all(color: const Color(0xFFFECACA)),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            color: Color(0xFFDC2626),
-          ),
+          const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -1354,10 +1297,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  int _toInt(dynamic value) {
-    if (value is num) return value.toInt();
-    return int.tryParse(value?.toString() ?? '') ?? 0;
-  }
+
 
   String _formatRate(dynamic value) {
     final text = value?.toString().trim() ?? '';
@@ -1369,22 +1309,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return 'Rs. $text';
   }
 
-  Widget _ambientCircle({
-    required double size,
-    required Color color,
-  }) {
+  Widget _ambientCircle({required double size, required Color color}) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 50,
-        sigmaY: 50,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
       child: Container(
         height: size,
         width: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }

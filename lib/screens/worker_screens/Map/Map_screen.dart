@@ -29,11 +29,20 @@ class _MapSreenState extends State<MapSreen> {
   Stream<QuerySnapshot<Map<String, dynamic>>> getRequestsStream(
     String workerSkill,
   ) {
-    return FirebaseFirestore.instance
-        .collection('requests')
-        .where('status', isEqualTo: 'searching')
-        .where('category', isEqualTo: workerSkill)
-        .snapshots();
+  return FirebaseFirestore.instance
+    .collection('requests')
+    .where('status', isEqualTo: 'searching')
+    .where('category', isEqualTo: workerSkill)
+    .where(
+      Filter.or(
+        Filter("workerId", isNull: true),
+        Filter(
+          "workerId",
+          isEqualTo: FirebaseAuth.instance.currentUser!.uid,
+        ),
+      ),
+    )
+    .snapshots();
   }
 
   Set<Marker> _buildMarkers(

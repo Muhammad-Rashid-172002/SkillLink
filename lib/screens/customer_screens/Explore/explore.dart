@@ -93,10 +93,7 @@ class _ExploreState extends State<Explore> {
           Positioned(
             top: -150,
             right: -120,
-            child: _ambientCircle(
-              size: 330,
-              color: _primary.withOpacity(0.09),
-            ),
+            child: _ambientCircle(size: 330, color: _primary.withOpacity(0.09)),
           ),
           Positioned(
             bottom: -160,
@@ -110,9 +107,7 @@ class _ExploreState extends State<Explore> {
             child: RefreshIndicator(
               color: _primary,
               onRefresh: () async {
-                await Future<void>.delayed(
-                  const Duration(milliseconds: 600),
-                );
+                await Future<void>.delayed(const Duration(milliseconds: 600));
               },
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
@@ -122,26 +117,24 @@ class _ExploreState extends State<Explore> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 115),
                     sliver: SliverList(
-                      delegate: SliverChildListDelegate(
-                        [
-                          _header(),
-                          const SizedBox(height: 20),
-                          _heroCard(),
-                          const SizedBox(height: 20),
-                          _searchAndFilter(),
-                          const SizedBox(height: 24),
-                          _sectionTitle(
-                            title: 'Browse services',
-                            subtitle: 'Select a category to narrow results',
-                          ),
-                          const SizedBox(height: 14),
-                          _categoryScroller(),
-                          const SizedBox(height: 26),
-                          _workerSectionHeader(),
-                          const SizedBox(height: 14),
-                          _realTimeWorkers(),
-                        ],
-                      ),
+                      delegate: SliverChildListDelegate([
+                        _header(),
+                        const SizedBox(height: 20),
+                        _heroCard(),
+                        const SizedBox(height: 20),
+                        _searchAndFilter(),
+                        const SizedBox(height: 24),
+                        _sectionTitle(
+                          title: 'Browse services',
+                          subtitle: 'Select a category to narrow results',
+                        ),
+                        const SizedBox(height: 14),
+                        _categoryScroller(),
+                        const SizedBox(height: 26),
+                        _workerSectionHeader(),
+                        const SizedBox(height: 14),
+                        _realTimeWorkers(),
+                      ]),
                     ),
                   ),
                 ],
@@ -160,9 +153,7 @@ class _ExploreState extends State<Explore> {
           height: 50,
           width: 50,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [_primary, _secondary],
-            ),
+            gradient: const LinearGradient(colors: [_primary, _secondary]),
             borderRadius: BorderRadius.circular(17),
             boxShadow: [
               BoxShadow(
@@ -227,11 +218,7 @@ class _ExploreState extends State<Explore> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  const Icon(
-                    Icons.tune_rounded,
-                    color: _primary,
-                    size: 21,
-                  ),
+                  const Icon(Icons.tune_rounded, color: _primary, size: 21),
                   if (_showOnlyAvailable || _selectedSort != 'Top Rated')
                     Positioned(
                       top: 8,
@@ -355,9 +342,7 @@ class _ExploreState extends State<Explore> {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.14),
                   borderRadius: BorderRadius.circular(25),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.18),
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.18)),
                 ),
                 child: const Icon(
                   Icons.engineering_rounded,
@@ -463,10 +448,7 @@ class _ExploreState extends State<Explore> {
     );
   }
 
-  Widget _sectionTitle({
-    required String title,
-    required String subtitle,
-  }) {
+  Widget _sectionTitle({required String title, required String subtitle}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -558,9 +540,7 @@ class _ExploreState extends State<Explore> {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: selected
-                            ? category.accent
-                            : _textPrimary,
+                        color: selected ? category.accent : _textPrimary,
                         fontSize: 10.3,
                         fontWeight: FontWeight.w900,
                       ),
@@ -671,48 +651,50 @@ class _ExploreState extends State<Explore> {
       defaultValue: true,
     );
 
-    final matchesSearch = _searchQuery.isEmpty ||
+    final matchesSearch =
+        _searchQuery.isEmpty ||
         name.contains(_searchQuery) ||
         skill.contains(_searchQuery) ||
         city.contains(_searchQuery);
 
-    final matchesCategory = _selectedCategory == 'All' ||
+    final matchesCategory =
+        _selectedCategory == 'All' ||
         skill.contains(_selectedCategory.toLowerCase());
 
     final matchesAvailability = !_showOnlyAvailable || available;
 
-    return matchesSearch &&
-        matchesCategory &&
-        matchesAvailability;
+    return matchesSearch && matchesCategory && matchesAvailability;
   }
 
-  void _sortWorkers(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> workers,
-  ) {
+  void _sortWorkers(List<QueryDocumentSnapshot<Map<String, dynamic>>> workers) {
     workers.sort((first, second) {
       final firstData = first.data();
       final secondData = second.data();
 
       switch (_selectedSort) {
         case 'Most Jobs':
-          return _intValue(secondData['completedJobs'])
-              .compareTo(_intValue(firstData['completedJobs']));
+          return _intValue(
+            secondData['completedJobs'],
+          ).compareTo(_intValue(firstData['completedJobs']));
 
         case 'Lowest Rate':
-          return _numberValue(firstData['hourlyRate'])
-              .compareTo(_numberValue(secondData['hourlyRate']));
+          return _numberValue(
+            firstData['hourlyRate'],
+          ).compareTo(_numberValue(secondData['hourlyRate']));
 
         case 'Top Rated':
         default:
-          final ratingComparison = _doubleValue(secondData['rating'])
-              .compareTo(_doubleValue(firstData['rating']));
+          final ratingComparison = _doubleValue(
+            secondData['rating'],
+          ).compareTo(_doubleValue(firstData['rating']));
 
           if (ratingComparison != 0) {
             return ratingComparison;
           }
 
-          return _intValue(secondData['completedJobs'])
-              .compareTo(_intValue(firstData['completedJobs']));
+          return _intValue(
+            secondData['completedJobs'],
+          ).compareTo(_intValue(firstData['completedJobs']));
       }
     });
   }
@@ -722,23 +704,13 @@ class _ExploreState extends State<Explore> {
     required Map<String, dynamic> worker,
     required int rank,
   }) {
-    final name = _fallbackValue(
-      worker['name'],
-      'Skilled Professional',
-    );
+    final name = _fallbackValue(worker['name'], 'Skilled Professional');
 
-    final skill = _fallbackValue(
-      worker['skill'],
-      'Professional Service',
-    );
+    final skill = _fallbackValue(worker['skill'], 'Professional Service');
 
-    final city = _fallbackValue(
-      worker['city'],
-      'Nearby',
-    );
+    final city = _fallbackValue(worker['city'], 'Nearby');
 
     final rating = _doubleValue(worker['rating']);
-    final completedJobs = _intValue(worker['completedJobs']);
     final reviews = _intValue(worker['reviewsCount'] ?? worker['totalReviews']);
     final isAvailable = _boolValue(
       worker['isAvailable'] ?? worker['available'],
@@ -791,11 +763,7 @@ class _ExploreState extends State<Explore> {
                       ),
                     ),
                   ),
-                  Positioned(
-                    left: -5,
-                    top: -5,
-                    child: _rankBadge(rank),
-                  ),
+                  Positioned(left: -5, top: -5, child: _rankBadge(rank)),
                   Positioned(
                     right: -3,
                     bottom: -3,
@@ -803,14 +771,9 @@ class _ExploreState extends State<Explore> {
                       height: 19,
                       width: 19,
                       decoration: BoxDecoration(
-                        color: isAvailable
-                            ? _success
-                            : const Color(0xFF94A3B8),
+                        color: isAvailable ? _success : const Color(0xFF94A3B8),
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _surface,
-                          width: 3,
-                        ),
+                        border: Border.all(color: _surface, width: 3),
                       ),
                     ),
                   ),
@@ -870,9 +833,7 @@ class _ExploreState extends State<Explore> {
                               ? Icons.check_circle_outline_rounded
                               : Icons.schedule_rounded,
                           text: isAvailable ? 'Available' : 'Busy',
-                          color: isAvailable
-                              ? _success
-                              : _textSecondary,
+                          color: isAvailable ? _success : _textSecondary,
                         ),
                       ],
                     ),
@@ -901,45 +862,56 @@ class _ExploreState extends State<Explore> {
             ],
           ),
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 11,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _metric(
-                    icon: Icons.star_rounded,
-                    iconColor: _warning,
-                    value: rating.toStringAsFixed(1),
-                    label: reviews > 0 ? '$reviews reviews' : 'Rating',
-                  ),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection("requests")
+                .where("workerId", isEqualTo: workerId)
+                .where("status", isEqualTo: "completed")
+                .snapshots(),
+            builder: (context, snapshot) {
+              final completedJobs = snapshot.data?.docs.length ?? 0;
+
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 11,
                 ),
-                _metricDivider(),
-                Expanded(
-                  child: _metric(
-                    icon: Icons.work_outline_rounded,
-                    iconColor: _primary,
-                    value: '$completedJobs',
-                    label: 'Jobs done',
-                  ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                _metricDivider(),
-                Expanded(
-                  child: _metric(
-                    icon: Icons.workspace_premium_outlined,
-                    iconColor: _success,
-                    value: rank <= 3 ? 'Top $rank' : 'Trusted',
-                    label: 'Ranking',
-                  ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _metric(
+                        icon: Icons.star_rounded,
+                        iconColor: _warning,
+                        value: rating.toStringAsFixed(1),
+                        label: reviews > 0 ? '$reviews reviews' : 'Rating',
+                      ),
+                    ),
+                    _metricDivider(),
+                    Expanded(
+                      child: _metric(
+                        icon: Icons.work_outline_rounded,
+                        iconColor: _primary,
+                        value: completedJobs.toString(),
+                        label: 'Jobs done',
+                      ),
+                    ),
+                    _metricDivider(),
+                    Expanded(
+                      child: _metric(
+                        icon: Icons.workspace_premium_outlined,
+                        iconColor: _success,
+                        value: rank <= 3 ? 'Top $rank' : 'Trusted',
+                        label: 'Ranking',
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
           const SizedBox(height: 13),
           Row(
@@ -950,7 +922,8 @@ class _ExploreState extends State<Explore> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => WorkerPublicProfileScreen(workerId: workerId),
+                        builder: (context) =>
+                            WorkerPublicProfileScreen(workerId: workerId),
                       ),
                     );
                     _showMessage(
@@ -965,10 +938,7 @@ class _ExploreState extends State<Explore> {
                     ),
                     minimumSize: const Size(0, 46),
                   ),
-                  icon: const Icon(
-                    Icons.person_outline_rounded,
-                    size: 17,
-                  ),
+                  icon: const Icon(Icons.person_outline_rounded, size: 17),
                   label: const Text(
                     'View profile',
                     style: TextStyle(
@@ -979,44 +949,40 @@ class _ExploreState extends State<Explore> {
                 ),
               ),
               const SizedBox(width: 10),
-         Expanded(
-  child: ElevatedButton.icon(
-    onPressed: isAvailable
-        ? () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => Request(
-                  selectedWorkerId: workerId,
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: isAvailable
+                      ? () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  Request(selectedWorkerId: workerId),
+                            ),
+                          );
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    foregroundColor: Colors.white,
+                    backgroundColor: _primary,
+                    disabledBackgroundColor: _textSecondary.withOpacity(0.25),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    minimumSize: const Size(0, 46),
+                  ),
+                  icon: const Icon(Icons.send_rounded, size: 16),
+                  label: Text(
+                    isAvailable ? 'Send request' : 'Unavailable',
+                    style: const TextStyle(
+                      fontSize: 10.7,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
               ),
-            );
-          }
-        : null,
-    style: ElevatedButton.styleFrom(
-      elevation: 0,
-      foregroundColor: Colors.white,
-      backgroundColor: _primary,
-      disabledBackgroundColor:
-          _textSecondary.withOpacity(0.25),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
-      minimumSize: const Size(0, 46),
-    ),
-    icon: const Icon(
-      Icons.send_rounded,
-      size: 16,
-    ),
-    label: Text(
-      isAvailable ? 'Send request' : 'Unavailable',
-      style: const TextStyle(
-        fontSize: 10.7,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
-  ),
-),   ],
+            ],
           ),
         ],
       ),
@@ -1027,10 +993,10 @@ class _ExploreState extends State<Explore> {
     final color = rank == 1
         ? const Color(0xFFF59E0B)
         : rank == 2
-            ? const Color(0xFF94A3B8)
-            : rank == 3
-                ? const Color(0xFFB45309)
-                : _primary;
+        ? const Color(0xFF94A3B8)
+        : rank == 3
+        ? const Color(0xFFB45309)
+        : _primary;
 
     return Container(
       height: 24,
@@ -1039,10 +1005,7 @@ class _ExploreState extends State<Explore> {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(
-          color: _surface,
-          width: 2,
-        ),
+        border: Border.all(color: _surface, width: 2),
       ),
       alignment: Alignment.center,
       child: Text(
@@ -1064,11 +1027,7 @@ class _ExploreState extends State<Explore> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          color: color,
-          size: 13,
-        ),
+        Icon(icon, color: color, size: 13),
         const SizedBox(width: 3),
         Text(
           text,
@@ -1093,11 +1052,7 @@ class _ExploreState extends State<Explore> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: iconColor,
-              size: 14,
-            ),
+            Icon(icon, color: iconColor, size: 14),
             const SizedBox(width: 4),
             Flexible(
               child: Text(
@@ -1129,11 +1084,7 @@ class _ExploreState extends State<Explore> {
   }
 
   Widget _metricDivider() {
-    return Container(
-      width: 1,
-      height: 29,
-      color: _border,
-    );
+    return Container(width: 1, height: 29, color: _border);
   }
 
   Widget _loadingWorkers() {
@@ -1149,10 +1100,7 @@ class _ExploreState extends State<Explore> {
             border: Border.all(color: _border),
           ),
           child: const Center(
-            child: CircularProgressIndicator(
-              color: _primary,
-              strokeWidth: 2.5,
-            ),
+            child: CircularProgressIndicator(color: _primary, strokeWidth: 2.5),
           ),
         ),
       ),
@@ -1182,11 +1130,7 @@ class _ExploreState extends State<Explore> {
               color: iconColor.withOpacity(0.10),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 28,
-            ),
+            child: Icon(icon, color: iconColor, size: 28),
           ),
           const SizedBox(height: 13),
           Text(
@@ -1233,9 +1177,7 @@ class _ExploreState extends State<Explore> {
               ),
               decoration: const BoxDecoration(
                 color: _surface,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(28),
-                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1282,11 +1224,9 @@ class _ExploreState extends State<Explore> {
                   Wrap(
                     spacing: 9,
                     runSpacing: 9,
-                    children: [
-                      'Top Rated',
-                      'Most Jobs',
-                      'Lowest Rate',
-                    ].map((option) {
+                    children: ['Top Rated', 'Most Jobs', 'Lowest Rate'].map((
+                      option,
+                    ) {
                       final selected = tempSort == option;
 
                       return ChoiceChip(
@@ -1297,13 +1237,9 @@ class _ExploreState extends State<Explore> {
                         },
                         selectedColor: _primary.withOpacity(0.12),
                         backgroundColor: const Color(0xFFF8FAFC),
-                        side: BorderSide(
-                          color: selected ? _primary : _border,
-                        ),
+                        side: BorderSide(color: selected ? _primary : _border),
                         labelStyle: TextStyle(
-                          color: selected
-                              ? _primary
-                              : _textSecondary,
+                          color: selected ? _primary : _textSecondary,
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
                         ),
@@ -1359,9 +1295,7 @@ class _ExploreState extends State<Explore> {
                           ),
                           child: const Text(
                             'Reset',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
                       ),
@@ -1387,9 +1321,7 @@ class _ExploreState extends State<Explore> {
                           ),
                           child: const Text(
                             'Apply filters',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
                       ),
@@ -1443,9 +1375,7 @@ class _ExploreState extends State<Explore> {
   double _numberValue(dynamic value) {
     if (value is num) return value.toDouble();
 
-    final cleaned = value
-        ?.toString()
-        .replaceAll(RegExp(r'[^0-9.]'), '');
+    final cleaned = value?.toString().replaceAll(RegExp(r'[^0-9.]'), '');
 
     return double.tryParse(cleaned ?? '') ?? double.infinity;
   }
@@ -1455,10 +1385,7 @@ class _ExploreState extends State<Explore> {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  bool _boolValue(
-    dynamic value, {
-    required bool defaultValue,
-  }) {
+  bool _boolValue(dynamic value, {required bool defaultValue}) {
     if (value is bool) return value;
 
     final text = value?.toString().toLowerCase().trim();
@@ -1501,22 +1428,13 @@ class _ExploreState extends State<Explore> {
         .toUpperCase();
   }
 
-  Widget _ambientCircle({
-    required double size,
-    required Color color,
-  }) {
+  Widget _ambientCircle({required double size, required Color color}) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 50,
-        sigmaY: 50,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
       child: Container(
         height: size,
         width: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }

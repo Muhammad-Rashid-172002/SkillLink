@@ -111,7 +111,7 @@ class _RequestState extends State<Request> {
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       _showMessage(
@@ -121,21 +121,24 @@ class _RequestState extends State<Request> {
       return;
     }
 
+    if (_isSubmitting) return;
+
+    final String? selectedWorkerId =
+        widget.selectedWorkerId?.trim().isNotEmpty == true
+        ? widget.selectedWorkerId!.trim()
+        : null;
+
+    final bool isDirectRequest = selectedWorkerId != null;
+
     setState(() => _isSubmitting = true);
 
     try {
-    //  Position? position;
+      final DocumentReference<Map<String, dynamic>> requestRef =
+          await FirebaseFirestore.instance.collection('requests').add({
+            'customerId': user.uid,
 
-      if (_useCurrentLocation) {
-      //  position = await _getCurrentLocation();
-      }
-
-      final requestRef = await FirebaseFirestore.instance
-          .collection('requests')
-          .add({
-            'customerId': FirebaseAuth.instance.currentUser!.uid,
-
-            'workerId': widget.selectedWorkerId,
+            // Null means public job, otherwise direct worker request.
+            'workerId': selectedWorkerId,
 
             'title': _titleController.text.trim(),
             'description': _descriptionController.text.trim(),
@@ -143,38 +146,60 @@ class _RequestState extends State<Request> {
             'location': _locationController.text.trim(),
             'budget': _budgetController.text.trim(),
             'urgency': _selectedUrgency,
-            'status': 'pending',
+            'status': 'searching',
 
-            'isDirectRequest': widget.selectedWorkerId != null,
+            'isDirectRequest': isDirectRequest,
+            'requestType': isDirectRequest ? 'direct' : 'public',
 
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
-      final workers = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'worker')
-          .get();
-
-      final batch = FirebaseFirestore.instance.batch();
-
-      for (final worker in workers.docs) {
-        final notificationRef = FirebaseFirestore.instance
-            .collection('notifications')
-            .doc();
-
-        batch.set(notificationRef, {
-          'userId': worker.id,
+      if (isDirectRequest) {
+        // Direct job: only selected worker receives notification.
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'userId': selectedWorkerId,
           'requestId': requestRef.id,
-          'title': 'New Job Available',
-          'message': '$_selectedCategory job posted near you.',
-          'type': 'job',
+          'customerId': user.uid,
+          'workerId': selectedWorkerId,
+          'title': 'Direct Job Request',
+          'message':
+              'A customer sent you a direct $_selectedCategory service request.',
+          'type': 'direct_job',
+          'isDirectRequest': true,
           'isRead': false,
           'createdAt': FieldValue.serverTimestamp(),
         });
-      }
+      } else {
+        // Public job: all workers receive notification.
+        final QuerySnapshot<Map<String, dynamic>> workers =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .where('role', isEqualTo: 'worker')
+                .get();
 
-      await batch.commit();
+        final WriteBatch batch = FirebaseFirestore.instance.batch();
+
+        for (final worker in workers.docs) {
+          final DocumentReference<Map<String, dynamic>> notificationRef =
+              FirebaseFirestore.instance.collection('notifications').doc();
+
+          batch.set(notificationRef, {
+            'userId': worker.id,
+            'requestId': requestRef.id,
+            'customerId': user.uid,
+            'workerId': worker.id,
+            'title': 'New Job Available',
+            'message': '$_selectedCategory job posted near you.',
+            'type': 'job',
+            'isDirectRequest': false,
+            'isRead': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        await batch.commit();
+      }
 
       if (!mounted) return;
 
@@ -184,13 +209,17 @@ class _RequestState extends State<Request> {
           builder: (_) => RequestTrackingScreen(requestId: requestRef.id),
         ),
       );
-    } catch (error) {
+    } on FirebaseException catch (error) {
       if (!mounted) return;
 
       _showMessage(
-        'Request could not be posted. ${error.toString()}',
+        error.message ?? 'Request could not be posted.',
         isError: true,
       );
+    } catch (error) {
+      if (!mounted) return;
+
+      _showMessage('Request could not be posted. $error', isError: true);
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);

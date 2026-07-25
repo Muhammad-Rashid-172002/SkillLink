@@ -30,10 +30,12 @@ class JobsByStatusScreen extends StatelessWidget {
       query = query.where("status", isEqualTo: "searching");
     } else {
       query = query
-          .where("workerId", isEqualTo: uid)
+          .where("status", isEqualTo: "searching")
           .where(
-            "status",
-            whereIn: ["accepted", "on_the_way", "in_progress"],
+            Filter.or(
+              Filter("workerId", isNull: true),
+              Filter("workerId", isEqualTo: uid),
+            ),
           );
     }
 
@@ -44,18 +46,13 @@ class JobsByStatusScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _buildTopSection(
-              context,
-              isAvailableJobs: isAvailableJobs,
-            ),
+            _buildTopSection(context, isAvailableJobs: isAvailableJobs),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: query.snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return _buildErrorState(
-                      snapshot.error.toString(),
-                    );
+                    return _buildErrorState(snapshot.error.toString());
                   }
 
                   if (!snapshot.hasData) {
@@ -65,24 +62,16 @@ class JobsByStatusScreen extends StatelessWidget {
                   final jobs = snapshot.data!.docs;
 
                   if (jobs.isEmpty) {
-                    return _buildEmptyState(
-                      isAvailableJobs: isAvailableJobs,
-                    );
+                    return _buildEmptyState(isAvailableJobs: isAvailableJobs);
                   }
 
                   return ListView.builder(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
-                      20,
-                      16,
-                      20,
-                      30,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
                     itemCount: jobs.length,
                     itemBuilder: (context, index) {
                       final document = jobs[index];
-                      final job =
-                          document.data() as Map<String, dynamic>;
+                      final job = document.data() as Map<String, dynamic>;
 
                       return _buildJobCard(
                         context: context,
@@ -106,12 +95,7 @@ class JobsByStatusScreen extends StatelessWidget {
     required bool isAvailableJobs,
   }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        16,
-        20,
-        20,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
@@ -130,9 +114,7 @@ class JobsByStatusScreen extends StatelessWidget {
         children: [
           _buildHeader(context),
           const SizedBox(height: 18),
-          _buildHeroCard(
-            isAvailableJobs: isAvailableJobs,
-          ),
+          _buildHeroCard(isAvailableJobs: isAvailableJobs),
         ],
       ),
     );
@@ -211,9 +193,7 @@ class JobsByStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeroCard({
-    required bool isAvailableJobs,
-  }) {
+  Widget _buildHeroCard({required bool isAvailableJobs}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -221,10 +201,7 @@ class JobsByStatusScreen extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            _primary,
-            _secondary,
-          ],
+          colors: [_primary, _secondary],
         ),
         borderRadius: BorderRadius.circular(26),
         boxShadow: [
@@ -265,9 +242,7 @@ class JobsByStatusScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        isAvailableJobs
-                            ? "AVAILABLE JOBS"
-                            : "ACTIVE WORK",
+                        isAvailableJobs ? "AVAILABLE JOBS" : "ACTIVE WORK",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 8.7,
@@ -310,9 +285,7 @@ class JobsByStatusScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(.14),
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(.18),
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(.18)),
                 ),
                 child: Icon(
                   isAvailableJobs
@@ -335,26 +308,28 @@ class JobsByStatusScreen extends StatelessWidget {
     required Map<String, dynamic> job,
     required bool isAvailableJobs,
   }) {
-    final String jobTitle =
-        _safeText(job["title"], fallback: "Untitled Job");
+    final String jobTitle = _safeText(job["title"], fallback: "Untitled Job");
 
-    final String category =
-        _safeText(job["category"], fallback: "General Service");
+    final String category = _safeText(
+      job["category"],
+      fallback: "General Service",
+    );
 
-    final String location =
-        _safeText(job["location"], fallback: "Location not provided");
+    final String location = _safeText(
+      job["location"],
+      fallback: "Location not provided",
+    );
 
-    final String budget =
-        _safeText(job["budget"], fallback: "Budget not set");
+    final String budget = _safeText(job["budget"], fallback: "Budget not set");
 
-    final String urgency =
-        _safeText(job["urgency"], fallback: "Normal");
+    final String urgency = _safeText(job["urgency"], fallback: "Normal");
 
-    final String description =
-        _safeText(job["description"], fallback: "No description available.");
+    final String description = _safeText(
+      job["description"],
+      fallback: "No description available.",
+    );
 
-    final String jobStatus =
-        _safeText(job["status"], fallback: status);
+    final String jobStatus = _safeText(job["status"], fallback: status);
 
     return Material(
       color: Colors.transparent,
@@ -405,10 +380,7 @@ class JobsByStatusScreen extends StatelessWidget {
                       gradient: const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          _primary,
-                          _secondary,
-                        ],
+                        colors: [_primary, _secondary],
                       ),
                       borderRadius: BorderRadius.circular(17),
                     ),
@@ -494,10 +466,7 @@ class JobsByStatusScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 15),
-              Container(
-                height: 1,
-                color: const Color(0xFFF1F5F9),
-              ),
+              Container(height: 1, color: const Color(0xFFF1F5F9)),
               const SizedBox(height: 13),
               Row(
                 children: [
@@ -548,10 +517,7 @@ class JobsByStatusScreen extends StatelessWidget {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: color.withOpacity(.08),
         borderRadius: BorderRadius.circular(10),
@@ -559,11 +525,7 @@ class JobsByStatusScreen extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 11,
-          ),
+          Icon(icon, color: color, size: 11),
           const SizedBox(width: 4),
           Text(
             label,
@@ -581,12 +543,7 @@ class JobsByStatusScreen extends StatelessWidget {
   Widget _buildLoadingState() {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        18,
-        20,
-        30,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
       itemCount: 5,
       itemBuilder: (context, index) {
         return Container(
@@ -603,50 +560,26 @@ class JobsByStatusScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _StatusSkeleton(
-                    width: 50,
-                    height: 50,
-                    radius: 17,
-                  ),
+                  _StatusSkeleton(width: 50, height: 50, radius: 17),
                   SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _StatusSkeleton(
-                          width: 185,
-                          height: 12,
-                          radius: 8,
-                        ),
+                        _StatusSkeleton(width: 185, height: 12, radius: 8),
                         SizedBox(height: 9),
-                        _StatusSkeleton(
-                          width: 120,
-                          height: 9,
-                          radius: 8,
-                        ),
+                        _StatusSkeleton(width: 120, height: 9, radius: 8),
                       ],
                     ),
                   ),
                 ],
               ),
               SizedBox(height: 18),
-              _StatusSkeleton(
-                width: double.infinity,
-                height: 9,
-                radius: 8,
-              ),
+              _StatusSkeleton(width: double.infinity, height: 9, radius: 8),
               SizedBox(height: 9),
-              _StatusSkeleton(
-                width: 220,
-                height: 9,
-                radius: 8,
-              ),
+              _StatusSkeleton(width: 220, height: 9, radius: 8),
               SizedBox(height: 18),
-              _StatusSkeleton(
-                width: double.infinity,
-                height: 38,
-                radius: 13,
-              ),
+              _StatusSkeleton(width: double.infinity, height: 38, radius: 13),
             ],
           ),
         );
@@ -654,20 +587,13 @@ class JobsByStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState({
-    required bool isAvailableJobs,
-  }) {
+  Widget _buildEmptyState({required bool isAvailableJobs}) {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(28),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(
-            24,
-            32,
-            24,
-            30,
-          ),
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 30),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(26),
@@ -692,9 +618,7 @@ class JobsByStatusScreen extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                isAvailableJobs
-                    ? "No available jobs"
-                    : "No active jobs",
+                isAvailableJobs ? "No available jobs" : "No active jobs",
                 style: const TextStyle(
                   color: _textPrimary,
                   fontSize: 18,
@@ -777,10 +701,7 @@ class JobsByStatusScreen extends StatelessWidget {
     );
   }
 
-  String _safeText(
-    dynamic value, {
-    required String fallback,
-  }) {
+  String _safeText(dynamic value, {required String fallback}) {
     final text = value?.toString().trim() ?? "";
 
     if (text.isEmpty || text.toLowerCase() == "null") {
