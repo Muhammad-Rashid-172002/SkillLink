@@ -80,10 +80,6 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
               stream: FirebaseFirestore.instance
                   .collection('chats')
                   .where('customerId', isEqualTo: customerId)
-                  // .orderBy(
-                  //   'updatedAt',
-                  //   descending: true,
-                  // )
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -93,10 +89,21 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                 if (snapshot.hasError) {
                   return _errorScreen(snapshot.error.toString());
                 }
-
                 final allChats = snapshot.data?.docs ?? [];
 
-                final uniqueChats = _removeDuplicateChats(allChats);
+                final chatsWithMessages = allChats.where((doc) {
+                  final data = doc.data();
+
+                  final String lastMessage =
+                      data['lastMessage']?.toString().trim() ?? '';
+
+                  final bool archived = data['archivedByCustomer'] == true;
+
+                  // Sirf woh chats show hongi jin mein message mojood ho.
+                  return lastMessage.isNotEmpty && !archived;
+                }).toList();
+
+                final uniqueChats = _removeDuplicateChats(chatsWithMessages);
 
                 final unreadTotal = uniqueChats.fold<int>(0, (total, doc) {
                   final data = doc.data();
@@ -557,7 +564,7 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
           return const SizedBox.shrink();
         }
 
-        final lastMessage = _fallback(chat['lastMessage'], 'No messages yet');
+        final lastMessage = chat['lastMessage']?.toString().trim() ?? '';
         final unreadCount = _intValue(chat['unreadCountCustomer']);
         final updatedAt = _dateFromValue(chat['updatedAt']);
         final lastMessageSenderId =
@@ -614,6 +621,7 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                   MaterialPageRoute(
                     builder: (_) => ChatDetailScreen(
                       chatId: chatDoc.id,
+                      workerId: workerId,
                       workerName: workerName,
                       workerSkill: workerSkill,
                       workerPhone: workerPhone,

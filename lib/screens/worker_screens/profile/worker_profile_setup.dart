@@ -1,10 +1,12 @@
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:skill_link/models/service_data.dart';
 import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
 
 class WorkerProfileSetupScreen extends StatefulWidget {
@@ -15,8 +17,7 @@ class WorkerProfileSetupScreen extends StatefulWidget {
       _WorkerProfileSetupScreenState();
 }
 
-class _WorkerProfileSetupScreenState
-    extends State<WorkerProfileSetupScreen> {
+class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
   static const Color _background = Color(0xFFF4F7FB);
   static const Color _surface = Colors.white;
   static const Color _primary = Color(0xFF16A34A);
@@ -35,17 +36,6 @@ class _WorkerProfileSetupScreenState
   final rateController = TextEditingController();
   final locationController = TextEditingController();
   final bioController = TextEditingController();
-
-  final List<String> skills = const [
-    'Electrician',
-    'Plumber',
-    'Painter',
-    'Carpenter',
-    'Mechanic',
-    'AC Technician',
-    'Cleaner',
-    'Mason',
-  ];
 
   String selectedSkill = 'Electrician';
 
@@ -68,44 +58,31 @@ class _WorkerProfileSetupScreenState
 
   Future<Position?> _getCurrentLocation() async {
     try {
-      final serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
-        _showMessage(
-          'Please turn on location services.',
-          isError: true,
-        );
+        _showMessage('Please turn on location services.', isError: true);
         return null;
       }
 
-      var permission =
-          await Geolocator.checkPermission();
+      var permission = await Geolocator.checkPermission();
 
-      if (permission ==
-          LocationPermission.denied) {
-        permission =
-            await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
       }
 
-      if (permission ==
-          LocationPermission.denied) {
-        _showMessage(
-          'Location permission was denied.',
-          isError: true,
-        );
+      if (permission == LocationPermission.denied) {
+        _showMessage('Location permission was denied.', isError: true);
         return null;
       }
 
-      if (permission ==
-          LocationPermission.deniedForever) {
+      if (permission == LocationPermission.deniedForever) {
         _showLocationSettingsDialog();
         return null;
       }
 
       return Geolocator.getCurrentPosition(
-        desiredAccuracy:
-            LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy.high,
       );
     } catch (error) {
       _showMessage(
@@ -135,9 +112,7 @@ class _WorkerProfileSetupScreenState
     });
 
     if (position != null) {
-      _showMessage(
-        'Current location captured successfully.',
-      );
+      _showMessage('Current location captured successfully.');
     }
   }
 
@@ -146,25 +121,17 @@ class _WorkerProfileSetupScreenState
 
     if (_isSaving) return;
 
-    final isValid =
-        _formKey.currentState?.validate() ?? false;
+    final isValid = _formKey.currentState?.validate() ?? false;
 
     if (!isValid) {
-      _showMessage(
-        'Please complete all required fields.',
-        isError: true,
-      );
+      _showMessage('Please complete all required fields.', isError: true);
       return;
     }
 
-    final currentUser =
-        FirebaseAuth.instance.currentUser;
+    final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
-      _showMessage(
-        'Your session expired. Please login again.',
-        isError: true,
-      );
+      _showMessage('Your session expired. Please login again.', isError: true);
       return;
     }
 
@@ -181,34 +148,27 @@ class _WorkerProfileSetupScreenState
           .collection('users')
           .doc(currentUser.uid)
           .set({
-        'uid': currentUser.uid,
-        'role': 'worker',
-        'name': nameController.text.trim(),
-        'phone': phoneController.text.trim(),
-        'skill': selectedSkill,
-        'experience':
-            experienceController.text.trim(),
-        'hourlyRate':
-            rateController.text.trim(),
-        'location':
-            locationController.text.trim(),
-        'lat': position?.latitude,
-        'lng': position?.longitude,
-        'bio': bioController.text.trim(),
-        'profileCompleted': true,
-        'isOnline': true,
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'uid': currentUser.uid,
+            'role': 'worker',
+            'name': nameController.text.trim(),
+            'phone': phoneController.text.trim(),
+            'skill': selectedSkill,
+            'experience': experienceController.text.trim(),
+            'hourlyRate': rateController.text.trim(),
+            'location': locationController.text.trim(),
+            'lat': position?.latitude,
+            'lng': position?.longitude,
+            'bio': bioController.text.trim(),
+            'profileCompleted': true,
+            'isOnline': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
       if (!mounted) return;
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) =>
-              const WorkerHomeScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const WorkerHomeScreen()),
       );
     } catch (error) {
       if (!mounted) return;
@@ -233,10 +193,7 @@ class _WorkerProfileSetupScreenState
           Positioned(
             top: -150,
             right: -120,
-            child: _ambientCircle(
-              size: 340,
-              color: _primary.withOpacity(0.09),
-            ),
+            child: _ambientCircle(size: 340, color: _primary.withOpacity(0.09)),
           ),
           Positioned(
             bottom: -170,
@@ -251,215 +208,149 @@ class _WorkerProfileSetupScreenState
               key: _formKey,
               child: CustomScrollView(
                 keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior
-                        .onDrag,
-                physics:
-                    const BouncingScrollPhysics(),
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                physics: const BouncingScrollPhysics(),
                 slivers: [
                   SliverPadding(
-                    padding:
-                        const EdgeInsets.fromLTRB(
-                      20,
-                      14,
-                      20,
-                      36,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
                     sliver: SliverList(
-                      delegate:
-                          SliverChildListDelegate(
-                        [
-                          _topBar(),
-                          const SizedBox(height: 20),
-                          _heroCard(),
-                          const SizedBox(height: 18),
-                          _progressCard(),
-                          const SizedBox(height: 20),
-                          _profilePhoto(),
-                          const SizedBox(height: 24),
-                          _sectionHeader(
-                            icon: Icons
-                                .person_outline_rounded,
-                            title:
-                                'Basic information',
-                            subtitle:
-                                'Tell customers who you are',
-                          ),
-                          const SizedBox(height: 12),
-                          _formCard(
-                            children: [
-                              _professionalField(
-                                label: 'Full name',
-                                hint:
-                                    'Enter your full name',
-                                icon:
-                                    Icons.person_outline_rounded,
-                                controller:
-                                    nameController,
-                                validator: (value) {
-                                  if (value == null ||
-                                      value
-                                          .trim()
-                                          .isEmpty) {
-                                    return 'Full name is required';
-                                  }
+                      delegate: SliverChildListDelegate([
+                        _topBar(),
+                        const SizedBox(height: 20),
+                        _heroCard(),
+                        const SizedBox(height: 18),
+                        _progressCard(),
+                        const SizedBox(height: 20),
+                        _profilePhoto(),
+                        const SizedBox(height: 24),
+                        _sectionHeader(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Basic information',
+                          subtitle: 'Tell customers who you are',
+                        ),
+                        const SizedBox(height: 12),
+                        _formCard(
+                          children: [
+                            _professionalField(
+                              label: 'Full name',
+                              hint: 'Enter your full name',
+                              icon: Icons.person_outline_rounded,
+                              controller: nameController,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Full name is required';
+                                }
 
-                                  if (value
-                                          .trim()
-                                          .length <
-                                      3) {
-                                    return 'Enter a valid full name';
-                                  }
+                                if (value.trim().length < 3) {
+                                  return 'Enter a valid full name';
+                                }
 
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(
-                                height: 15,
-                              ),
-                              _professionalField(
-                                label:
-                                    'Phone number',
-                                hint:
-                                    '+92 300 0000000',
-                                icon:
-                                    Icons.phone_outlined,
-                                controller:
-                                    phoneController,
-                                keyboardType:
-                                    TextInputType.phone,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter
-                                      .allow(
-                                    RegExp(r'[0-9+\-\s]'),
-                                  ),
-                                ],
-                                validator: (value) {
-                                  final text =
-                                      value?.trim() ??
-                                          '';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 15),
+                            _professionalField(
+                              label: 'Phone number',
+                              hint: '+92 300 0000000',
+                              icon: Icons.phone_outlined,
+                              controller: phoneController,
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9+\-\s]'),
+                                ),
+                              ],
+                              validator: (value) {
+                                final text = value?.trim() ?? '';
 
-                                  if (text.isEmpty) {
-                                    return 'Phone number is required';
-                                  }
+                                if (text.isEmpty) {
+                                  return 'Phone number is required';
+                                }
 
-                                  if (text.length < 10) {
-                                    return 'Enter a valid phone number';
-                                  }
+                                if (text.length < 10) {
+                                  return 'Enter a valid phone number';
+                                }
 
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(
-                                height: 15,
-                              ),
-                              _skillDropdown(),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          _sectionHeader(
-                            icon:
-                                Icons.handyman_outlined,
-                            title: 'Work details',
-                            subtitle:
-                                'Add your experience and service pricing',
-                          ),
-                          const SizedBox(height: 12),
-                          _formCard(
-                            children: [
-                              _professionalField(
-                                label:
-                                    'Work experience',
-                                hint:
-                                    'Example: 3 years',
-                                icon:
-                                    Icons.work_outline_rounded,
-                                controller:
-                                    experienceController,
-                                validator: (value) {
-                                  if (value == null ||
-                                      value
-                                          .trim()
-                                          .isEmpty) {
-                                    return 'Experience is required';
-                                  }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 15),
+                            _skillDropdown(),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        _sectionHeader(
+                          icon: Icons.handyman_outlined,
+                          title: 'Work details',
+                          subtitle: 'Add your experience and service pricing',
+                        ),
+                        const SizedBox(height: 12),
+                        _formCard(
+                          children: [
+                            _professionalField(
+                              label: 'Work experience',
+                              hint: 'Example: 3 years',
+                              icon: Icons.work_outline_rounded,
+                              controller: experienceController,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Experience is required';
+                                }
 
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(
-                                height: 15,
-                              ),
-                              _professionalField(
-                                label:
-                                    'Hourly rate',
-                                hint:
-                                    'Example: 800',
-                                icon:
-                                    Icons.payments_outlined,
-                                controller:
-                                    rateController,
-                                keyboardType:
-                                    TextInputType.number,
-                                prefixText: 'Rs. ',
-                                inputFormatters: [
-                                  FilteringTextInputFormatter
-                                      .digitsOnly,
-                                ],
-                                validator: (value) {
-                                  final rate =
-                                      int.tryParse(
-                                    value?.trim() ??
-                                        '',
-                                  );
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 15),
+                            _professionalField(
+                              label: 'Hourly rate',
+                              hint: 'Example: 800',
+                              icon: Icons.payments_outlined,
+                              controller: rateController,
+                              keyboardType: TextInputType.number,
+                              prefixText: 'Rs. ',
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              validator: (value) {
+                                final rate = int.tryParse(value?.trim() ?? '');
 
-                                  if (rate == null ||
-                                      rate <= 0) {
-                                    return 'Enter a valid hourly rate';
-                                  }
+                                if (rate == null || rate <= 0) {
+                                  return 'Enter a valid hourly rate';
+                                }
 
-                                  return null;
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          _sectionHeader(
-                            icon: Icons
-                                .location_on_outlined,
-                            title:
-                                'Service location',
-                            subtitle:
-                                'Help nearby customers discover you',
-                          ),
-                          const SizedBox(height: 12),
-                          _locationCard(),
-                          const SizedBox(height: 20),
-                          _sectionHeader(
-                            icon:
-                                Icons.description_outlined,
-                            title:
-                                'Professional summary',
-                            subtitle:
-                                'Describe your skills and work quality',
-                          ),
-                          const SizedBox(height: 12),
-                          _bioCard(),
-                          const SizedBox(height: 24),
-                          _privacyNote(),
-                          const SizedBox(height: 18),
-                          _submitButton(),
-                        ],
-                      ),
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        _sectionHeader(
+                          icon: Icons.location_on_outlined,
+                          title: 'Service location',
+                          subtitle: 'Help nearby customers discover you',
+                        ),
+                        const SizedBox(height: 12),
+                        _locationCard(),
+                        const SizedBox(height: 20),
+                        _sectionHeader(
+                          icon: Icons.description_outlined,
+                          title: 'Professional summary',
+                          subtitle: 'Describe your skills and work quality',
+                        ),
+                        const SizedBox(height: 12),
+                        _bioCard(),
+                        const SizedBox(height: 24),
+                        _privacyNote(),
+                        const SizedBox(height: 18),
+                        _submitButton(),
+                      ]),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          if (_isSaving)
-            Positioned.fill(
-              child: _savingOverlay(),
-            ),
+          if (_isSaving) Positioned.fill(child: _savingOverlay()),
         ],
       ),
     );
@@ -472,19 +363,15 @@ class _WorkerProfileSetupScreenState
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(15),
           child: InkWell(
-            borderRadius:
-                BorderRadius.circular(15),
-            onTap: () =>
-                Navigator.maybePop(context),
+            borderRadius: BorderRadius.circular(15),
+            onTap: () => Navigator.maybePop(context),
             child: Container(
               height: 46,
               width: 46,
               decoration: BoxDecoration(
                 color: _surface,
-                borderRadius:
-                    BorderRadius.circular(15),
-                border:
-                    Border.all(color: _border),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: _border),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x070F172A),
@@ -504,8 +391,7 @@ class _WorkerProfileSetupScreenState
         const SizedBox(width: 12),
         const Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Worker profile',
@@ -529,21 +415,14 @@ class _WorkerProfileSetupScreenState
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 7,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
             color: _primary.withOpacity(0.09),
             borderRadius: BorderRadius.circular(13),
           ),
           child: const Row(
             children: [
-              Icon(
-                Icons.shield_outlined,
-                color: _primary,
-                size: 13,
-              ),
+              Icon(Icons.shield_outlined, color: _primary, size: 13),
               SizedBox(width: 5),
               Text(
                 'SECURE',
@@ -564,12 +443,7 @@ class _WorkerProfileSetupScreenState
   Widget _heroCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        21,
-        20,
-        20,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 21, 20, 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -594,8 +468,7 @@ class _WorkerProfileSetupScreenState
               height: 180,
               width: 180,
               decoration: BoxDecoration(
-                color:
-                    Colors.white.withOpacity(0.09),
+                color: Colors.white.withOpacity(0.09),
                 shape: BoxShape.circle,
               ),
             ),
@@ -607,8 +480,7 @@ class _WorkerProfileSetupScreenState
               height: 180,
               width: 180,
               decoration: BoxDecoration(
-                color:
-                    Colors.white.withOpacity(0.07),
+                color: Colors.white.withOpacity(0.07),
                 shape: BoxShape.circle,
               ),
             ),
@@ -617,20 +489,16 @@ class _WorkerProfileSetupScreenState
             children: [
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white
-                            .withOpacity(0.14),
-                        borderRadius:
-                            BorderRadius.circular(20),
+                        color: Colors.white.withOpacity(0.14),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
                         'WORKER ONBOARDING',
@@ -657,8 +525,7 @@ class _WorkerProfileSetupScreenState
                     Text(
                       'Add accurate work details so customers can discover and trust your services.',
                       style: TextStyle(
-                        color:
-                            Colors.white.withOpacity(0.82),
+                        color: Colors.white.withOpacity(0.82),
                         fontSize: 11,
                         height: 1.45,
                         fontWeight: FontWeight.w600,
@@ -672,14 +539,9 @@ class _WorkerProfileSetupScreenState
                 height: 88,
                 width: 76,
                 decoration: BoxDecoration(
-                  color:
-                      Colors.white.withOpacity(0.14),
-                  borderRadius:
-                      BorderRadius.circular(23),
-                  border: Border.all(
-                    color:
-                        Colors.white.withOpacity(0.18),
-                  ),
+                  color: Colors.white.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(23),
+                  border: Border.all(color: Colors.white.withOpacity(0.18)),
                 ),
                 child: const Icon(
                   Icons.handyman_rounded,
@@ -716,8 +578,7 @@ class _WorkerProfileSetupScreenState
             width: 42,
             decoration: BoxDecoration(
               color: _primary.withOpacity(0.09),
-              borderRadius:
-                  BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(13),
             ),
             child: const Icon(
               Icons.auto_awesome_rounded,
@@ -728,8 +589,7 @@ class _WorkerProfileSetupScreenState
           const SizedBox(width: 12),
           const Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Profile setup progress',
@@ -741,16 +601,12 @@ class _WorkerProfileSetupScreenState
                 ),
                 SizedBox(height: 5),
                 ClipRRect(
-                  borderRadius:
-                      BorderRadius.all(
-                    Radius.circular(10),
-                  ),
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
                   child: LinearProgressIndicator(
                     value: 0.75,
                     minHeight: 6,
                     color: _primary,
-                    backgroundColor:
-                        Color(0xFFDCFCE7),
+                    backgroundColor: Color(0xFFDCFCE7),
                   ),
                 ),
               ],
@@ -781,26 +637,20 @@ class _WorkerProfileSetupScreenState
                 height: 104,
                 width: 104,
                 decoration: BoxDecoration(
-                  gradient:
-                      const LinearGradient(
-                    colors: [
-                      _primary,
-                      _secondary,
-                    ],
+                  gradient: const LinearGradient(
+                    colors: [_primary, _secondary],
                   ),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color:
-                          _primary.withOpacity(0.20),
+                      color: _primary.withOpacity(0.20),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
                   ],
                 ),
                 child: Container(
-                  margin:
-                      const EdgeInsets.all(4),
+                  margin: const EdgeInsets.all(4),
                   decoration: const BoxDecoration(
                     color: _surface,
                     shape: BoxShape.circle,
@@ -819,8 +669,7 @@ class _WorkerProfileSetupScreenState
                   color: Colors.transparent,
                   shape: const CircleBorder(),
                   child: InkWell(
-                    customBorder:
-                        const CircleBorder(),
+                    customBorder: const CircleBorder(),
                     onTap: () {
                       _showMessage(
                         'Profile image picker can be connected here.',
@@ -830,18 +679,11 @@ class _WorkerProfileSetupScreenState
                       height: 36,
                       width: 36,
                       decoration: BoxDecoration(
-                        gradient:
-                            const LinearGradient(
-                          colors: [
-                            _primary,
-                            _secondary,
-                          ],
+                        gradient: const LinearGradient(
+                          colors: [_primary, _secondary],
                         ),
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _surface,
-                          width: 3,
-                        ),
+                        border: Border.all(color: _surface, width: 3),
                       ),
                       child: const Icon(
                         Icons.camera_alt_rounded,
@@ -889,20 +731,14 @@ class _WorkerProfileSetupScreenState
           width: 39,
           decoration: BoxDecoration(
             color: _primary.withOpacity(0.09),
-            borderRadius:
-                BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
-            icon,
-            color: _primary,
-            size: 19,
-          ),
+          child: Icon(icon, color: _primary, size: 19),
         ),
         const SizedBox(width: 11),
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
@@ -929,9 +765,7 @@ class _WorkerProfileSetupScreenState
     );
   }
 
-  Widget _formCard({
-    required List<Widget> children,
-  }) {
+  Widget _formCard({required List<Widget> children}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -946,9 +780,7 @@ class _WorkerProfileSetupScreenState
           ),
         ],
       ),
-      child: Column(
-        children: children,
-      ),
+      child: Column(children: children),
     );
   }
 
@@ -965,8 +797,7 @@ class _WorkerProfileSetupScreenState
     int? maxLength,
   }) {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _fieldLabel(label),
         TextFormField(
@@ -988,11 +819,7 @@ class _WorkerProfileSetupScreenState
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
             ),
-            prefixIcon: Icon(
-              icon,
-              color: _primary,
-              size: 20,
-            ),
+            prefixIcon: Icon(icon, color: _primary, size: 20),
             prefixText: prefixText,
             prefixStyle: const TextStyle(
               color: _textPrimary,
@@ -1006,39 +833,25 @@ class _WorkerProfileSetupScreenState
               fontSize: 8.5,
               fontWeight: FontWeight.w600,
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(
+            contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 15,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(16),
-              borderSide:
-                  const BorderSide(color: _border),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: _border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: _primary,
-                width: 1.5,
-              ),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: _primary, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(16),
-              borderSide:
-                  const BorderSide(color: _danger),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: _danger),
             ),
-            focusedErrorBorder:
-                OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: _danger,
-                width: 1.5,
-              ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: _danger, width: 1.5),
             ),
             errorStyle: const TextStyle(
               color: _danger,
@@ -1053,8 +866,7 @@ class _WorkerProfileSetupScreenState
 
   Widget _fieldLabel(String label) {
     return Padding(
-      padding:
-          const EdgeInsets.only(left: 2, bottom: 7),
+      padding: const EdgeInsets.only(left: 2, bottom: 7),
       child: Row(
         children: [
           Text(
@@ -1081,58 +893,65 @@ class _WorkerProfileSetupScreenState
 
   Widget _skillDropdown() {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _fieldLabel('Main skill'),
-        DropdownButtonFormField<String>(
-          value: selectedSkill,
+
+        DropdownButtonFormField2<String>(
           isExpanded: true,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: _textSecondary,
-          ),
+
+          // Version 3.x mein value ki jagah valueListenable use hota hai
+          valueListenable: ValueNotifier<String?>(selectedSkill),
+
           decoration: InputDecoration(
-            prefixIcon: const Icon(
-              Icons.handyman_outlined,
-              color: _primary,
-              size: 20,
-            ),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
-            contentPadding:
-                const EdgeInsets.symmetric(
+            contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
-              vertical: 15,
+              vertical: 14,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(16),
-              borderSide:
-                  const BorderSide(color: _border),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: _border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: _primary,
-                width: 1.5,
-              ),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: _primary, width: 1.5),
             ),
           ),
-          items: skills.map((skill) {
-            return DropdownMenuItem<String>(
-              value: skill,
-              child: Text(
-                skill,
-                style: const TextStyle(
-                  color: _textPrimary,
-                  fontSize: 11.2,
-                  fontWeight: FontWeight.w700,
-                ),
+
+          items: allServices.map((service) {
+            return DropdownItem<String>(
+              value: service.title,
+              height: 58,
+              child: Row(
+                children: [
+                  Container(
+                    height: 36,
+                    width: 36,
+                    decoration: BoxDecoration(
+                      color: service.color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(service.icon, color: service.color, size: 19),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Text(
+                      service.title,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _textPrimary,
+                        fontSize: 11.2,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             );
           }).toList(),
+
           onChanged: (value) {
             if (value == null) return;
 
@@ -1140,6 +959,33 @@ class _WorkerProfileSetupScreenState
               selectedSkill = value;
             });
           },
+
+          buttonStyleData: const FormFieldButtonStyleData(
+            height: 54,
+            padding: EdgeInsets.only(right: 8),
+          ),
+
+          iconStyleData: const IconStyleData(
+            icon: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: _textSecondary,
+            ),
+          ),
+
+          dropdownStyleData: DropdownStyleData(
+            maxHeight: 370,
+            elevation: 8,
+            offset: const Offset(0, -4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: _border),
+            ),
+          ),
+
+          menuItemStyleData: const MenuItemStyleData(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+          ),
         ),
       ],
     );
@@ -1154,8 +1000,7 @@ class _WorkerProfileSetupScreenState
           icon: Icons.location_on_outlined,
           controller: locationController,
           validator: (value) {
-            if (value == null ||
-                value.trim().isEmpty) {
+            if (value == null || value.trim().isEmpty) {
               return 'Service location is required';
             }
 
@@ -1167,25 +1012,17 @@ class _WorkerProfileSetupScreenState
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
-            borderRadius:
-                BorderRadius.circular(16),
-            onTap: _isGettingLocation
-                ? null
-                : _captureLocation,
+            borderRadius: BorderRadius.circular(16),
+            onTap: _isGettingLocation ? null : _captureLocation,
             child: AnimatedContainer(
-              duration:
-                  const Duration(milliseconds: 220),
+              duration: const Duration(milliseconds: 220),
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 13,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
               decoration: BoxDecoration(
                 color: _locationCaptured
                     ? _primary.withOpacity(0.08)
                     : const Color(0xFFF8FAFC),
-                borderRadius:
-                    BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: _locationCaptured
                       ? _primary.withOpacity(0.28)
@@ -1199,25 +1036,20 @@ class _WorkerProfileSetupScreenState
                     width: 36,
                     decoration: BoxDecoration(
                       color: _primary.withOpacity(0.10),
-                      borderRadius:
-                          BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: _isGettingLocation
                         ? const Padding(
-                            padding:
-                                EdgeInsets.all(10),
-                            child:
-                                CircularProgressIndicator(
+                            padding: EdgeInsets.all(10),
+                            child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: _primary,
                             ),
                           )
                         : Icon(
                             _locationCaptured
-                                ? Icons
-                                    .check_circle_rounded
-                                : Icons
-                                    .my_location_rounded,
+                                ? Icons.check_circle_rounded
+                                : Icons.my_location_rounded,
                             color: _primary,
                             size: 18,
                           ),
@@ -1225,8 +1057,7 @@ class _WorkerProfileSetupScreenState
                   const SizedBox(width: 11),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           _locationCaptured
@@ -1235,8 +1066,7 @@ class _WorkerProfileSetupScreenState
                           style: const TextStyle(
                             color: _textPrimary,
                             fontSize: 10.8,
-                            fontWeight:
-                                FontWeight.w900,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -1247,8 +1077,7 @@ class _WorkerProfileSetupScreenState
                           style: const TextStyle(
                             color: _textSecondary,
                             fontSize: 8.8,
-                            fontWeight:
-                                FontWeight.w600,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
@@ -1282,8 +1111,7 @@ class _WorkerProfileSetupScreenState
           validator: (value) {
             final text = value?.trim() ?? '';
 
-            if (text.isNotEmpty &&
-                text.length < 20) {
+            if (text.isNotEmpty && text.length < 20) {
               return 'Write at least 20 characters';
             }
 
@@ -1300,21 +1128,17 @@ class _WorkerProfileSetupScreenState
       decoration: BoxDecoration(
         color: _primary.withOpacity(0.06),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: _primary.withOpacity(0.13),
-        ),
+        border: Border.all(color: _primary.withOpacity(0.13)),
       ),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             height: 34,
             width: 34,
             decoration: BoxDecoration(
               color: _primary.withOpacity(0.10),
-              borderRadius:
-                  BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(11),
             ),
             child: const Icon(
               Icons.verified_user_outlined,
@@ -1325,8 +1149,7 @@ class _WorkerProfileSetupScreenState
           const SizedBox(width: 10),
           const Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Your information is protected',
@@ -1359,32 +1182,23 @@ class _WorkerProfileSetupScreenState
       height: 58,
       width: double.infinity,
       child: ElevatedButton(
-        onPressed:
-            _isSaving ? null : _saveWorkerProfile,
+        onPressed: _isSaving ? null : _saveWorkerProfile,
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: _primary,
-          disabledBackgroundColor:
-              _primary.withOpacity(0.55),
+          disabledBackgroundColor: _primary.withOpacity(0.55),
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(18),
           ),
         ),
         child: Row(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.check_circle_outline_rounded,
-              size: 19,
-            ),
+            const Icon(Icons.check_circle_outline_rounded, size: 19),
             const SizedBox(width: 9),
             Text(
-              _isSaving
-                  ? 'Saving profile...'
-                  : 'Save & continue',
+              _isSaving ? 'Saving profile...' : 'Save & continue',
               style: const TextStyle(
                 fontSize: 12.2,
                 fontWeight: FontWeight.w900,
@@ -1392,10 +1206,7 @@ class _WorkerProfileSetupScreenState
             ),
             if (!_isSaving) ...[
               const SizedBox(width: 8),
-              const Icon(
-                Icons.arrow_forward_rounded,
-                size: 18,
-              ),
+              const Icon(Icons.arrow_forward_rounded, size: 18),
             ],
           ],
         ),
@@ -1424,10 +1235,7 @@ class _WorkerProfileSetupScreenState
           child: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(
-                color: _primary,
-                strokeWidth: 2.7,
-              ),
+              CircularProgressIndicator(color: _primary, strokeWidth: 2.7),
               SizedBox(height: 16),
               Text(
                 'Creating your profile',
@@ -1455,8 +1263,7 @@ class _WorkerProfileSetupScreenState
     );
   }
 
-  Future<void>
-      _showLocationSettingsDialog() async {
+  Future<void> _showLocationSettingsDialog() async {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1476,8 +1283,7 @@ class _WorkerProfileSetupScreenState
                 width: 58,
                 decoration: BoxDecoration(
                   color: _warning.withOpacity(0.10),
-                  borderRadius:
-                      BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: const Icon(
                   Icons.location_off_outlined,
@@ -1511,29 +1317,19 @@ class _WorkerProfileSetupScreenState
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () =>
-                          Navigator.pop(context),
-                      style:
-                          OutlinedButton.styleFrom(
-                        minimumSize:
-                            const Size(0, 48),
-                        side: const BorderSide(
-                          color: _border,
-                        ),
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            15,
-                          ),
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                        side: const BorderSide(color: _border),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
                         ),
                       ),
                       child: const Text(
                         'Cancel',
                         style: TextStyle(
                           color: _textPrimary,
-                          fontWeight:
-                              FontWeight.w900,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
@@ -1543,31 +1339,20 @@ class _WorkerProfileSetupScreenState
                     child: ElevatedButton(
                       onPressed: () async {
                         Navigator.pop(context);
-                        await Geolocator
-                            .openAppSettings();
+                        await Geolocator.openAppSettings();
                       },
-                      style:
-                          ElevatedButton.styleFrom(
+                      style: ElevatedButton.styleFrom(
                         elevation: 0,
                         backgroundColor: _primary,
-                        foregroundColor:
-                            Colors.white,
-                        minimumSize:
-                            const Size(0, 48),
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            15,
-                          ),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
                         ),
                       ),
                       child: const Text(
                         'Open settings',
-                        style: TextStyle(
-                          fontWeight:
-                              FontWeight.w900,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),
                   ),
@@ -1580,18 +1365,14 @@ class _WorkerProfileSetupScreenState
     );
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(18),
-          backgroundColor:
-              isError ? _danger : _textPrimary,
+          backgroundColor: isError ? _danger : _textPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -1600,8 +1381,7 @@ class _WorkerProfileSetupScreenState
               Icon(
                 isError
                     ? Icons.error_outline_rounded
-                    : Icons
-                        .check_circle_outline_rounded,
+                    : Icons.check_circle_outline_rounded,
                 color: Colors.white,
                 size: 20,
               ),
@@ -1621,22 +1401,13 @@ class _WorkerProfileSetupScreenState
       );
   }
 
-  Widget _ambientCircle({
-    required double size,
-    required Color color,
-  }) {
+  Widget _ambientCircle({required double size, required Color color}) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 50,
-        sigmaY: 50,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
       child: Container(
         height: size,
         width: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }

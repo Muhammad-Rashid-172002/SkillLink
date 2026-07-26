@@ -2281,8 +2281,11 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
         MaterialPageRoute(
           builder: (_) => ChatDetailScreen(
             chatId: chatId!,
+            workerId: _fallback(worker['workerId'], ''),
             workerName: _fallback(worker['name'], 'Worker'),
             workerSkill: _fallback(worker['skill'], 'Unknown'),
+            workerPhone: worker['phone']?.toString(),
+            workerImageUrl: worker['profileImage']?.toString(),
           ),
         ),
       );

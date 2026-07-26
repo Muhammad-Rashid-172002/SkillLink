@@ -59,16 +59,7 @@ class WorkerPublicProfileScreen extends StatelessWidget {
     if (existingChat.docs.isNotEmpty) {
       chatId = existingChat.docs.first.id;
     } else {
-      final chatDoc = await FirebaseFirestore.instance.collection("chats").add({
-        "customerId": customerId,
-        "workerId": workerId,
-        "service": worker["skill"] ?? "",
-        "lastMessage": "",
-        "createdAt": FieldValue.serverTimestamp(),
-        "updatedAt": FieldValue.serverTimestamp(),
-      });
-
-      chatId = chatDoc.id;
+      chatId = FirebaseFirestore.instance.collection("chats").doc().id;
     }
 
     if (!context.mounted) return;
@@ -78,8 +69,13 @@ class WorkerPublicProfileScreen extends StatelessWidget {
       MaterialPageRoute(
         builder: (_) => ChatDetailScreen(
           chatId: chatId,
+          workerId: workerId,
           workerName: worker["name"] ?? "Worker",
           workerSkill: worker["skill"] ?? "",
+          workerPhone: worker["phone"]?.toString(),
+          workerImageUrl:
+              worker["profileImage"]?.toString() ??
+              worker["imageUrl"]?.toString(),
         ),
       ),
     );
@@ -820,7 +816,7 @@ class WorkerPublicProfileScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection("reviews")
           .where("workerId", isEqualTo: workerId)
-         // .orderBy("createdAt", descending: true)
+          // .orderBy("createdAt", descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1283,7 +1279,8 @@ class WorkerPublicProfileScreen extends StatelessWidget {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => Request(selectedWorkerId: worker['uid']),
+                      builder: (context) =>
+                          Request(selectedWorkerId: worker['uid']),
                     ),
                   ),
                   label: const Text(

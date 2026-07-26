@@ -897,9 +897,7 @@ List<ServiceOption> get _categories => const [
                             WorkerPublicProfileScreen(workerId: workerId),
                       ),
                     );
-                    _showMessage(
-                      '$name profile navigation can be connected here.',
-                    );
+                  
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _textPrimary,
@@ -1306,29 +1304,7 @@ List<ServiceOption> get _categories => const [
       },
     );
   }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(18),
-          backgroundColor: _textPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          content: Text(
-            message,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      );
-  }
-
+  
   String _fallbackValue(dynamic value, String fallback) {
     final text = value?.toString().trim() ?? '';
     return text.isEmpty ? fallback : text;

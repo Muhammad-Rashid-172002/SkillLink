@@ -268,7 +268,21 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   ),
                 ],
               ),
-              child: const Icon(Icons.edit_outlined, color: _primary, size: 20),
+              child: IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CustomerEditProfileScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  color: _primary,
+                  size: 20,
+                ),
+              ),
             ),
           ),
         ),
