@@ -980,6 +980,7 @@ class _WalletScreenState extends State<WalletScreen> {
         return 'Credit purchase';
       case 'lead_deduction':
         return 'Lead credit deduction';
+        
       default:
         return 'Wallet activity';
     }
