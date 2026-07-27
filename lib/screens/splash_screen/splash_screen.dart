@@ -3,9 +3,14 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/auth_screens/email_verification_screen.dart';
+import 'package:skill_link/screens/auth_screens/phone_verification_screen.dart';
 import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
+import 'package:skill_link/screens/customer_screens/profile/customer_profile_setup_screen.dart';
 import 'package:skill_link/screens/onboarding_screen/OnboardingScreen.dart';
+import 'package:skill_link/screens/verification/worker_verification_center.dart';
 import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
+import 'package:skill_link/screens/worker_screens/profile/worker_profile_setup.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -106,63 +111,114 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _checkUser() async {
     if (_isCheckingUser) return;
-
     _isCheckingUser = true;
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final auth = FirebaseAuth.instance;
+      final user = auth.currentUser;
 
       if (user == null) {
         _goTo(const OnboardingScreen());
         return;
       }
 
+      await user.reload();
+      final refreshedUser = auth.currentUser;
+
+      if (refreshedUser == null) {
+        _goTo(const OnboardingScreen());
+        return;
+      }
+
       final doc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(user.uid)
+          .doc(refreshedUser.uid)
           .get();
 
       if (!mounted) return;
 
       if (!doc.exists) {
+        await auth.signOut();
         _goTo(const OnboardingScreen());
         return;
       }
 
-      final data = doc.data();
-      final role = data?['role']?.toString().trim().toLowerCase();
+      final data = doc.data() ?? <String, dynamic>{};
+      final role = data['role']?.toString().trim().toLowerCase();
+      final accountStatus =
+          data['accountStatus']?.toString().trim().toLowerCase() ?? 'active';
+
+      if (role != 'customer' && role != 'worker') {
+        await auth.signOut();
+        _goTo(const OnboardingScreen());
+        return;
+      }
+
+      if (accountStatus == 'suspended' || accountStatus == 'blocked') {
+        await auth.signOut();
+        _goTo(const OnboardingScreen());
+        return;
+      }
+
+      if (!refreshedUser.emailVerified) {
+        _goTo(EmailVerificationScreen(role: role!));
+        return;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(refreshedUser.uid)
+          .set({
+        'emailVerified': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      final phoneVerified = data['phoneVerified'] == true;
+      if (!phoneVerified || refreshedUser.phoneNumber == null) {
+        _goTo(PhoneVerificationScreen(role: role!));
+        return;
+      }
+
+      final profileCompleted = data['profileCompleted'] == true;
+      if (!profileCompleted) {
+        _goTo(
+          role == 'worker'
+              ? const WorkerProfileSetupScreen()
+              : const CustomerProfileSetupScreen(),
+        );
+        return;
+      }
 
       if (role == 'customer') {
         _goTo(const CustomerHomeScreen());
-      } else if (role == 'worker') {
-        _goTo(const WorkerHomeScreen());
-      } else {
-        _goTo(const OnboardingScreen());
+        return;
       }
+
+      final identityStatus =
+          data['identityVerificationStatus']?.toString() ?? 'not_submitted';
+
+      if (identityStatus != 'approved') {
+        _goTo(const WorkerVerificationCenterScreen());
+        return;
+      }
+
+      _goTo(const WorkerHomeScreen());
     } on FirebaseException catch (error) {
       if (!mounted) return;
 
-      setState(() {
-        _loadingText = 'Unable to connect';
-      });
-
+      setState(() => _loadingText = 'Unable to connect');
       await Future<void>.delayed(const Duration(milliseconds: 700));
 
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            error.message ?? 'Unable to connect. Please try again.',
-          ),
+          content: Text(error.message ?? 'Unable to connect. Please try again.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
-
       _goTo(const OnboardingScreen());
     } catch (_) {
       if (!mounted) return;
-
       _goTo(const OnboardingScreen());
     }
   }
@@ -276,7 +332,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Column(
                         children: [
                           const Text(
-                            'SkillLink',
+                            'SkillNova',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="skilllink_admin"
+        android:label="SkillNova Admin Portal"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

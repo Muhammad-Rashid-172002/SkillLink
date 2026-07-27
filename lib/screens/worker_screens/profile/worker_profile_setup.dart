@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:skill_link/models/service_data.dart';
-import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
+import 'package:skill_link/screens/verification/worker_verification_center.dart';
 
 class WorkerProfileSetupScreen extends StatefulWidget {
   const WorkerProfileSetupScreen({super.key});
@@ -168,7 +168,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const WorkerHomeScreen()),
+        MaterialPageRoute(builder: (_) => const WorkerVerificationCenterScreen()),
       );
     } catch (error) {
       if (!mounted) return;
