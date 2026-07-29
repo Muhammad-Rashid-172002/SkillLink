@@ -513,7 +513,7 @@ class _ReviewsHeader extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          'Customer feedback monitor karein aur inappropriate reviews manage karein.',
+          'Monitor customer feedback and manage inappropriate reviews.',
           style: GoogleFonts.inter(
             fontSize: 13,
             color: const Color(0xFF64748B),

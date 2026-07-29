@@ -9,6 +9,8 @@ class DashboardStats {
     required this.completedJobs,
     required this.totalReviews,
     required this.totalTransactions,
+    required this.totalEmergencyAlerts,
+    required this.activeEmergencyAlerts,
   });
 
   final int totalUsers;
@@ -20,4 +22,6 @@ class DashboardStats {
   final int completedJobs;
   final int totalReviews;
   final int totalTransactions;
+  final int totalEmergencyAlerts;
+  final int activeEmergencyAlerts;
 }

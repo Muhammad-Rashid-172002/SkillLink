@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skilllink_admin/models/dashboard_stats.dart';
 import 'package:skilllink_admin/screens/admin_credits_screen.dart';
+import 'package:skilllink_admin/screens/admin_emergency_alerts_screen.dart';
 import 'package:skilllink_admin/screens/admin_jobs_screen.dart';
 import 'package:skilllink_admin/screens/admin_login_screen.dart';
 import 'package:skilllink_admin/screens/admin_notifications_screen.dart';
+import 'package:skilllink_admin/screens/admin_payment_requests_screen.dart';
 import 'package:skilllink_admin/screens/admin_reports_screen.dart';
 import 'package:skilllink_admin/screens/admin_reviews_screen.dart';
 import 'package:skilllink_admin/screens/admin_settings_screen.dart';
 import 'package:skilllink_admin/screens/admin_users_screen.dart';
+import 'package:skilllink_admin/screens/admin_verification_requests_screen.dart';
 import 'package:skilllink_admin/screens/admin_workers_screen.dart';
 import 'package:skilllink_admin/services/admin_auth_service.dart';
 import 'package:skilllink_admin/services/dashboard_service.dart';
@@ -43,8 +46,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     'Jobs',
     'Reviews',
     'Reports',
+    'Emergency Alerts',
     'Credits',
+    'Payment Requests',
     'Notifications',
+    'Verification Requests',
     'Settings',
   ];
 
@@ -136,11 +142,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                 5 => const AdminReportsScreen(),
 
-                6 => const AdminCreditsScreen(),
+                6 => const AdminEmergencyAlertsScreen(),
 
-                7 => const AdminNotificationsScreen(),
+                7 => const AdminCreditsScreen(),
 
-                8 => const AdminSettingsScreen(),
+                8 => const AdminPaymentRequestsScreen(),
+
+                9 => const AdminNotificationsScreen(),
+
+                10 => const AdminVerificationRequestsScreen(),
+
+                11 => const AdminSettingsScreen(),
 
                 _ => _ComingSoonPage(title: _pageTitles[_selectedIndex]),
               },
@@ -186,11 +198,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                         5 => const AdminReportsScreen(),
 
-                        6 => const AdminCreditsScreen(),
+                        6 => const AdminEmergencyAlertsScreen(),
 
-                        7 => const AdminNotificationsScreen(),
+                        7 => const AdminCreditsScreen(),
 
-                        8 => const AdminSettingsScreen(),
+                        8 => const AdminPaymentRequestsScreen(),
+
+                        9 => const AdminNotificationsScreen(),
+
+                        10 => const AdminVerificationRequestsScreen(),
+
+                        11 => const AdminSettingsScreen(),
 
                         _ => _ComingSoonPage(
                           title: _pageTitles[_selectedIndex],
@@ -366,6 +384,15 @@ class _DashboardBody extends StatelessWidget {
                     subtitle: 'Waiting for a worker',
                   ),
                   DashboardStatCard(
+                    title: 'Active SOS',
+                    value: '${stats.activeEmergencyAlerts}',
+                    icon: Icons.sos_rounded,
+                    accent: const Color(0xFFDC2626),
+                    subtitle: stats.activeEmergencyAlerts == 0
+                        ? 'No emergency requires action'
+                        : 'Immediate admin attention required',
+                  ),
+                  DashboardStatCard(
                     title: 'Active Jobs',
                     value: '${stats.activeJobs}',
                     icon: Icons.play_circle_rounded,
@@ -486,7 +513,7 @@ class _WelcomeCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Yahan se aap SkillNova ki users, workers, jobs aur platform activity monitor kar sakte hain.',
+                'Monitor and manage users, workers, jobs, and platform activity from one powerful admin dashboard.',
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   height: 1.6,

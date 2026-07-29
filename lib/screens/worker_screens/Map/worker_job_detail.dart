@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
+import 'package:skill_link/services/emergency_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class WorkerJobDetailScreen extends StatefulWidget {
   final String requestId;
@@ -31,7 +33,9 @@ class WorkerJobDetailScreen extends StatefulWidget {
 }
 
 class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
- 
+  final EmergencyService _emergencyService = EmergencyService();
+  bool _isSendingSos = false;
+
   Future<void> _updateStatus(
     BuildContext context,
     String status,
@@ -42,31 +46,29 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
       "updatedAt": FieldValue.serverTimestamp(),
     };
 
- if (status == "accepted") {
-  updateData["workerId"] = FirebaseAuth.instance.currentUser!.uid;
-  updateData["acceptedAt"] = FieldValue.serverTimestamp();
-}
+    if (status == "accepted") {
+      updateData["workerId"] = FirebaseAuth.instance.currentUser!.uid;
+      updateData["acceptedAt"] = FieldValue.serverTimestamp();
+    }
 
-if (status == "on_the_way") {
-  updateData["onTheWayAt"] = FieldValue.serverTimestamp();
-}
+    if (status == "on_the_way") {
+      updateData["onTheWayAt"] = FieldValue.serverTimestamp();
+    }
 
-if (status == "in_progress") {
-  updateData["startedAt"] = FieldValue.serverTimestamp();
-}
+    if (status == "in_progress") {
+      updateData["startedAt"] = FieldValue.serverTimestamp();
+    }
 
-if (status == "completed") {
-  updateData["completedAt"] = FieldValue.serverTimestamp();
-  updateData["reviewPending"] = true;
-  updateData["reviewed"] = false;
-}
+    if (status == "completed") {
+      updateData["completedAt"] = FieldValue.serverTimestamp();
+      updateData["reviewPending"] = true;
+      updateData["reviewed"] = false;
+    }
 
     await FirebaseFirestore.instance
         .collection("requests")
         .doc(widget.requestId)
         .update(updateData);
-
-
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -208,6 +210,13 @@ if (status == "completed") {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildMainJobCard(status),
+                        if (_isActiveStatus(status)) ...[
+                          const SizedBox(height: 16),
+                          _buildEmergencySafetyCard(
+                            status: status.toString(),
+                            requestData: data ?? <String, dynamic>{},
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         _buildDetailsSection(),
                         const SizedBox(height: 16),
@@ -237,6 +246,595 @@ if (status == "completed") {
     );
   }
 
+  bool _isActiveStatus(dynamic status) {
+    final value =
+        status?.toString().trim().toLowerCase().replaceAll(' ', '_') ?? '';
+    return value == 'accepted' ||
+        value == 'on_the_way' ||
+        value == 'in_progress';
+  }
+
+  Widget _buildEmergencySafetyCard({
+    required String status,
+    required Map<String, dynamic> requestData,
+  }) {
+    final hasActiveAlert = requestData['hasActiveEmergency'] == true;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF991B1B), Color(0xFFDC2626), Color(0xFFEF4444)],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFDC2626).withOpacity(.24),
+            blurRadius: 26,
+            offset: const Offset(0, 13),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -36,
+              top: -45,
+              child: Container(
+                height: 150,
+                width: 150,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.08),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              left: -42,
+              bottom: -70,
+              child: Container(
+                height: 145,
+                width: 145,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.06),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        height: 48,
+                        width: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(.18),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.emergency_rounded,
+                          color: Colors.white,
+                          size: 25,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Safety & Emergency',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -.25,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              hasActiveAlert
+                                  ? 'An SOS alert is already active for this job.'
+                                  : 'Use SOS only when you are in immediate danger.',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(.80),
+                                fontSize: 10.2,
+                                height: 1.4,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (hasActiveAlert)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(.16),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'ACTIVE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: .5,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(.11),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(.14)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            'Your current GPS location and job details will be shared with the admin.',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(.86),
+                              fontSize: 9.5,
+                              height: 1.4,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _callPolice,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(
+                              color: Colors.white.withOpacity(.50),
+                            ),
+                            minimumSize: const Size(0, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.local_police_outlined,
+                            size: 19,
+                          ),
+                          label: const Text(
+                            'Call Police 15',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: hasActiveAlert || _isSendingSos
+                              ? null
+                              : () => _openSosReasonSheet(status, requestData),
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFFB91C1C),
+                            disabledBackgroundColor: Colors.white.withOpacity(
+                              .55,
+                            ),
+                            disabledForegroundColor: const Color(
+                              0xFFB91C1C,
+                            ).withOpacity(.65),
+                            minimumSize: const Size(0, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: _isSendingSos
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Color(0xFFB91C1C),
+                                  ),
+                                )
+                              : const Icon(Icons.sos_rounded, size: 22),
+                          label: Text(
+                            hasActiveAlert
+                                ? 'SOS Active'
+                                : _isSendingSos
+                                ? 'Sending...'
+                                : 'Send SOS',
+                            style: const TextStyle(
+                              fontSize: 10.7,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSosReasonSheet(
+    String status,
+    Map<String, dynamic> requestData,
+  ) async {
+    const reasons = <Map<String, dynamic>>[
+      {'title': 'Unsafe situation', 'icon': Icons.warning_amber_rounded},
+      {'title': 'Threat or violence', 'icon': Icons.shield_outlined},
+      {'title': 'Robbery or theft', 'icon': Icons.report_gmailerrorred_rounded},
+      {'title': 'Medical emergency', 'icon': Icons.medical_services_outlined},
+      {'title': 'Accident', 'icon': Icons.car_crash_outlined},
+      {'title': 'Other emergency', 'icon': Icons.sos_rounded},
+    ];
+
+    final selectedReason = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 22),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x26000000),
+                  blurRadius: 30,
+                  offset: Offset(0, 15),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    height: 5,
+                    width: 46,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'What is the emergency?',
+                  style: TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -.4,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Select the closest reason. Your live location will be sent to the admin.',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...reasons.map((item) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 9),
+                    child: Material(
+                      color: const Color(0xFFFFF7F7),
+                      borderRadius: BorderRadius.circular(17),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(17),
+                        onTap: () => Navigator.pop(
+                          sheetContext,
+                          item['title'] as String,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 13,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(17),
+                            border: Border.all(color: const Color(0xFFFECACA)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                height: 40,
+                                width: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEE2E2),
+                                  borderRadius: BorderRadius.circular(13),
+                                ),
+                                child: Icon(
+                                  item['icon'] as IconData,
+                                  color: const Color(0xFFDC2626),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  item['title'] as String,
+                                  style: const TextStyle(
+                                    color: Color(0xFF0F172A),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Color(0xFF94A3B8),
+                                size: 14,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedReason == null || !mounted) return;
+    await _confirmAndSendSos(
+      reason: selectedReason,
+      status: status,
+      requestData: requestData,
+    );
+  }
+
+  Future<void> _confirmAndSendSos({
+    required String reason,
+    required String status,
+    required Map<String, dynamic> requestData,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          icon: Container(
+            height: 66,
+            width: 66,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFEE2E2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.sos_rounded,
+              color: Color(0xFFDC2626),
+              size: 34,
+            ),
+          ),
+          title: const Text(
+            'Send emergency SOS?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          content: Text(
+            'Reason: $reason\n\nYour GPS location and job information will be shared with the SkillNova admin.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              height: 1.5,
+              fontSize: 11,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                elevation: 0,
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+              icon: const Icon(Icons.sos_rounded, size: 18),
+              label: const Text(
+                'Send SOS',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isSendingSos = true);
+
+    try {
+      final workerId = FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (workerId.isEmpty) {
+        throw const EmergencyServiceException(
+          'Please log in again before sending SOS.',
+        );
+      }
+
+      final alertId = await _emergencyService.createEmergencyAlert(
+        requestId: widget.requestId,
+        requestData: requestData,
+        workerId: workerId,
+        raisedByRole: 'worker',
+        jobStatus: status,
+        reason: reason,
+      );
+
+      if (!mounted) return;
+      await _showSosSuccessDialog(alertId);
+    } on EmergencyServiceException catch (error) {
+      if (!mounted) return;
+      _showEmergencySnackBar(error.message);
+    } on FirebaseException catch (error) {
+      if (!mounted) return;
+      _showEmergencySnackBar(error.message ?? 'SOS could not be sent.');
+    } catch (_) {
+      if (!mounted) return;
+      _showEmergencySnackBar('SOS could not be sent. Please call Police 15.');
+    } finally {
+      if (mounted) setState(() => _isSendingSos = false);
+    }
+  }
+
+  Future<void> _showSosSuccessDialog(String alertId) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          icon: Container(
+            height: 70,
+            width: 70,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFEE2E2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.notifications_active_rounded,
+              color: Color(0xFFDC2626),
+              size: 36,
+            ),
+          ),
+          title: const Text(
+            'SOS alert sent',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF0F172A),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          content: Text(
+            'The SkillNova admin has received your emergency alert. Alert ID: ${alertId.substring(0, alertId.length > 8 ? 8 : alertId.length).toUpperCase()}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              height: 1.5,
+              fontSize: 11,
+            ),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              style: ElevatedButton.styleFrom(
+                elevation: 0,
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text(
+                'Understood',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _callPolice() async {
+    final uri = Uri(scheme: 'tel', path: '15');
+    final launched = await launchUrl(uri);
+    if (!launched && mounted) {
+      _showEmergencySnackBar(
+        'Phone dialer could not be opened. Dial Police 15 manually.',
+      );
+    }
+  }
+
+  void _showEmergencySnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFFB91C1C),
+        margin: const EdgeInsets.all(16),
+        content: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _actionButton(BuildContext context, String status) {
     if (status == "searching" || status == "pending") {
       return _button(
@@ -252,6 +850,32 @@ if (status == "completed") {
               .get();
 
           final workerData = workerDoc.data() as Map<String, dynamic>;
+
+          final bool canAcceptJobs = workerData["canAcceptJobs"] == true;
+
+          final String verificationStatus =
+              workerData["identityVerificationStatus"]?.toString() ??
+              "not_submitted";
+
+          if (!canAcceptJobs || verificationStatus != "approved") {
+            if (!context.mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: const Color(0xFFDC2626),
+                content: Text(
+                  verificationStatus == "pending"
+                      ? "Your identity verification is under review."
+                      : verificationStatus == "rejected"
+                      ? "Your verification was rejected. Please submit your documents again."
+                      : "Complete identity verification before accepting jobs.",
+                ),
+              ),
+            );
+
+            return;
+          }
 
           final credits = workerData["credits"] ?? 0;
 
@@ -270,6 +894,23 @@ if (status == "completed") {
                 .doc(widget.requestId);
 
             final freshWorkerDoc = await transaction.get(workerRef);
+
+            final freshWorkerData = freshWorkerDoc.data();
+
+            if (freshWorkerData == null) {
+              throw Exception("Worker profile not found");
+            }
+
+            final bool freshCanAcceptJobs =
+                freshWorkerData["canAcceptJobs"] == true;
+
+            final String freshVerificationStatus =
+                freshWorkerData["identityVerificationStatus"]?.toString() ??
+                "not_submitted";
+
+            if (!freshCanAcceptJobs || freshVerificationStatus != "approved") {
+              throw Exception("Identity verification approval is required");
+            }
 
             final freshCredits =
                 (freshWorkerDoc.data()?["credits"] ?? 0) as int;
@@ -303,8 +944,6 @@ if (status == "completed") {
               "createdAt": FieldValue.serverTimestamp(),
             });
           });
-
-      
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Job accepted. 1 credit deducted.")),

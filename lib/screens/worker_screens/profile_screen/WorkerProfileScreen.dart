@@ -168,7 +168,7 @@ class WorkerProfileScreen extends StatelessWidget {
                                         icon: Icons.support_agent_rounded,
                                         title: 'Help & Support',
                                         subtitle:
-                                            'Get assistance from SkillLink support',
+                                            'Get assistance from SkillNova support',
                                         iconBackground: const Color(0xFFEFF6FF),
                                         iconColor: const Color(0xFF2563EB),
                                         onTap: () {
@@ -199,7 +199,7 @@ class WorkerProfileScreen extends StatelessWidget {
                                   const SizedBox(height: 14),
                                   const Center(
                                     child: Text(
-                                      'SkillLink Worker App',
+                                      'SkillNova Worker App',
                                       style: TextStyle(
                                         color: Color(0xFF94A3B8),
                                         fontSize: 11.5,
@@ -794,7 +794,7 @@ class WorkerProfileScreen extends StatelessWidget {
             ],
           ),
           content: const Text(
-            'Are you sure you want to logout from your SkillLink worker account?',
+            'Are you sure you want to logout from your SkillNova worker account?',
             style: TextStyle(
               color: _textSecondary,
               fontSize: 13,

@@ -539,7 +539,7 @@ class _CustomerProfileSetupScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'SkillLink',
+              'SkillNova',
               style: TextStyle(
                 color: _textPrimary,
                 fontSize: 20,
@@ -852,7 +852,7 @@ class _CustomerProfileSetupScreenState
     return _sectionCard(
       icon: Icons.home_work_outlined,
       title: 'Address details',
-      subtitle: 'This helps SkillLink show professionals near your area.',
+      subtitle: 'This helps SkillNova show professionals near your area.',
       child: Column(
         children: [
           _inputField(

@@ -94,7 +94,7 @@ class _LoginFormState extends State<LoginForm> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Welcome back',
+                    'Welcome to SkillNova Admin',
                     style: GoogleFonts.inter(
                       fontSize: widget.compact ? 28 : 32,
                       fontWeight: FontWeight.w900,
@@ -104,7 +104,7 @@ class _LoginFormState extends State<LoginForm> {
                   ),
                   const SizedBox(height: 9),
                   Text(
-                    'Sign in to manage SkillLink users, workers, jobs, reports and platform activity.',
+                    'Securely access the SkillNova Admin Panel.',
                     style: GoogleFonts.inter(
                       fontSize: 13.5,
                       height: 1.6,
@@ -129,7 +129,7 @@ class _LoginFormState extends State<LoginForm> {
                     },
                     decoration: _inputDecoration(
                       label: 'Admin email',
-                      hint: 'admin@skilllink.com',
+                      hint: 'admin@skillnova.com',
                       icon: Icons.alternate_email_rounded,
                     ),
                     validator: (value) {
@@ -223,7 +223,7 @@ class _LoginFormState extends State<LoginForm> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    'Sign in to dashboard',
+                                    'Continue to Dashboard',
                                     style: GoogleFonts.inter(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w800,
@@ -258,7 +258,7 @@ class _LoginFormState extends State<LoginForm> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Access is restricted to authorized SkillLink administrators.',
+                            'Access is restricted to authorized SkillNova administrators.',
                             style: GoogleFonts.inter(
                               fontSize: 11.5,
                               height: 1.4,
@@ -273,7 +273,7 @@ class _LoginFormState extends State<LoginForm> {
                   const SizedBox(height: 22),
                   Center(
                     child: Text(
-                      '© ${DateTime.now().year} SkillLink. Secure Admin Portal.',
+                      '© ${DateTime.now().year} SkillNova. Secure Admin Portal.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         color: const Color(0xFF94A3B8),

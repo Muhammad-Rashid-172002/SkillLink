@@ -660,7 +660,7 @@ class _SettingsHeader extends StatelessWidget {
             ),
             const SizedBox(height: 7),
             Text(
-              'SkillLink admin panel aur app configuration manage karein.',
+              'SkillNova admin panel aur app configuration manage karein.',
               style: GoogleFonts.inter(
                 fontSize: 13,
                 color: const Color(0xFF64748B),

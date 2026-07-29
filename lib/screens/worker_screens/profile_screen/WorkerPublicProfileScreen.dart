@@ -275,6 +275,9 @@ class WorkerPublicProfileScreen extends StatelessWidget {
   }
 
   Widget _buildProfileHero(Map<String, dynamic> worker) {
+    final bool isVerified =
+        worker["identityVerificationStatus"] == "approved" &&
+        worker["verificationLevel"] == "identity_verified";
     final String imageUrl =
         worker["profileImage"]?.toString() ??
         worker["imageUrl"]?.toString() ??
@@ -359,19 +362,22 @@ class WorkerPublicProfileScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Container(
-                              height: 26,
-                              width: 26,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(.17),
-                                shape: BoxShape.circle,
+                            if (isVerified) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                height: 26,
+                                width: 26,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(.17),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.verified_rounded,
+                                  color: Colors.white,
+                                  size: 17,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.verified_rounded,
-                                color: Colors.white,
-                                size: 17,
-                              ),
-                            ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 5),
@@ -383,6 +389,38 @@ class WorkerPublicProfileScreen extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
+                        if (isVerified) ...[
+                          const SizedBox(height: 7),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(.16),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.verified_user_rounded,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                                SizedBox(width: 5),
+                                Text(
+                                  "Identity Verified",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         Row(
                           children: [

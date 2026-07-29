@@ -561,7 +561,7 @@ class _ReviewsRatingsScreenState extends State<ReviewsRatingsScreen> {
             .toString();
 
     final jobTitle =
-        (data['jobTitle'] ?? data['serviceTitle'] ?? 'SkillLink service')
+        (data['jobTitle'] ?? data['serviceTitle'] ?? 'SkillNova service')
             .toString();
 
     final rating = _toDouble(data['rating']).clamp(0, 5);

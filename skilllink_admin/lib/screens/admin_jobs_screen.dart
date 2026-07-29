@@ -680,7 +680,7 @@ class _JobsHeader extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          'All service requests ko monitor, update aur manage karein.',
+          'Monitor, manage, and update all service requests with ease.',
           style: GoogleFonts.inter(
             fontSize: 13,
             color: const Color(0xFF64748B),

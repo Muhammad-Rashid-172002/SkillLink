@@ -683,7 +683,7 @@ class _CreditsHeader extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          'Worker lead credits monitor, add, deduct aur adjust karein.',
+          'Monitor, add, deduct, and adjust worker lead credits with ease.',
           style: GoogleFonts.inter(
             fontSize: 13,
             color: const Color(0xFF64748B),

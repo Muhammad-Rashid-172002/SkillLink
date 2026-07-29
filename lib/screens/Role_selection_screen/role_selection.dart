@@ -165,7 +165,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           ),
           const SizedBox(width: 11),
           const Text(
-            'SkillLink',
+            'SkillNova',
             style: TextStyle(
               color: _textPrimary,
               fontSize: 21,
@@ -303,7 +303,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
               ),
               const SizedBox(height: 23),
               const Text(
-                'Choose how you want\nto use SkillLink',
+                'Choose how you want\nto use SkillNova',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 29,

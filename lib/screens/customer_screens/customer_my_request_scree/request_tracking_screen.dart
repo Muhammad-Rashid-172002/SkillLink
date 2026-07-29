@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/screens/customer_screens/Chat/chat_detail_screen.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/RateWorkerScreen.dart';
+import 'package:skill_link/services/emergency_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class RequestTrackingScreen extends StatefulWidget {
@@ -29,8 +30,11 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   static const Color _warning = Color(0xFFF59E0B);
   static const Color _danger = Color(0xFFDC2626);
 
+  final EmergencyService _emergencyService = EmergencyService();
+
   bool _searchingDone = false;
   bool _isSendingToWorker = false;
+  bool _isSendingEmergency = false;
 
   @override
   void initState() {
@@ -110,7 +114,8 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
               },
             ),
           ),
-          if (_isSendingToWorker) Positioned.fill(child: _blockingLoader()),
+          if (_isSendingToWorker || _isSendingEmergency)
+            Positioned.fill(child: _blockingLoader()),
         ],
       ),
     );
@@ -328,6 +333,12 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
                     ),
                     const SizedBox(height: 18),
                     _requestSummary(requestData),
+                    const SizedBox(height: 18),
+                    _emergencySafetyCard(
+                      requestData: requestData,
+                      workerId: workerId,
+                      status: status,
+                    ),
                     const SizedBox(height: 18),
                     _timelineCard(status),
                   ]),
@@ -1036,6 +1047,608 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
 
   Widget _summaryDivider() {
     return Container(height: 1, color: _border);
+  }
+
+
+  Widget _emergencySafetyCard({
+    required Map<String, dynamic> requestData,
+    required String workerId,
+    required String status,
+  }) {
+    final activeStatus =
+        status == 'accepted' ||
+        status == 'on_the_way' ||
+        status == 'in_progress';
+
+    if (!activeStatus) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFF7F7), Color(0xFFFFECEC)],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFFECACA)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12DC2626),
+            blurRadius: 22,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -38,
+              top: -42,
+              child: Container(
+                height: 135,
+                width: 135,
+                decoration: BoxDecoration(
+                  color: _danger.withOpacity(0.06),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        height: 48,
+                        width: 48,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFEF4444), Color(0xFFB91C1C)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x33DC2626),
+                              blurRadius: 15,
+                              offset: Offset(0, 7),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.sos_rounded,
+                          color: Colors.white,
+                          size: 27,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Safety & emergency',
+                              style: TextStyle(
+                                color: Color(0xFF7F1D1D),
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Use SOS only when you feel unsafe or need urgent help.',
+                              style: TextStyle(
+                                color: Color(0xFF991B1B),
+                                fontSize: 9.8,
+                                height: 1.4,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.78),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFFEE2E2)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          color: _danger,
+                          size: 18,
+                        ),
+                        SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            'Your current location and job details will be securely sent to SkillNova admin.',
+                            style: TextStyle(
+                              color: Color(0xFF7F1D1D),
+                              fontSize: 9.5,
+                              height: 1.45,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _isSendingEmergency
+                              ? null
+                              : () => _callPolice(),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _danger,
+                            side: const BorderSide(
+                              color: Color(0xFFFCA5A5),
+                              width: 1.2,
+                            ),
+                            backgroundColor: Colors.white.withOpacity(0.72),
+                            minimumSize: const Size(0, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: const Icon(Icons.local_police_outlined, size: 18),
+                          label: const Text(
+                            'Call Police 15',
+                            style: TextStyle(
+                              fontSize: 10.4,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isSendingEmergency
+                              ? null
+                              : () => _openEmergencySheet(
+                                    requestData: requestData,
+                                    workerId: workerId,
+                                    status: status,
+                                  ),
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            foregroundColor: Colors.white,
+                            backgroundColor: _danger,
+                            minimumSize: const Size(0, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            shadowColor: _danger.withOpacity(0.28),
+                          ),
+                          icon: const Icon(Icons.sos_rounded, size: 20),
+                          label: const Text(
+                            'Send SOS',
+                            style: TextStyle(
+                              fontSize: 10.8,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openEmergencySheet({
+    required Map<String, dynamic> requestData,
+    required String workerId,
+    required String status,
+  }) async {
+    String selectedReason = 'I feel unsafe';
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final reasons = <Map<String, dynamic>>[
+              {
+                'label': 'I feel unsafe',
+                'icon': Icons.shield_outlined,
+              },
+              {
+                'label': 'Threat or violence',
+                'icon': Icons.warning_amber_rounded,
+              },
+              {
+                'label': 'Robbery or theft',
+                'icon': Icons.report_problem_outlined,
+              },
+              {
+                'label': 'Medical emergency',
+                'icon': Icons.medical_services_outlined,
+              },
+              {
+                'label': 'Accident',
+                'icon': Icons.car_crash_outlined,
+              },
+              {
+                'label': 'Other emergency',
+                'icon': Icons.sos_rounded,
+              },
+            ];
+
+            return SafeArea(
+              child: Container(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  12,
+                  20,
+                  20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(30),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      height: 5,
+                      width: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    const SizedBox(height: 17),
+                    Container(
+                      height: 70,
+                      width: 70,
+                      decoration: BoxDecoration(
+                        color: _danger.withOpacity(0.09),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.sos_rounded,
+                        color: _danger,
+                        size: 37,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Send emergency SOS?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    const Text(
+                      'Select the closest reason. Your current GPS location and active job information will be recorded.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _textSecondary,
+                        fontSize: 10.5,
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Wrap(
+                          spacing: 9,
+                          runSpacing: 9,
+                          children: reasons.map((reason) {
+                            final label = reason['label'] as String;
+                            final selected = selectedReason == label;
+
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(15),
+                              onTap: () {
+                                setSheetState(() => selectedReason = label);
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                width:
+                                    (MediaQuery.of(sheetContext).size.width - 49) /
+                                        2,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 11,
+                                  vertical: 13,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? _danger.withOpacity(0.09)
+                                      : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(15),
+                                  border: Border.all(
+                                    color: selected
+                                        ? _danger
+                                        : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      reason['icon'] as IconData,
+                                      color: selected ? _danger : _textSecondary,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        label,
+                                        style: TextStyle(
+                                          color:
+                                              selected ? _danger : _textPrimary,
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () =>
+                                Navigator.pop(sheetContext, false),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 52),
+                              side: const BorderSide(color: _border),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: _textPrimary,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () =>
+                                Navigator.pop(sheetContext, true),
+                            style: ElevatedButton.styleFrom(
+                              elevation: 0,
+                              backgroundColor: _danger,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 52),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            icon: const Icon(Icons.sos_rounded),
+                            label: const Text(
+                              'Send SOS Now',
+                              style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    await _sendEmergencyAlert(
+      requestData: requestData,
+      workerId: workerId,
+      status: status,
+      reason: selectedReason,
+    );
+  }
+
+  Future<void> _sendEmergencyAlert({
+    required Map<String, dynamic> requestData,
+    required String workerId,
+    required String status,
+    required String reason,
+  }) async {
+    setState(() => _isSendingEmergency = true);
+
+    try {
+      final alertId = await _emergencyService.createEmergencyAlert(
+        requestId: widget.requestId,
+        requestData: requestData,
+        workerId: workerId,
+        raisedByRole: 'customer',
+        jobStatus: status,
+        reason: reason,
+      );
+
+      if (!mounted) return;
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              padding: const EdgeInsets.all(23),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x220F172A),
+                    blurRadius: 32,
+                    offset: Offset(0, 15),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    height: 78,
+                    width: 78,
+                    decoration: BoxDecoration(
+                      color: _danger.withOpacity(0.09),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.notifications_active_rounded,
+                      color: _danger,
+                      size: 38,
+                    ),
+                  ),
+                  const SizedBox(height: 17),
+                  const Text(
+                    'SOS alert sent',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'SkillNova admin has received your emergency alert and current location. Call Police 15 immediately if you are in immediate danger.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _textSecondary,
+                      fontSize: 10.7,
+                      height: 1.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Alert ID: $alertId',
+                    style: const TextStyle(
+                      color: _textSecondary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            _callPolice();
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _danger,
+                            minimumSize: const Size(0, 50),
+                            side: const BorderSide(color: _danger),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: const Icon(Icons.local_police_outlined),
+                          label: const Text(
+                            'Call Police',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: _textPrimary,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(0, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Text(
+                            'Done',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } on EmergencyServiceException catch (error) {
+      if (!mounted) return;
+      _showMessage(error.message, isError: true);
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage(
+        'Emergency alert could not be sent. Please call Police 15.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSendingEmergency = false);
+      }
+    }
+  }
+
+  Future<void> _callPolice() async {
+    final uri = Uri(scheme: 'tel', path: '15');
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        _showMessage('Phone dialer could not be opened.', isError: true);
+      }
+    } catch (_) {
+      _showMessage('Unable to open Police 15 dialer.', isError: true);
+    }
   }
 
   Widget _timelineCard(String status) {
@@ -2440,24 +3053,29 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
               ),
             ],
           ),
-          child: const Column(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: _primary, strokeWidth: 2.7),
-              SizedBox(height: 16),
+              const CircularProgressIndicator(
+                color: _primary,
+                strokeWidth: 2.7,
+              ),
+              const SizedBox(height: 16),
               Text(
-                'Sending request',
-                style: TextStyle(
+                _isSendingEmergency ? 'Sending SOS alert' : 'Sending request',
+                style: const TextStyle(
                   color: _textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'Please wait while we contact the worker.',
+                _isSendingEmergency
+                    ? 'Please wait while we securely send your location.'
+                    : 'Please wait while we contact the worker.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: _textSecondary,
                   fontSize: 10.2,
                   height: 1.4,

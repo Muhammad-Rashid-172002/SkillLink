@@ -173,7 +173,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                             const SizedBox(height: 10),
                             const Center(
                               child: Text(
-                                'SkillLink Customer Account',
+                                'SkillNova Customer Account',
                                 style: TextStyle(
                                   color: _textSecondary,
                                   fontSize: 9,
@@ -745,7 +745,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         _profileTile(
           icon: Icons.support_agent_outlined,
           title: 'Help & support',
-          subtitle: 'Get assistance from SkillLink support',
+          subtitle: 'Get assistance from SkillNova support',
           color: _success,
           onTap: () {
             Navigator.push(
@@ -765,7 +765,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         _divider(),
         _profileTile(
           icon: Icons.info_outline_rounded,
-          title: 'About SkillLink',
+          title: 'About SkillNova',
           subtitle: 'Version, company and app information',
           color: _secondary,
           badge: 'v1.0',
@@ -983,7 +983,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 const SizedBox(height: 20),
 
                 const Text(
-                  "SkillLink",
+                  "SkillNova",
                   style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
                 ),
 
@@ -1004,7 +1004,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 _aboutRow(
                   Icons.verified_outlined,
                   "Version",
-                  "1.0.0",
+                  "1.0.0.2",
                   const Color(0xFF2563EB),
                 ),
 
@@ -1302,7 +1302,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               ),
               const SizedBox(height: 15),
               const Text(
-                'Logout from SkillLink?',
+                'Logout from SkillNova?',
                 style: TextStyle(
                   color: _textPrimary,
                   fontSize: 17,

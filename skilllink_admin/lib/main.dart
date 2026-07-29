@@ -22,7 +22,7 @@ class SkillLinkAdminApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'SkillLink Admin',
+      title: 'SkillNova Admin',
       theme: ThemeData(
         useMaterial3: true,
         textTheme: GoogleFonts.interTextTheme(),
@@ -36,26 +36,3 @@ class SkillLinkAdminApp extends StatelessWidget {
   }
 }
 
-
-// Meri Recommendation
-
-// Dashboard ko ek hi file mein mat banana.
-
-// Professional structure rakho:
-
-// dashboard_screen.dart
-// sidebar.dart
-// topbar.dart
-// dashboard_service.dart
-// stat_card.dart
-// dashboard_model.dart
-
-// Is tarah future mein code maintain karna bohot aasaan hoga.
-
-// Main suggest karta hoon agla step ye ho:
-// Professional Sidebar (responsive)
-// Top Navigation Bar
-// Dashboard Layout
-// Live Firebase Statistics
-
-// Uske baad hum Users, Jobs aur baaki modules add karenge.

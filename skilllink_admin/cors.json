@@ -1,0 +1,17 @@
+[
+  {
+    "origin": [
+      "http://localhost:59363",
+      "http://127.0.0.1:59363"
+    ],
+    "method": [
+      "GET",
+      "HEAD"
+    ],
+    "responseHeader": [
+      "Content-Type",
+      "Authorization"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

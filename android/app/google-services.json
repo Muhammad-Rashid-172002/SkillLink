@@ -7,12 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:941379228912:android:7eeb13493e52c8258f1e35",
+        "mobilesdk_app_id": "1:941379228912:android:966aa8dc31adbc1a8f1e35",
         "android_client_info": {
-          "package_name": "com.example.skill_link"
+          "package_name": "com.rashidapps.skillnova"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "941379228912-eq1j8vq6uebt81f9lsouoaoo6qsdl66t.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDo-EJyyAS-nh9NZFm9y6VwHQTSInU11Ag"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "941379228912-eq1j8vq6uebt81f9lsouoaoo6qsdl66t.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "941379228912-t7o94m23i5bfnlm6i8r1a4opmcgen4n1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.skillLink"
+              }
+            }
+          ]
         }
       }
     }

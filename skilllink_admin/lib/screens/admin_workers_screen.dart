@@ -651,7 +651,7 @@ class _WorkersHeader extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          'Worker profiles, skills aur verification documents review karein.',
+          'Review worker profiles, skills, and verification documents.',
           style: GoogleFonts.inter(
             fontSize: 13,
             color: const Color(0xFF64748B),

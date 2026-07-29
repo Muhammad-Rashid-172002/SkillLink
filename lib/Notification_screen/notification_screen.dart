@@ -393,7 +393,7 @@ class NotificationScreen extends StatelessWidget {
               ),
               SizedBox(height: 4),
               Text(
-                'Latest updates from SkillLink',
+                'Latest updates from SkillNova',
                 style: TextStyle(
                   color: _textSecondary,
                   fontSize: 10.2,

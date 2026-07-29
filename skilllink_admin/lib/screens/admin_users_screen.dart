@@ -450,7 +450,7 @@ class _UsersHeader extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          'SkillLink customers aur workers ko manage, verify aur monitor karein.',
+          'Manage, verify, and monitor SkillNova customers and workers with ease.',
           style: GoogleFonts.inter(
             fontSize: 13,
             color: const Color(0xFF64748B),

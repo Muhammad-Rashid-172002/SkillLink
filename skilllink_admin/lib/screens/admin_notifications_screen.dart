@@ -825,7 +825,7 @@ class _HeaderTitle extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          'Customers aur workers ke liye notifications manage karein.',
+          'Manage notifications for customers and workers.',
           style: GoogleFonts.inter(
             fontSize: 13,
             color: const Color(0xFF64748B),

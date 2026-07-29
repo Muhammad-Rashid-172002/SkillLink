@@ -24,9 +24,9 @@ class HelpSupportScreen extends StatelessWidget {
       scheme: 'mailto',
       path: _supportEmail,
       queryParameters: {
-        'subject': 'SkillLink Support Request',
+        'subject': 'SkillNova Support Request',
         'body': '''
-Hello SkillLink Support Team,
+Hello SkillNova Support Team,
 
 I need help with the following issue:
 
@@ -62,9 +62,9 @@ Thank you.
       scheme: 'mailto',
       path: _supportEmail,
       queryParameters: {
-        'subject': 'SkillLink Bug Report',
+        'subject': 'SkillNova Bug Report',
         'body': '''
-Hello SkillLink Team,
+Hello SkillNova Team,
 
 I found an issue in the app.
 
@@ -162,7 +162,7 @@ Thank you.
                       icon: Icons.quiz_outlined,
                       title: 'Frequently Asked Questions',
                       subtitle:
-                          'Quick answers to common SkillLink questions',
+                          'Quick answers to common SkillNova questions',
                     ),
                     const SizedBox(height: 13),
                     _buildFaqSection(),
@@ -348,7 +348,7 @@ Thank you.
                     ),
                     SizedBox(height: 7),
                     Text(
-                      'Find quick answers or contact our support team for help with your SkillLink account.',
+                      'Find quick answers or contact our support team for help with your SkillNova account.',
                       style: TextStyle(
                         color: Color(0xD9FFFFFF),
                         fontSize: 10,

@@ -83,8 +83,8 @@ class AdminSettings {
 
   factory AdminSettings.defaults() {
     return const AdminSettings(
-      appName: 'SkillLink',
-      supportEmail: 'support@skilllink.com',
+      appName: 'SkillNova',
+      supportEmail: 'support@skillnova.com',
       supportPhone: '',
       privacyPolicyUrl: 'https://skilllinkprivacypolicy.vercel.app',
       termsUrl: '',

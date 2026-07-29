@@ -189,7 +189,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(width: 11),
               const Text(
-                'SkillLink',
+                'SkillNova',
                 style: TextStyle(
                   color: _textPrimary,
                   fontSize: 21,

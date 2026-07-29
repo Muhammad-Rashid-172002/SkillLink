@@ -757,7 +757,7 @@ class _ReportsHeader extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         Text(
-          'User complaints investigate karein, priority assign karein aur issues resolve karein.',
+          'Investigate user complaints, assign priorities, and resolve issues efficiently.',
           style: GoogleFonts.inter(
             fontSize: 13,
             color: const Color(0xFF64748B),

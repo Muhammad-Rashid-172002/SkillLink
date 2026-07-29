@@ -193,7 +193,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
-                      'SKILLLINK SUPPORT',
+                      'SKILLLNOVA SUPPORT',
                       style: TextStyle(
                         color: Color(0xDFFFFFFF),
                         fontSize: 12,
@@ -592,8 +592,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       scheme: 'mailto',
       path: 'muhammadrashid172002@gmail.com',
       queryParameters: {
-        'subject': 'SkillLink Worker Support',
-        'body': 'Hello SkillLink Support,\n\nIssue Category: $_selectedIssue\n\nPlease describe your issue below:\n\n',
+        'subject': 'SkillNova Worker Support',
+        'body': 'Hello SkillNova   Support,\n\nIssue Category: $_selectedIssue\n\nPlease describe your issue below:\n\n',
       },
     );
     await _launchUri(uri);
@@ -601,7 +601,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
   Future<void> _openWhatsApp() async {
     final uri = Uri.parse(
-      'https://wa.me/923195176014?text=${Uri.encodeComponent('Hello SkillLink Support, I need help with $_selectedIssue.')}',
+      'https://wa.me/923195176014?text=${Uri.encodeComponent('Hello SkillNova Support, I need help with $_selectedIssue.')}',
     );
     await _launchUri(uri);
   }
@@ -631,10 +631,10 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
     final uri = Uri(
       scheme: 'mailto',
-      path: 'support@skilllink.com',
+      path: 'muhaamad172002@gmail.com',
       queryParameters: {
-        'subject': 'SkillLink Support - $_selectedIssue',
-        'body': 'Hello SkillLink Support,\n\nIssue Category: $_selectedIssue\n\nIssue Details:\n$message\n\nPlease review this issue and assist me.',
+        'subject': ' Support - $_selectedIssue',
+        'body': 'Hello SkillNova Support,\n\nIssue Category: $_selectedIssue\n\nIssue Details:\n$message\n\nPlease review this issue and assist me.',
       },
     );
 

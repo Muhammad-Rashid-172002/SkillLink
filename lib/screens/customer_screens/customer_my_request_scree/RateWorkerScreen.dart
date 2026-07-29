@@ -435,7 +435,9 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
     final totalReviews = _intValue(
       worker['totalReviews'] ?? worker['reviewsCount'],
     );
-    final verified = worker['isVerified'] == true || worker['verified'] == true;
+    final verified =
+        worker['identityVerificationStatus'] == 'approved' &&
+        worker['canAcceptJobs'] == true;
 
     return Container(
       width: double.infinity,

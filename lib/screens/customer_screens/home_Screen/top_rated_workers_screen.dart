@@ -9,8 +9,7 @@ class TopRatedWorkersScreen extends StatefulWidget {
   const TopRatedWorkersScreen({super.key});
 
   @override
-  State<TopRatedWorkersScreen> createState() =>
-      _TopRatedWorkersScreenState();
+  State<TopRatedWorkersScreen> createState() => _TopRatedWorkersScreenState();
 }
 
 class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
@@ -26,8 +25,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
   static const Color _textSecondary = Color(0xFF64748B);
   static const Color _border = Color(0xFFE2E8F0);
 
-  final TextEditingController _searchController =
-      TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   String _searchQuery = '';
 
@@ -36,6 +34,8 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
         .collection('users')
         .where('role', isEqualTo: 'worker')
         .where('profileCompleted', isEqualTo: true)
+        .where('identityVerificationStatus', isEqualTo: 'approved')
+        .where('canAcceptJobs', isEqualTo: true)
         .snapshots();
   }
 
@@ -54,10 +54,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
           Positioned(
             top: -120,
             right: -100,
-            child: _ambientCircle(
-              size: 300,
-              color: _primary.withOpacity(.10),
-            ),
+            child: _ambientCircle(size: 300, color: _primary.withOpacity(.10)),
           ),
           Positioned(
             bottom: -150,
@@ -72,12 +69,10 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
               children: [
                 _buildHeader(),
                 Expanded(
-                  child: StreamBuilder<
-                      QuerySnapshot<Map<String, dynamic>>>(
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: _workersStream,
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState ==
-                          ConnectionState.waiting) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
                         return _buildLoadingState();
                       }
 
@@ -88,22 +83,17 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                       var workers = [...?snapshot.data?.docs];
 
                       workers.sort((a, b) {
-                        final ratingA =
-                            _toDouble(a.data()['rating']);
-                        final ratingB =
-                            _toDouble(b.data()['rating']);
+                        final ratingA = _toDouble(a.data()['rating']);
+                        final ratingB = _toDouble(b.data()['rating']);
 
-                        final ratingCompare =
-                            ratingB.compareTo(ratingA);
+                        final ratingCompare = ratingB.compareTo(ratingA);
 
                         if (ratingCompare != 0) {
                           return ratingCompare;
                         }
 
-                        final reviewsA =
-                            _toInt(a.data()['totalReviews']);
-                        final reviewsB =
-                            _toInt(b.data()['totalReviews']);
+                        final reviewsA = _toInt(a.data()['totalReviews']);
+                        final reviewsB = _toInt(b.data()['totalReviews']);
 
                         return reviewsB.compareTo(reviewsA);
                       });
@@ -112,20 +102,14 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                         workers = workers.where((document) {
                           final worker = document.data();
 
-                          final name = worker['name']
-                                  ?.toString()
-                                  .toLowerCase() ??
-                              '';
+                          final name =
+                              worker['name']?.toString().toLowerCase() ?? '';
 
-                          final skill = worker['skill']
-                                  ?.toString()
-                                  .toLowerCase() ??
-                              '';
+                          final skill =
+                              worker['skill']?.toString().toLowerCase() ?? '';
 
-                          final city = worker['city']
-                                  ?.toString()
-                                  .toLowerCase() ??
-                              '';
+                          final city =
+                              worker['city']?.toString().toLowerCase() ?? '';
 
                           return name.contains(_searchQuery) ||
                               skill.contains(_searchQuery) ||
@@ -325,15 +309,10 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            _primary.withOpacity(.09),
-            _secondary.withOpacity(.07),
-          ],
+          colors: [_primary.withOpacity(.09), _secondary.withOpacity(.07)],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: _primary.withOpacity(.10),
-        ),
+        border: Border.all(color: _primary.withOpacity(.10)),
       ),
       child: Row(
         children: [
@@ -344,11 +323,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
               color: _warning.withOpacity(.12),
               borderRadius: BorderRadius.circular(13),
             ),
-            child: const Icon(
-              Icons.star_rounded,
-              color: _warning,
-              size: 22,
-            ),
+            child: const Icon(Icons.star_rounded, color: _warning, size: 22),
           ),
           const SizedBox(width: 11),
           const Expanded(
@@ -405,24 +380,18 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
     required Map<String, dynamic> worker,
     required int rank,
   }) {
-    final name = _value(
-      worker['name'],
-      'Skilled Worker',
-    );
+    final name = _value(worker['name'], 'SkillNova Worker');
 
-    final skill = _value(
-      worker['skill'],
-      'Professional Service',
-    );
+    final skill = _value(worker['skill'], 'Professional Service');
 
-    final city = _value(
-      worker['city'],
-      'Nearby',
-    );
+    final city = _value(worker['city'], 'Nearby');
 
     final rating = _toDouble(worker['rating']);
     final totalReviews = _toInt(worker['totalReviews']);
     final hourlyRate = _formatRate(worker['hourlyRate']);
+    final bool isVerified =
+        worker['identityVerificationStatus'] == 'approved' &&
+        worker['canAcceptJobs'] == true;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -446,9 +415,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
               height: 5,
               width: double.infinity,
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [_primary, _secondary],
-                ),
+                gradient: LinearGradient(colors: [_primary, _secondary]),
               ),
             ),
             Padding(
@@ -469,8 +436,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                                 end: Alignment.bottomRight,
                                 colors: [_primary, _secondary],
                               ),
-                              borderRadius:
-                                  BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
                                   color: _primary.withOpacity(.20),
@@ -512,9 +478,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                               height: 25,
                               width: 25,
                               decoration: BoxDecoration(
-                                color: rank <= 3
-                                    ? _warning
-                                    : _textPrimary,
+                                color: rank <= 3 ? _warning : _textPrimary,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Colors.white,
@@ -537,8 +501,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
@@ -546,22 +509,22 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                                   child: Text(
                                     name,
                                     maxLines: 1,
-                                    overflow:
-                                        TextOverflow.ellipsis,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       color: _textPrimary,
                                       fontSize: 15,
-                                      fontWeight:
-                                          FontWeight.w900,
+                                      fontWeight: FontWeight.w900,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 5),
-                                const Icon(
-                                  Icons.verified_rounded,
-                                  color: _primary,
-                                  size: 16,
-                                ),
+                                if (isVerified) ...[
+                                  const SizedBox(width: 5),
+                                  const Icon(
+                                    Icons.verified_rounded,
+                                    color: _primary,
+                                    size: 16,
+                                  ),
+                                ],
                               ],
                             ),
                             const SizedBox(height: 5),
@@ -588,13 +551,11 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                                   child: Text(
                                     city,
                                     maxLines: 1,
-                                    overflow:
-                                        TextOverflow.ellipsis,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       color: _textSecondary,
                                       fontSize: 9.8,
-                                      fontWeight:
-                                          FontWeight.w600,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -611,8 +572,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: _primary.withOpacity(.08),
-                          borderRadius:
-                              BorderRadius.circular(13),
+                          borderRadius: BorderRadius.circular(13),
                         ),
                         child: Text(
                           hourlyRate,
@@ -626,31 +586,20 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                     ],
                   ),
                   const SizedBox(height: 15),
-                  StreamBuilder<
-                      QuerySnapshot<Map<String, dynamic>>>(
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: FirebaseFirestore.instance
                         .collection('requests')
-                        .where(
-                          'workerId',
-                          isEqualTo: workerId,
-                        )
-                        .where(
-                          'status',
-                          isEqualTo: 'completed',
-                        )
+                        .where('workerId', isEqualTo: workerId)
+                        .where('status', isEqualTo: 'completed')
                         .snapshots(),
                     builder: (context, snapshot) {
-                      final completedJobs =
-                          snapshot.data?.docs.length ?? 0;
+                      final completedJobs = snapshot.data?.docs.length ?? 0;
 
                       return Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 13,
-                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
-                          borderRadius:
-                              BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: _border),
                         ),
                         child: Row(
@@ -659,30 +608,20 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                               child: _metric(
                                 icon: Icons.star_rounded,
                                 iconColor: _warning,
-                                value:
-                                    rating.toStringAsFixed(1),
+                                value: rating.toStringAsFixed(1),
                                 label: 'Rating',
                               ),
                             ),
-                            Container(
-                              height: 32,
-                              width: 1,
-                              color: _border,
-                            ),
+                            Container(height: 32, width: 1, color: _border),
                             Expanded(
                               child: _metric(
-                                icon:
-                                    Icons.rate_review_outlined,
+                                icon: Icons.rate_review_outlined,
                                 iconColor: _secondary,
                                 value: '$totalReviews',
                                 label: 'Reviews',
                               ),
                             ),
-                            Container(
-                              height: 32,
-                              width: 1,
-                              color: _border,
-                            ),
+                            Container(height: 32, width: 1, color: _border),
                             Expanded(
                               child: _metric(
                                 icon: Icons.work_outline_rounded,
@@ -705,8 +644,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    WorkerPublicProfileScreen(
+                                builder: (_) => WorkerPublicProfileScreen(
                                   workerId: workerId,
                                 ),
                               ),
@@ -716,18 +654,13 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                             Icons.person_outline_rounded,
                             size: 17,
                           ),
-                          label: const Text(
-                            'View Profile',
-                          ),
+                          label: const Text('View Profile'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _textPrimary,
-                            minimumSize:
-                                const Size.fromHeight(47),
-                            side:
-                                const BorderSide(color: _border),
+                            minimumSize: const Size.fromHeight(47),
+                            side: const BorderSide(color: _border),
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                             textStyle: const TextStyle(
                               fontSize: 10.7,
@@ -743,28 +676,20 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => Request(
-                                  selectedWorkerId: workerId,
-                                ),
+                                builder: (_) =>
+                                    Request(selectedWorkerId: workerId),
                               ),
                             );
                           },
-                          icon: const Icon(
-                            Icons.send_rounded,
-                            size: 16,
-                          ),
-                          label: const Text(
-                            'Request Service',
-                          ),
+                          icon: const Icon(Icons.send_rounded, size: 16),
+                          label: const Text('Request Service'),
                           style: ElevatedButton.styleFrom(
                             elevation: 0,
                             foregroundColor: Colors.white,
                             backgroundColor: _primary,
-                            minimumSize:
-                                const Size.fromHeight(47),
+                            minimumSize: const Size.fromHeight(47),
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                             textStyle: const TextStyle(
                               fontSize: 10.7,
@@ -795,11 +720,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: iconColor,
-              size: 15,
-            ),
+            Icon(icon, color: iconColor, size: 15),
             const SizedBox(width: 4),
             Flexible(
               child: Text(
@@ -857,10 +778,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
         padding: const EdgeInsets.all(26),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 32,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(28),
@@ -869,11 +787,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
           child: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.person_search_rounded,
-                color: _primary,
-                size: 48,
-              ),
+              Icon(Icons.person_search_rounded, color: _primary, size: 48),
               SizedBox(height: 16),
               Text(
                 'No workers found',
@@ -911,9 +825,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFFFEF2F2),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(
-              color: const Color(0xFFFECACA),
-            ),
+            border: Border.all(color: const Color(0xFFFECACA)),
           ),
           child: const Column(
             mainAxisSize: MainAxisSize.min,
@@ -949,22 +861,13 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
     );
   }
 
-  Widget _ambientCircle({
-    required double size,
-    required Color color,
-  }) {
+  Widget _ambientCircle({required double size, required Color color}) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 50,
-        sigmaY: 50,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
       child: Container(
         height: size,
         width: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }
@@ -974,10 +877,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
       return value.toDouble();
     }
 
-    return double.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        0;
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   int _toInt(dynamic value) {
@@ -989,16 +889,10 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
       return value.toInt();
     }
 
-    return int.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        0;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  String _value(
-    dynamic value,
-    String fallback,
-  ) {
+  String _value(dynamic value, String fallback) {
     final text = value?.toString().trim() ?? '';
 
     if (text.isEmpty || text.toLowerCase() == 'null') {
@@ -1034,9 +928,7 @@ class _TopRatedWorkersScreenState extends State<TopRatedWorkersScreen> {
     }
 
     if (parts.length == 1) {
-      return parts.first
-          .substring(0, 1)
-          .toUpperCase();
+      return parts.first.substring(0, 1).toUpperCase();
     }
 
     return '${parts.first.substring(0, 1)}'

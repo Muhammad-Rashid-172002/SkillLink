@@ -33,7 +33,7 @@ class AdminAuthService {
 
       if (user == null) {
         throw const AdminAuthException(
-          'Login complete nahi ho saka. Dobara try karein.',
+          'Unable to complete login. Please try again.',
         );
       }
 
@@ -42,13 +42,13 @@ class AdminAuthService {
       throw AdminAuthException(_mapFirebaseAuthError(error));
     } on FirebaseException catch (error) {
       throw AdminAuthException(
-        error.message ?? 'Firebase se connect nahi ho saka.',
+        error.message ?? 'Unable to connect with Database.',
       );
     } on AdminAuthException {
       rethrow;
     } catch (_) {
       throw const AdminAuthException(
-        'Kuch ghalat ho gaya. Dobara try karein.',
+        'Something went wrong. Please try again.',
       );
     }
   }
@@ -77,7 +77,7 @@ class AdminAuthService {
       await signOut();
 
       throw const AdminAuthException(
-        'Aapko admin panel access karne ki permission nahi hai.',
+        'You do not have permission to access the admin panel. Please contact the super admin.',
       );
     }
 
@@ -87,7 +87,7 @@ class AdminAuthService {
       await signOut();
 
       throw const AdminAuthException(
-        'Admin profile ka data available nahi hai.',
+        'Admin profile data is not available.',
       );
     }
 
@@ -97,7 +97,7 @@ class AdminAuthService {
       await signOut();
 
       throw const AdminAuthException(
-        'Aapka admin account inactive hai. Super admin se contact karein.',
+        'Your admin account is inactive. Please contact the super admin.',
       );
     }
 
@@ -119,7 +119,7 @@ class AdminAuthService {
     return AdminProfile(
       uid: user.uid,
       email: user.email ?? storedEmail,
-      name: data['name'] as String? ?? 'SkillLink Admin',
+      name: data['name'] as String? ?? 'SkillNova Admin',
       role: data['role'] as String? ?? 'admin',
       isActive: isActive,
       photoUrl: data['photoUrl'] as String?,
@@ -131,7 +131,7 @@ class AdminAuthService {
 
     if (normalizedEmail.isEmpty) {
       throw const AdminAuthException(
-        'Password reset ke liye email enter karein.',
+        'Please enter your email address to reset your password.',
       );
     }
 
@@ -143,7 +143,7 @@ class AdminAuthService {
       throw AdminAuthException(_mapFirebaseAuthError(error));
     } catch (_) {
       throw const AdminAuthException(
-        'Password reset email send nahi ho saki.',
+        'Failed to send the password reset email.',
       );
     }
   }
@@ -155,27 +155,27 @@ class AdminAuthService {
   String _mapFirebaseAuthError(FirebaseAuthException error) {
     switch (error.code) {
       case 'invalid-email':
-        return 'Email address valid nahi hai.';
+        return 'Email address is not valid.';
 
       case 'user-disabled':
-        return 'Ye account disable kar diya gaya hai.';
+        return 'This account has been disabled.';
 
       case 'user-not-found':
       case 'wrong-password':
       case 'invalid-credential':
-        return 'Email ya password ghalat hai.';
+        return 'Email or password is incorrect.';
 
       case 'too-many-requests':
-        return 'Bohat zyada login attempts hue hain. Thori dair baad try karein.';
+        return 'Too many login attempts have been made. Please try again later.';
 
       case 'network-request-failed':
-        return 'Internet connection check karein aur dobara try karein.';
+        return 'Please check your internet connection and try again.';
 
       case 'operation-not-allowed':
-        return 'Firebase mein Email/Password login enable nahi hai.';
+        return 'Email/Password sign-in is not enabled in over database.';
 
       default:
-        return error.message ?? 'Login complete nahi ho saka.';
+        return error.message ?? 'Login could not be completed.';
     }
   }
 }

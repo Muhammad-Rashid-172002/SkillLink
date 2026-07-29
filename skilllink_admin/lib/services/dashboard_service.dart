@@ -1,10 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:skilllink_admin/models/dashboard_stats.dart';
 
-
 class DashboardService {
   DashboardService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -20,6 +19,7 @@ class DashboardService {
   Future<DashboardStats> loadStats() async {
     final users = _firestore.collection('users');
     final requests = _firestore.collection('requests');
+    final emergencyAlerts = _firestore.collection('emergency_alerts');
 
     final results = await Future.wait<int>([
       _countCollection('users'),
@@ -43,6 +43,14 @@ class DashboardService {
       ),
       _countCollection('reviews'),
       _countCollection('transactions'),
+      _countCollection('emergency_alerts'),
+      _countCollection(
+        'emergency_alerts',
+        query: emergencyAlerts.where(
+          'status',
+          whereIn: const ['active', 'investigating'],
+        ),
+      ),
     ]);
 
     return DashboardStats(
@@ -55,18 +63,15 @@ class DashboardService {
       completedJobs: results[6],
       totalReviews: results[7],
       totalTransactions: results[8],
+      totalEmergencyAlerts: results[9],
+      activeEmergencyAlerts: results[10],
     );
   }
 
   Future<int> _countActiveJobs(
     CollectionReference<Map<String, dynamic>> requests,
   ) async {
-    const activeStatuses = <String>[
-      'accepted',
-      'on_the_way',
-      'in_progress',
-    ];
-
+    const activeStatuses = <String>['accepted', 'on_the_way', 'in_progress'];
     var total = 0;
 
     for (final status in activeStatuses) {

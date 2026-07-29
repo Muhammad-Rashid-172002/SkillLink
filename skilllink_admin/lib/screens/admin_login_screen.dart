@@ -58,7 +58,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     } catch (_) {
       if (!mounted) return;
       _showMessage(
-        'Login complete nahi ho saka. Dobara try karein.',
+        'Unable to complete sign in. Please try again.',
         isError: true,
       );
     } finally {
@@ -131,7 +131,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       await _authService.sendPasswordResetEmail(email);
       if (!mounted) return;
       _showMessage(
-        'Password reset link email par send kar diya gaya hai.',
+        'Password reset link has been sent to your email address.',
         isError: false,
       );
     } on AdminAuthException catch (error) {
@@ -145,8 +145,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+        backgroundColor: isError
+            ? const Color(0xFFDC2626)
+            : const Color(0xFF16A34A),
         content: Row(
           children: [
             Icon(
@@ -163,16 +164,14 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     );
   }
 
-void _openDashboard(AdminProfile admin) {
-  Navigator.of(context).pushReplacement(
-    MaterialPageRoute(
-      builder: (_) => AdminDashboardScreen(
-        admin: admin,
-        authService: _authService,
+  void _openDashboard(AdminProfile admin) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) =>
+            AdminDashboardScreen(admin: admin, authService: _authService),
       ),
-    ),
-  );
-}
+    );
+  }
 
   @override
   void dispose() {
@@ -235,8 +234,7 @@ void _openDashboard(AdminProfile admin) {
                                       flex: 9,
                                       child: LoginForm(
                                         emailController: _emailController,
-                                        passwordController:
-                                            _passwordController,
+                                        passwordController: _passwordController,
                                         isLoading: _isLoading,
                                         obscurePassword: _obscurePassword,
                                         rememberMe: _rememberMe,
@@ -250,8 +248,7 @@ void _openDashboard(AdminProfile admin) {
                                           setState(() => _rememberMe = value);
                                         },
                                         onLogin: _handleLogin,
-                                        onForgotPassword:
-                                            _handleForgotPassword,
+                                        onForgotPassword: _handleForgotPassword,
                                       ),
                                     ),
                                   ],
@@ -268,16 +265,14 @@ void _openDashboard(AdminProfile admin) {
                                       rememberMe: _rememberMe,
                                       onPasswordVisibilityChanged: () {
                                         setState(() {
-                                          _obscurePassword =
-                                              !_obscurePassword;
+                                          _obscurePassword = !_obscurePassword;
                                         });
                                       },
                                       onRememberMeChanged: (value) {
                                         setState(() => _rememberMe = value);
                                       },
                                       onLogin: _handleLogin,
-                                      onForgotPassword:
-                                          _handleForgotPassword,
+                                      onForgotPassword: _handleForgotPassword,
                                       compact: true,
                                     ),
                                   ],
@@ -307,11 +302,7 @@ class _DesktopBrandPanel extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF16A34A),
-            Color(0xFF0D9488),
-            Color(0xFF0F766E),
-          ],
+          colors: [Color(0xFF16A34A), Color(0xFF0D9488), Color(0xFF0F766E)],
         ),
       ),
       child: Stack(
@@ -339,9 +330,7 @@ class _DesktopBrandPanel extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.13),
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.16),
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.16)),
                 ),
                 child: Text(
                   'POWERING TRUSTED LOCAL SERVICES',
@@ -379,10 +368,7 @@ class _DesktopBrandPanel extends StatelessWidget {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  _FeatureBadge(
-                    icon: Icons.groups_2_outlined,
-                    label: 'Users',
-                  ),
+                  _FeatureBadge(icon: Icons.groups_2_outlined, label: 'Users'),
                   _FeatureBadge(
                     icon: Icons.work_outline_rounded,
                     label: 'Jobs',
@@ -391,10 +377,7 @@ class _DesktopBrandPanel extends StatelessWidget {
                     icon: Icons.analytics_outlined,
                     label: 'Analytics',
                   ),
-                  _FeatureBadge(
-                    icon: Icons.security_rounded,
-                    label: 'Safety',
-                  ),
+                  _FeatureBadge(icon: Icons.security_rounded, label: 'Safety'),
                 ],
               ),
               const Spacer(),
@@ -449,25 +432,35 @@ class _BrandLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          height: 52,
-          width: 52,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(17),
-          ),
-          child: const Icon(
-            Icons.link_rounded,
-            color: Color(0xFF16A34A),
-            size: 29,
-          ),
-        ),
+    Container(
+  height: 64,
+  width: 64,
+  padding: const EdgeInsets.all(5),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(20),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black12,
+        blurRadius: 10,
+        offset: Offset(0, 4),
+      ),
+    ],
+  ),
+  child: ClipRRect(
+    borderRadius: BorderRadius.circular(15),
+    child: Image.asset(
+      'assets/app_icon.png',
+      fit: BoxFit.contain,
+    ),
+  ),
+),
         const SizedBox(width: 14),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'SkillLink',
+              'SkillNova',
               style: GoogleFonts.inter(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
@@ -579,4 +572,3 @@ class _BackgroundDecoration extends StatelessWidget {
     );
   }
 }
-

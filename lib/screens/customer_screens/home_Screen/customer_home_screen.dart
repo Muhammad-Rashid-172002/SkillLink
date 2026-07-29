@@ -59,6 +59,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           .collection('users')
           .where('role', isEqualTo: 'worker')
           .where('profileCompleted', isEqualTo: true)
+          .where('identityVerificationStatus', isEqualTo: 'approved')
+          .where('canAcceptJobs', isEqualTo: true)
           .snapshots();
 
   @override
