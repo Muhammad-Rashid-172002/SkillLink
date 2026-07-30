@@ -432,26 +432,40 @@ class _BrandLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-    Container(
-  height: 64,
-  width: 64,
-  padding: const EdgeInsets.all(5),
+   Container(
+  height: 76,
+  width: 76,
   decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(20),
+    shape: BoxShape.circle,
+    gradient: const LinearGradient(
+      colors: [
+        Color(0xff22C55E),
+        Color(0xff0F9D58),
+      ],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
     boxShadow: [
       BoxShadow(
-        color: Colors.black12,
-        blurRadius: 10,
-        offset: Offset(0, 4),
+        color: const Color(0xff22C55E).withOpacity(0.35),
+        blurRadius: 28,
+        spreadRadius: 4,
       ),
     ],
   ),
-  child: ClipRRect(
-    borderRadius: BorderRadius.circular(15),
-    child: Image.asset(
-      'assets/app_icon.png',
-      fit: BoxFit.contain,
+  child: Center(
+    child: Container(
+      height: 60,
+      width: 60,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(8),
+      child: Image.asset(
+        'assets/app_icon.png',
+        fit: BoxFit.contain,
+      ),
     ),
   ),
 ),

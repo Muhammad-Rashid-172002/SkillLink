@@ -1,6 +1,8 @@
 [
   {
     "origin": [
+     "https://skilllink-e1064.web.app",
+      "https://skilllink-e1064.firebaseapp.com",
       "http://localhost:59363",
       "http://127.0.0.1:59363"
     ],
@@ -9,8 +11,9 @@
       "HEAD"
     ],
     "responseHeader": [
-      "Content-Type",
-      "Authorization"
+     "Content-Type",
+      "Authorization",
+      "Content-Length"
     ],
     "maxAgeSeconds": 3600
   }
