@@ -1004,7 +1004,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 _aboutRow(
                   Icons.verified_outlined,
                   "Version",
-                  "1.0.0.2",
+                  "1.0.0.6",
                   const Color(0xFF2563EB),
                 ),
 
@@ -1087,7 +1087,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   }
 
   Future<void> _openPrivacyPolicy() async {
-    final Uri uri = Uri.parse("https://skilllinkprivacypolicy.vercel.app");
+    final Uri uri = Uri.parse("https://skillnova-privacy-center.vercel.app/");
 
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);

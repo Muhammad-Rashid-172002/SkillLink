@@ -222,7 +222,7 @@ class WorkerProfileScreen extends StatelessWidget {
   }
 
   Future<void> _openPrivacyPolicy(BuildContext context) async {
-    final Uri uri = Uri.parse('https://skilllinkprivacypolicy.vercel.app');
+    final Uri uri = Uri.parse('https://skillnova-privacy-center.vercel.app/');
 
     try {
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);

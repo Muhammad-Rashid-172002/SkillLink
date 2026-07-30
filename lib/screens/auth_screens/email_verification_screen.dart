@@ -9,10 +9,7 @@ import 'phone_verification_screen.dart';
 class EmailVerificationScreen extends StatefulWidget {
   final String role;
 
-  const EmailVerificationScreen({
-    super.key,
-    required this.role,
-  });
+  const EmailVerificationScreen({super.key, required this.role});
 
   @override
   State<EmailVerificationScreen> createState() =>
@@ -61,19 +58,21 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
   void initState() {
     super.initState();
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      _showMessage(
+        'Verification link has been sent. Please check your inbox or spam folder.',
+      );
+    });
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(
-      begin: 0.94,
-      end: 1.04,
-    ).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+    _pulseAnimation = Tween<double>(begin: 0.94, end: 1.04).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
     _verificationTimer = Timer.periodic(
@@ -104,7 +103,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
       if (user == null) {
         if (showMessage && mounted) {
           _showMessage(
-            'Session expire ho gayi hai. Dobara login karein.',
+            'Your session has expired. Please sign in again to continue.',
             isError: true,
           );
         }
@@ -112,10 +111,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
       }
 
       if (user.emailVerified) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .set({
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'emailVerified': true,
           'emailVerifiedAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -136,47 +132,43 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
             pageBuilder: (_, animation, secondaryAnimation) {
               return PhoneVerificationScreen(role: widget.role);
             },
-            transitionsBuilder: (
-              context,
-              animation,
-              secondaryAnimation,
-              child,
-            ) {
-              final curved = CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              );
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  final curved = CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  );
 
-              return FadeTransition(
-                opacity: curved,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0.08, 0),
-                    end: Offset.zero,
-                  ).animate(curved),
-                  child: child,
-                ),
-              );
-            },
+                  return FadeTransition(
+                    opacity: curved,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.08, 0),
+                        end: Offset.zero,
+                      ).animate(curved),
+                      child: child,
+                    ),
+                  );
+                },
           ),
         );
       } else if (showMessage && mounted) {
         _showMessage(
-          'Email abhi verify nahi hui. Inbox mein link open karein.',
+          'Your email has not been verified yet. Please check your inbox or spam folder and open the verification link.',
           isError: true,
         );
       }
     } on FirebaseAuthException catch (error) {
       if (showMessage && mounted) {
         _showMessage(
-          error.message ?? 'Verification status check nahi ho saka.',
+          error.message ?? "We couldn't verify your email status. Please try again.",
           isError: true,
         );
       }
     } catch (error) {
       if (showMessage && mounted) {
         _showMessage(
-          'Verification check ke duran error aya hai.',
+          'An error occurred while checking your email verification.',
           isError: true,
         );
       }
@@ -194,7 +186,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
 
     if (user == null) {
       _showMessage(
-        'Session expire ho gayi hai. Dobara login karein.',
+        'Your session has expired. Please log in again.',
         isError: true,
       );
       return;
@@ -211,21 +203,23 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
 
       _startCooldown();
 
-      _showMessage('Verification email dobara send kar di gayi hai.');
+      _showMessage(
+        'Verification link has been sent again. Please check your inbox or spam folder.',
+      );
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
       _showMessage(
         error.code == 'too-many-requests'
-            ? 'Bohat zyada requests hui hain. Thori dair baad try karein.'
-            : error.message ?? 'Verification email send nahi ho saki.',
+            ? 'Too many requests have been made. Please wait a moment and try again.'
+            : error.message ?? 'Verification email could not be sent.',
         isError: true,
       );
     } catch (error) {
       if (!mounted) return;
 
       _showMessage(
-        'Verification email send karte waqt error aya hai.',
+        'An error occurred while sending the verification email.',
         isError: true,
       );
       debugPrint('Resend email verification error: $error');
@@ -239,22 +233,19 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
   void _startCooldown() {
     _cooldownTimer?.cancel();
 
-    _cooldownTimer = Timer.periodic(
-      const Duration(seconds: 1),
-      (timer) {
-        if (!mounted) {
-          timer.cancel();
-          return;
-        }
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
 
-        if (_cooldown <= 1) {
-          timer.cancel();
-          setState(() => _cooldown = 0);
-        } else {
-          setState(() => _cooldown--);
-        }
-      },
-    );
+      if (_cooldown <= 1) {
+        timer.cancel();
+        setState(() => _cooldown = 0);
+      } else {
+        setState(() => _cooldown--);
+      }
+    });
   }
 
   Future<void> _signOut() async {
@@ -271,10 +262,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
-      _showMessage(
-        error.message ?? 'Sign out nahi ho saka.',
-        isError: true,
-      );
+      _showMessage(error.message ?? 'Sign out could not be completed.', isError: true);
     }
   }
 
@@ -402,14 +390,11 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
-        Future<void>.delayed(
-          const Duration(milliseconds: 1100),
-          () {
-            if (dialogContext.mounted) {
-              Navigator.of(dialogContext).pop();
-            }
-          },
-        );
+        Future<void>.delayed(const Duration(milliseconds: 1100), () {
+          if (dialogContext.mounted) {
+            Navigator.of(dialogContext).pop();
+          }
+        });
 
         return Dialog(
           backgroundColor: Colors.transparent,
@@ -483,10 +468,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
           elevation: 0,
           margin: const EdgeInsets.all(16),
           content: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 15,
-              vertical: 14,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
             decoration: BoxDecoration(
               color: isError ? _danger : _success,
               borderRadius: BorderRadius.circular(17),
@@ -537,10 +519,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
           Positioned(
             top: -140,
             right: -105,
-            child: _ambientCircle(
-              size: 300,
-              color: _primary.withOpacity(0.10),
-            ),
+            child: _ambientCircle(size: 300, color: _primary.withOpacity(0.10)),
           ),
           Positioned(
             bottom: -160,
@@ -604,9 +583,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
             ],
           ),
           child: Icon(
-            _isWorker
-                ? Icons.handyman_rounded
-                : Icons.person_outline_rounded,
+            _isWorker ? Icons.handyman_rounded : Icons.person_outline_rounded,
             color: _primary,
             size: 22,
           ),
@@ -640,10 +617,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
           ),
         ),
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 7,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
             color: _primary.withOpacity(0.09),
             borderRadius: BorderRadius.circular(14),
@@ -760,8 +734,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                         minHeight: 8,
                         value: 0.25,
                         backgroundColor: Colors.white.withOpacity(0.16),
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.white,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 9),
@@ -864,10 +839,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                 decoration: BoxDecoration(
                   color: _warning.withOpacity(0.09),
                   borderRadius: BorderRadius.circular(12),
@@ -887,10 +859,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
           const SizedBox(height: 15),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 13,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(16),
@@ -898,11 +867,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.email_outlined,
-                  color: _primary,
-                  size: 19,
-                ),
+                Icon(Icons.email_outlined, color: _primary, size: 19),
                 const SizedBox(width: 9),
                 Expanded(
                   child: Text(
@@ -948,11 +913,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
         children: [
           const Row(
             children: [
-              Icon(
-                Icons.checklist_rounded,
-                color: _warning,
-                size: 21,
-              ),
+              Icon(Icons.checklist_rounded, color: _warning, size: 21),
               SizedBox(width: 8),
               Text(
                 'Complete these steps',
@@ -1033,11 +994,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
               borderRadius: BorderRadius.circular(11),
               border: Border.all(color: _border),
             ),
-            child: Icon(
-              icon,
-              color: _textSecondary,
-              size: 17,
-            ),
+            child: Icon(icon, color: _textSecondary, size: 17),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -1092,11 +1049,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                   color: _primary,
                   backgroundColor: _primary.withOpacity(0.10),
                 ),
-                Icon(
-                  Icons.sync_rounded,
-                  color: _primary,
-                  size: 18,
-                ),
+                Icon(Icons.sync_rounded, color: _primary, size: 18),
               ],
             ),
           ),
@@ -1128,10 +1081,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 5,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
               color: _primary.withOpacity(0.10),
               borderRadius: BorderRadius.circular(10),
@@ -1158,9 +1108,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
           width: double.infinity,
           height: 58,
           child: FilledButton.icon(
-            onPressed: _checking
-                ? null
-                : () => _check(showMessage: true),
+            onPressed: _checking ? null : () => _check(showMessage: true),
             style: FilledButton.styleFrom(
               backgroundColor: _primary,
               disabledBackgroundColor: _primary.withOpacity(0.42),
@@ -1178,10 +1126,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                       color: Colors.white,
                     ),
                   )
-                : const Icon(
-                    Icons.verified_outlined,
-                    size: 20,
-                  ),
+                : const Icon(Icons.verified_outlined, size: 20),
             label: Text(
               _checking
                   ? 'Checking Verification...'
@@ -1202,9 +1147,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
             style: OutlinedButton.styleFrom(
               foregroundColor: _primary,
               side: BorderSide(
-                color: _cooldown > 0
-                    ? _border
-                    : _primary.withOpacity(0.35),
+                color: _cooldown > 0 ? _border : _primary.withOpacity(0.35),
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
@@ -1220,17 +1163,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                     ),
                   )
                 : Icon(
-                    _cooldown > 0
-                        ? Icons.timer_outlined
-                        : Icons.send_outlined,
+                    _cooldown > 0 ? Icons.timer_outlined : Icons.send_outlined,
                     size: 19,
                   ),
             label: Text(
               _sending
                   ? 'Sending Email...'
                   : _cooldown > 0
-                      ? 'Resend in $_cooldown seconds'
-                      : 'Resend Verification Email',
+                  ? 'Resend in $_cooldown seconds'
+                  : 'Resend Verification Email',
               style: const TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w900,
@@ -1253,11 +1194,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.shield_outlined,
-            color: Color(0xFF2563EB),
-            size: 23,
-          ),
+          Icon(Icons.shield_outlined, color: Color(0xFF2563EB), size: 23),
           SizedBox(width: 11),
           Expanded(
             child: Column(
@@ -1296,10 +1233,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
           onPressed: _signOut,
           style: TextButton.styleFrom(
             foregroundColor: _danger,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 18,
-              vertical: 13,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           ),
           icon: const Icon(Icons.logout_rounded, size: 18),
           label: const Text(
@@ -1321,18 +1255,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     );
   }
 
-  Widget _ambientCircle({
-    required double size,
-    required Color color,
-  }) {
+  Widget _ambientCircle({required double size, required Color color}) {
     return IgnorePointer(
       child: Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -55,7 +54,6 @@ Future<void> main() async {
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  static final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -566,8 +564,10 @@ class _MyAppState extends State<MyApp> {
       ),
       home: const SplashScreen(),
       navigatorObservers: [
-        FirebaseAnalyticsObserver(analytics: MyApp.analytics),
+        // FirebaseAnalyticsObserver(analytics: MyApp.analytics),
       ],
     );
   }
 }
+
+

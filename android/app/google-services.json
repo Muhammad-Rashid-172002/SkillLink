@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "941379228912-192jtpqu37c5e5ue7g57nf0bludfmh21.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rashidapps.skillnova",
+            "certificate_hash": "6695c6bb32c73f00cdfa6acab0bbb077f9536098"
+          }
+        },
+        {
+          "client_id": "941379228912-tmcehqqtdsg1k9rtil858t9vdbio8lde.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rashidapps.skillnova",
+            "certificate_hash": "235593886eaae72a793ffbd9d8136ce78540f671"
+          }
+        },
+        {
           "client_id": "941379228912-eq1j8vq6uebt81f9lsouoaoo6qsdl66t.apps.googleusercontent.com",
           "client_type": 3
         }

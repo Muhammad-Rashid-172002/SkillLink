@@ -132,7 +132,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
 
     if (phone == null) {
       _showMessage(
-        'Valid Pakistani mobile number enter karein.',
+        'Please enter a valid mobile number.',
         isError: true,
       );
       _phoneFocusNode.requestFocus();
@@ -168,7 +168,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
           });
 
           _startResendTimer();
-          _showMessage('OTP $phone par send kar diya gaya hai.');
+          _showMessage('OTP has been sent to $phone.');
 
           Future<void>.delayed(const Duration(milliseconds: 350), () {
             if (mounted) _otpFocusNode.requestFocus();
@@ -192,7 +192,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
 
       setState(() => _sending = false);
       _showMessage(
-        'OTP send karte waqt unexpected error aya hai.',
+        'An unexpected error occurred while sending the OTP.',
         isError: true,
       );
       debugPrint('Phone verification send error: $error');
@@ -208,12 +208,12 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
         _normalizedPhone ?? _normalizePakistanPhone(_phoneController.text);
 
     if (verificationId == null || phone == null) {
-      _showMessage('Pehle OTP request karein.', isError: true);
+      _showMessage('Please request an OTP first.', isError: true);
       return;
     }
 
     if (code.length != 6) {
-      _showMessage('6-digit OTP enter karein.', isError: true);
+      _showMessage('Please enter a 6-digit OTP.', isError: true);
       _otpFocusNode.requestFocus();
       return;
     }
@@ -309,7 +309,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
     } catch (error) {
       if (!mounted) return;
 
-      _showMessage('Phone verification complete nahi ho saki.', isError: true);
+      _showMessage('An error occurred while completing phone verification.', isError: true);
       debugPrint('Phone verification complete error: $error');
     } finally {
       if (mounted && !_navigating) {
@@ -360,23 +360,23 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
   String _firebaseMessage(String code) {
     switch (code) {
       case 'invalid-phone-number':
-        return 'Mobile number valid format mein nahi hai.';
+        return 'Please enter a valid mobile number.';
       case 'invalid-verification-code':
-        return 'OTP incorrect hai. Dobara check karein.';
+        return 'Please check the OTP and try again.';
       case 'session-expired':
-        return 'OTP expire ho gaya hai. Naya code request karein.';
+        return 'OTP has expired. Please request a new code.';
       case 'credential-already-in-use':
-        return 'Ye phone number kisi aur account ke sath linked hai.';
+        return 'This phone number is linked to another account.';
       case 'too-many-requests':
-        return 'Bohat zyada attempts hui hain. Thori dair baad try karein.';
+        return 'Too many attempts have been made. Please try again later.';
       case 'quota-exceeded':
-        return 'SMS quota complete ho gaya hai. Baad mein try karein.';
+        return 'SMS quota has been exceeded. Please try again later.';
       case 'network-request-failed':
-        return 'Internet connection check karein.';
+        return 'Please check your internet connection.';
       case 'user-not-found':
-        return 'User session nahi mili. Dobara login karein.';
+        return 'User session not found. Please log in again.';
       default:
-        return 'Phone number verify nahi ho saka.';
+        return 'Phone number could not be verified.';
     }
   }
 
