@@ -30,6 +30,14 @@
           }
         },
         {
+          "client_id": "941379228912-4plueljei2ubo6b63l4co0idle4khdgv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rashidapps.skillnova",
+            "certificate_hash": "50c900b730b3b37f2cd3f95bcdd5552ba23bbcbc"
+          }
+        },
+        {
           "client_id": "941379228912-tmcehqqtdsg1k9rtil858t9vdbio8lde.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

@@ -681,10 +681,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
         builder: (context, snapshot) {
           final userData = snapshot.data?.data();
           final imageUrl =
-              userData?['profileImageUrl']?.toString() ??
-              userData?['photoUrl']?.toString() ??
-              widget.workerImageUrl ??
-              '';
+              userData?['profileImageUrl']?.toString().trim().isNotEmpty == true
+              ? userData!['profileImageUrl'].toString().trim()
+              : userData?['profileImage']?.toString().trim().isNotEmpty == true
+              ? userData!['profileImage'].toString().trim()
+              : userData?['imageUrl']?.toString().trim().isNotEmpty == true
+              ? userData!['imageUrl'].toString().trim()
+              : userData?['photoUrl']?.toString().trim().isNotEmpty == true
+              ? userData!['photoUrl'].toString().trim()
+              : widget.workerImageUrl?.trim() ?? '';
           final isOnline = userData?['isOnline'] == true;
           final lastSeen = userData?['lastSeen'];
 
@@ -821,12 +826,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
   }
 
   Widget _buildAppBarInitial() {
-    return Center(
+    final parts = widget.workerName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    final initials = parts.isEmpty
+        ? 'WK'
+        : parts.length == 1
+        ? parts.first.substring(0, 1).toUpperCase()
+        : '${parts.first.substring(0, 1)}'
+                  '${parts.last.substring(0, 1)}'
+              .toUpperCase();
+
+    return Container(
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF2563EB), Color(0xFF06B6D4)],
+        ),
+      ),
       child: Text(
-        widget.workerName.isNotEmpty ? widget.workerName[0].toUpperCase() : 'C',
+        initials,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 17,
+          fontSize: 15,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -1063,161 +1088,221 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: GestureDetector(
-        onLongPress: () => _showMessageMenu(message),
-        child: Container(
-          margin: EdgeInsets.only(bottom: groupedReactions.isNotEmpty ? 18 : 8),
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * .82,
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                padding: EdgeInsets.fromLTRB(
-                  data['type'] == 'image' ? 5 : 13,
-                  data['type'] == 'image' ? 5 : 10,
-                  data['type'] == 'image' ? 5 : 10,
-                  7,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isMe) ...[_incomingWorkerAvatar(), const SizedBox(width: 7)],
+          Flexible(
+            child: GestureDetector(
+              onLongPress: () => _showMessageMenu(message),
+              child: Container(
+                margin: EdgeInsets.only(
+                  bottom: groupedReactions.isNotEmpty ? 18 : 8,
                 ),
-                decoration: BoxDecoration(
-                  gradient: isMe
-                      ? const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFFDBEAFE), Color(0xFFCFFAFE)],
-                        )
-                      : null,
-                  color: isMe ? null : Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(20),
-                    topRight: const Radius.circular(20),
-                    bottomLeft: Radius.circular(isMe ? 20 : 5),
-                    bottomRight: Radius.circular(isMe ? 5 : 20),
-                  ),
-                  border: Border.all(
-                    color: isMe
-                        ? const Color(0xFFBFDBFE)
-                        : const Color(0xFFE2E8F0),
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x080F172A),
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * .74,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    if (data['replyTo'] != null && !isDeleted)
-                      _buildQuotedReply(
-                        Map<String, dynamic>.from(data['replyTo']),
-                        isMe,
+                    Container(
+                      padding: EdgeInsets.fromLTRB(
+                        data['type'] == 'image' ? 5 : 13,
+                        data['type'] == 'image' ? 5 : 10,
+                        data['type'] == 'image' ? 5 : 10,
+                        7,
                       ),
-                    if (isDeleted)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 2,
-                          vertical: 5,
+                      decoration: BoxDecoration(
+                        gradient: isMe
+                            ? const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFFDBEAFE), Color(0xFFCFFAFE)],
+                              )
+                            : null,
+                        color: isMe ? null : Colors.white,
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(20),
+                          topRight: const Radius.circular(20),
+                          bottomLeft: Radius.circular(isMe ? 20 : 5),
+                          bottomRight: Radius.circular(isMe ? 5 : 20),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.block_rounded,
-                              size: 15,
-                              color: Color(0xFF64748B),
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'This message was deleted',
-                              style: TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 11.5,
-                                fontStyle: FontStyle.italic,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                        border: Border.all(
+                          color: isMe
+                              ? const Color(0xFFBFDBFE)
+                              : const Color(0xFFE2E8F0),
                         ),
-                      )
-                    else
-                      _buildMessageContent(message.id, data),
-                    const SizedBox(height: 5),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x080F172A),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _formatMessageTime(data['createdAt']),
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 8.8,
-                              fontWeight: FontWeight.w700,
+                          if (data['replyTo'] != null && !isDeleted)
+                            _buildQuotedReply(
+                              Map<String, dynamic>.from(data['replyTo']),
+                              isMe,
+                            ),
+                          if (isDeleted)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 2,
+                                vertical: 5,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.block_rounded,
+                                    size: 15,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'This message was deleted',
+                                    style: TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 11.5,
+                                      fontStyle: FontStyle.italic,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            _buildMessageContent(message.id, data),
+                          const SizedBox(height: 5),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _formatMessageTime(data['createdAt']),
+                                  style: const TextStyle(
+                                    color: Color(0xFF64748B),
+                                    fontSize: 8.8,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                if (isMe) ...[
+                                  const SizedBox(width: 4),
+                                  _statusIcon(data),
+                                ],
+                              ],
                             ),
                           ),
-                          if (isMe) ...[
-                            const SizedBox(width: 4),
-                            _statusIcon(data),
-                          ],
                         ],
                       ),
                     ),
+                    if (groupedReactions.isNotEmpty)
+                      Positioned(
+                        bottom: -13,
+                        right: isMe ? 8 : null,
+                        left: isMe ? null : 8,
+                        child: GestureDetector(
+                          onTap: () => _showMessageMenu(message),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x120F172A),
+                                  blurRadius: 7,
+                                  offset: Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: groupedReactions.entries
+                                  .map(
+                                    (entry) => Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 2,
+                                      ),
+                                      child: Text(
+                                        entry.value > 1
+                                            ? '${entry.key}${entry.value}'
+                                            : entry.key,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-              if (groupedReactions.isNotEmpty)
-                Positioned(
-                  bottom: -13,
-                  right: isMe ? 8 : null,
-                  left: isMe ? null : 8,
-                  child: GestureDetector(
-                    onTap: () => _showMessageMenu(message),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x120F172A),
-                            blurRadius: 7,
-                            offset: Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: groupedReactions.entries
-                            .map(
-                              (entry) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 2,
-                                ),
-                                child: Text(
-                                  entry.value > 1
-                                      ? '${entry.key}${entry.value}'
-                                      : entry.key,
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ),
-                  ),
-                ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _incomingWorkerAvatar() {
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _workerRef.snapshots(),
+      builder: (context, snapshot) {
+        final worker = snapshot.data?.data();
+
+        final imageUrl =
+            worker?['profileImageUrl']?.toString().trim().isNotEmpty == true
+            ? worker!['profileImageUrl'].toString().trim()
+            : worker?['profileImage']?.toString().trim().isNotEmpty == true
+            ? worker!['profileImage'].toString().trim()
+            : worker?['imageUrl']?.toString().trim().isNotEmpty == true
+            ? worker!['imageUrl'].toString().trim()
+            : worker?['photoUrl']?.toString().trim().isNotEmpty == true
+            ? worker!['photoUrl'].toString().trim()
+            : widget.workerImageUrl?.trim() ?? '';
+
+        return Container(
+          height: 31,
+          width: 31,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2563EB), Color(0xFF06B6D4)],
+            ),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x140F172A),
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
             ],
           ),
-        ),
-      ),
+          child: imageUrl.isNotEmpty
+              ? Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildAppBarInitial(),
+                )
+              : _buildAppBarInitial(),
+        );
+      },
     );
   }
 

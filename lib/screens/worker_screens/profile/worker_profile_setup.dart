@@ -1,11 +1,14 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:skill_link/models/service_data.dart';
 import 'package:skill_link/screens/verification/worker_verification_center.dart';
 
@@ -44,6 +47,77 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
   bool _locationCaptured = false;
 
   Position? _currentPosition;
+
+  final ImagePicker _imagePicker = ImagePicker();
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  XFile? _selectedProfileImage;
+  String? _existingProfileImageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_loadExistingWorkerProfile);
+  }
+
+  Future<void> _loadExistingWorkerProfile() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      final document = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (!document.exists) return;
+
+      final data = document.data();
+
+      nameController.text = data?['name']?.toString() ?? '';
+      phoneController.text = data?['phone']?.toString() ?? '';
+      experienceController.text = data?['experience']?.toString() ?? '';
+      rateController.text = data?['hourlyRate']?.toString() ?? '';
+      locationController.text = data?['location']?.toString() ?? '';
+      bioController.text = data?['bio']?.toString() ?? '';
+
+      final savedSkill = data?['skill']?.toString();
+      if (savedSkill != null &&
+          allServices.any((service) => service.title == savedSkill)) {
+        selectedSkill = savedSkill;
+      }
+
+      final imageUrl = data?['profileImageUrl']?.toString().trim();
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        _existingProfileImageUrl = imageUrl;
+      }
+
+      final lat = data?['lat'];
+      final lng = data?['lng'];
+
+      if (lat is num && lng is num) {
+        _currentPosition = Position(
+          latitude: lat.toDouble(),
+          longitude: lng.toDouble(),
+          timestamp: DateTime.now(),
+          accuracy: 0,
+          altitude: 0,
+          heading: 0,
+          speed: 0,
+          speedAccuracy: 0,
+          altitudeAccuracy: 0,
+          headingAccuracy: 0,
+        );
+        _locationCaptured = true;
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (error) {
+      debugPrint('Worker profile loading error: $error');
+    }
+  }
 
   @override
   void dispose() {
@@ -144,6 +218,21 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
         position = await _getCurrentLocation();
       }
 
+      String? profileImageUrl = _existingProfileImageUrl;
+
+      if (_selectedProfileImage != null) {
+        profileImageUrl = await _uploadWorkerProfileImage(
+          userId: currentUser.uid,
+          image: _selectedProfileImage!,
+        );
+      }
+
+      await currentUser.updateDisplayName(nameController.text.trim());
+
+      if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
+        await currentUser.updatePhotoURL(profileImageUrl);
+      }
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUser.uid)
@@ -159,6 +248,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
             'lat': position?.latitude,
             'lng': position?.longitude,
             'bio': bioController.text.trim(),
+            'profileImageUrl': profileImageUrl,
             'profileCompleted': true,
             'isOnline': true,
             'updatedAt': FieldValue.serverTimestamp(),
@@ -168,7 +258,9 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const WorkerVerificationCenterScreen()),
+        MaterialPageRoute(
+          builder: (_) => const WorkerVerificationCenterScreen(),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -182,6 +274,218 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  Future<void> _showProfileImageSourceSheet() async {
+    if (_isSaving) return;
+
+    FocusScope.of(context).unfocus();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _border,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 17),
+                const Text(
+                  'Add profile photo',
+                  style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ListTile(
+                  leading: const Icon(
+                    Icons.photo_library_outlined,
+                    color: _primary,
+                  ),
+                  title: const Text(
+                    'Choose from gallery',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _pickProfileImage(ImageSource.gallery);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.camera_alt_outlined,
+                    color: _primary,
+                  ),
+                  title: const Text(
+                    'Take a photo',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _pickProfileImage(ImageSource.camera);
+                  },
+                ),
+                if (_selectedProfileImage != null ||
+                    _existingProfileImageUrl != null)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: _danger,
+                    ),
+                    title: const Text(
+                      'Remove photo',
+                      style: TextStyle(
+                        color: _danger,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      setState(() {
+                        _selectedProfileImage = null;
+                        _existingProfileImageUrl = null;
+                      });
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickProfileImage(ImageSource source) async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 82,
+        maxWidth: 1200,
+        maxHeight: 1200,
+      );
+
+      if (image == null || !mounted) return;
+
+      setState(() {
+        _selectedProfileImage = image;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      _showMessage(
+        source == ImageSource.camera
+            ? 'Unable to open the camera.'
+            : 'Unable to select a photo.',
+        isError: true,
+      );
+    }
+  }
+
+  Future<String> _uploadWorkerProfileImage({
+    required String userId,
+    required XFile image,
+  }) async {
+    final String extension = _fileExtension(image.path);
+
+    final Reference reference = _storage
+        .ref()
+        .child('profile_images')
+        .child('workers')
+        .child(userId)
+        .child('profile.$extension');
+
+    final UploadTask uploadTask = reference.putFile(
+      File(image.path),
+      SettableMetadata(
+        contentType: _contentType(extension),
+        customMetadata: {'userId': userId, 'type': 'worker_profile'},
+      ),
+    );
+
+    final TaskSnapshot snapshot = await uploadTask;
+    return snapshot.ref.getDownloadURL();
+  }
+
+  String _fileExtension(String path) {
+    final String fileName = path.split('/').last;
+
+    if (!fileName.contains('.')) return 'jpg';
+
+    final String extension = fileName.split('.').last.toLowerCase();
+
+    if (extension == 'jpg' ||
+        extension == 'jpeg' ||
+        extension == 'png' ||
+        extension == 'webp') {
+      return extension;
+    }
+
+    return 'jpg';
+  }
+
+  String _contentType(String extension) {
+    switch (extension) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'jpeg':
+      case 'jpg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  Widget _workerProfileImage() {
+    if (_selectedProfileImage != null) {
+      return Image.file(
+        File(_selectedProfileImage!.path),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _profilePlaceholder(),
+      );
+    }
+
+    if (_existingProfileImageUrl != null &&
+        _existingProfileImageUrl!.isNotEmpty) {
+      return Image.network(
+        _existingProfileImageUrl!,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+
+          return const Center(
+            child: CircularProgressIndicator(color: _primary, strokeWidth: 2),
+          );
+        },
+        errorBuilder: (_, __, ___) => _profilePlaceholder(),
+      );
+    }
+
+    return _profilePlaceholder();
+  }
+
+  Widget _profilePlaceholder() {
+    return const ColoredBox(
+      color: _surface,
+      child: Icon(Icons.person_rounded, color: Color(0xFF94A3B8), size: 48),
+    );
   }
 
   @override
@@ -630,76 +934,67 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     return Center(
       child: Column(
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                height: 104,
-                width: 104,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [_primary, _secondary],
-                  ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: _primary.withOpacity(0.20),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+          GestureDetector(
+            onTap: _showProfileImageSourceSheet,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  height: 108,
+                  width: 108,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [_primary, _secondary],
                     ),
-                  ],
-                ),
-                child: Container(
-                  margin: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: _surface,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _primary.withOpacity(0.20),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
-                  child: const Icon(
-                    Icons.person_rounded,
-                    color: Color(0xFF94A3B8),
-                    size: 48,
+                  child: Container(
+                    margin: const EdgeInsets.all(4),
+                    clipBehavior: Clip.antiAlias,
+                    decoration: const BoxDecoration(
+                      color: _surface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: _workerProfileImage(),
                   ),
                 ),
-              ),
-              Positioned(
-                right: -2,
-                bottom: 5,
-                child: Material(
-                  color: Colors.transparent,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () {
-                      _showMessage(
-                        'Profile image picker can be connected here.',
-                      );
-                    },
-                    child: Container(
-                      height: 36,
-                      width: 36,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [_primary, _secondary],
-                        ),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _surface, width: 3),
+                Positioned(
+                  right: -2,
+                  bottom: 5,
+                  child: Container(
+                    height: 38,
+                    width: 38,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [_primary, _secondary],
                       ),
-                      child: const Icon(
-                        Icons.camera_alt_rounded,
-                        color: Colors.white,
-                        size: 17,
-                      ),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _surface, width: 3),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      color: Colors.white,
+                      size: 18,
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          const Text(
-            'Add profile photo',
-            style: TextStyle(
+          const SizedBox(height: 11),
+          Text(
+            _selectedProfileImage != null ||
+                    (_existingProfileImageUrl?.isNotEmpty ?? false)
+                ? 'Profile photo selected'
+                : 'Add profile photo',
+            style: const TextStyle(
               color: _textPrimary,
               fontSize: 11.3,
               fontWeight: FontWeight.w900,
@@ -707,7 +1002,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
           ),
           const SizedBox(height: 3),
           const Text(
-            'A clear photo helps build customer trust',
+            'Tap photo to choose from gallery or camera',
             style: TextStyle(
               color: _textSecondary,
               fontSize: 9.2,

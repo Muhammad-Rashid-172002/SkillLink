@@ -74,8 +74,10 @@ class WorkerPublicProfileScreen extends StatelessWidget {
           workerSkill: worker["skill"] ?? "",
           workerPhone: worker["phone"]?.toString(),
           workerImageUrl:
+              worker["profileImageUrl"]?.toString() ??
               worker["profileImage"]?.toString() ??
-              worker["imageUrl"]?.toString(),
+              worker["imageUrl"]?.toString() ??
+              worker["photoUrl"]?.toString(),
         ),
       ),
     );
@@ -150,13 +152,28 @@ class WorkerPublicProfileScreen extends StatelessWidget {
                       children: [
                         _buildProfileHero(worker),
                         const SizedBox(height: 18),
+                        _buildTrustStrip(worker),
+                        const SizedBox(height: 22),
+                        _sectionTitle(
+                          title: "Professional Overview",
+                          subtitle:
+                              "Skills, work history and service information",
+                        ),
+                        const SizedBox(height: 12),
                         _buildStatsSection(worker),
                         const SizedBox(height: 18),
                         _buildAboutCard(worker),
                         const SizedBox(height: 18),
                         _buildServiceDetails(worker),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 22),
+                        _sectionTitle(
+                          title: "Customer Feedback",
+                          subtitle: "Verified ratings from completed services",
+                        ),
+                        const SizedBox(height: 12),
                         _reviewsSection(),
+                        const SizedBox(height: 18),
+                        _safetyTrustCard(worker),
                       ],
                     ),
                   ),
@@ -276,290 +293,599 @@ class WorkerPublicProfileScreen extends StatelessWidget {
 
   Widget _buildProfileHero(Map<String, dynamic> worker) {
     final bool isVerified =
-        worker["identityVerificationStatus"] == "approved" &&
-        worker["verificationLevel"] == "identity_verified";
+        worker["identityVerificationStatus"] == "approved" ||
+        worker["isVerified"] == true;
+
+    final bool isOnline = worker["isOnline"] == true;
+    final bool canAcceptJobs = worker["canAcceptJobs"] == true;
+
     final String imageUrl =
+        worker["profileImageUrl"]?.toString() ??
         worker["profileImage"]?.toString() ??
         worker["imageUrl"]?.toString() ??
+        worker["photoUrl"]?.toString() ??
         "";
 
-    final String name = worker["name"]?.toString() ?? "Worker";
-    final String skill = worker["skill"]?.toString() ?? "Service Professional";
+    final String name = worker["name"]?.toString().trim().isNotEmpty == true
+        ? worker["name"].toString().trim()
+        : "Worker";
+
+    final String skill = worker["skill"]?.toString().trim().isNotEmpty == true
+        ? worker["skill"].toString().trim()
+        : "Service Professional";
+
     final String location =
-        worker["location"]?.toString() ??
-        worker["city"]?.toString() ??
-        "Location not provided";
+        worker["location"]?.toString().trim().isNotEmpty == true
+        ? worker["location"].toString().trim()
+        : worker["city"]?.toString().trim().isNotEmpty == true
+        ? worker["city"].toString().trim()
+        : "Location not provided";
+
     final double rating = _toDouble(worker["rating"]);
+    final int totalReviews = _toInt(worker["totalReviews"]);
+    final String experience =
+        worker["experience"]?.toString().trim().isNotEmpty == true
+        ? worker["experience"].toString().trim()
+        : "Experience not added";
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_primary, _primaryDark],
-        ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
             color: _primary.withOpacity(.24),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
           ),
         ],
       ),
       child: Stack(
         children: [
-          Positioned(
-            top: -55,
-            right: -42,
-            child: Container(
-              height: 150,
-              width: 150,
+          const Positioned.fill(
+            child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.08),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF0B3E91),
+                    Color(0xFF175FDD),
+                    Color(0xFF2563EB),
+                    Color(0xFF06B6D4),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: -95,
+            right: -70,
+            child: Container(
+              height: 220,
+              width: 220,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(.09),
                 shape: BoxShape.circle,
               ),
             ),
           ),
           Positioned(
-            bottom: -80,
-            left: -50,
+            bottom: -120,
+            left: -75,
             child: Container(
-              height: 170,
-              width: 170,
+              height: 230,
+              width: 230,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.05),
+                color: Colors.white.withOpacity(.06),
                 shape: BoxShape.circle,
               ),
             ),
           ),
-          Column(
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildProfileImage(imageUrl),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        Row(
+                        _buildProfileImage(imageUrl, workerName: name),
+                        Positioned(
+                          right: 1,
+                          bottom: 5,
+                          child: Container(
+                            height: 25,
+                            width: 25,
+                            decoration: BoxDecoration(
+                              color: isOnline ? _success : Colors.grey,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 4),
+                            ),
+                          ),
+                        ),
+                        if (isVerified)
+                          Positioned(
+                            left: -2,
+                            bottom: 3,
+                            child: Container(
+                              height: 29,
+                              width: 29,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.verified_rounded,
+                                color: Color(0xFF2563EB),
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
+                            Text(
+                              name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                height: 1.08,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -.45,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(.14),
+                                ),
+                              ),
                               child: Text(
-                                name,
-                                maxLines: 2,
+                                skill,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -.35,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            if (isVerified) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                height: 26,
-                                width: 26,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(.17),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.verified_rounded,
-                                  color: Colors.white,
-                                  size: 17,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          skill,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(.87),
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (isVerified) ...[
-                          const SizedBox(height: 7),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 9,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(.16),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
+                            const SizedBox(height: 9),
+                            Row(
                               children: [
-                                Icon(
-                                  Icons.verified_user_rounded,
-                                  color: Colors.white,
+                                const Icon(
+                                  Icons.location_on_outlined,
+                                  color: Color(0xDDFFFFFF),
                                   size: 14,
                                 ),
-                                SizedBox(width: 5),
-                                Text(
-                                  "Identity Verified",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    location,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xDDFFFFFF),
+                                      fontSize: 9.8,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.star_rounded,
-                              color: Color(0xFFFFD166),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              rating.toStringAsFixed(1),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              height: 4,
-                              width: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(.50),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              "${worker["totalReviews"] ?? 0} reviews",
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(.76),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            const SizedBox(height: 7),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.workspace_premium_outlined,
+                                  color: Color(0xDDFFFFFF),
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    experience,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xDDFFFFFF),
+                                      fontSize: 9.6,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.12),
-                  borderRadius: BorderRadius.circular(17),
-                  border: Border.all(color: Colors.white.withOpacity(.14)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      height: 34,
-                      width: 34,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(.14),
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      child: const Icon(
-                        Icons.location_on_outlined,
-                        color: Colors.white,
-                        size: 17,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        location,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _success,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        "AVAILABLE",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 7.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: .5,
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white.withOpacity(.14)),
+                  ),
+                  child: Row(
+                    children: [
+                      _heroMetric(
+                        icon: Icons.star_rounded,
+                        value: rating.toStringAsFixed(1),
+                        label: "$totalReviews reviews",
+                      ),
+                      _heroDivider(),
+                      _heroMetric(
+                        icon: Icons.verified_user_outlined,
+                        value: isVerified ? "Verified" : "Active",
+                        label: "Identity",
+                      ),
+                      _heroDivider(),
+                      _heroMetric(
+                        icon: Icons.bolt_rounded,
+                        value: canAcceptJobs ? "Available" : "Busy",
+                        label: isOnline ? "Online now" : "Offline",
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProfileImage(String imageUrl) {
+  Widget _heroMetric({
+    required IconData icon,
+    required String value,
+    required String label,
+  }) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10.7,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xCFFFFFFF),
+              fontSize: 7.8,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroDivider() {
     return Container(
-      height: 92,
-      width: 92,
+      width: 1,
+      height: 38,
+      color: Colors.white.withOpacity(.18),
+    );
+  }
+
+  Widget _buildProfileImage(String imageUrl, {required String workerName}) {
+    return Container(
+      height: 100,
+      width: 100,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.16),
+        color: Colors.white.withOpacity(.20),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withOpacity(.35), width: 2),
+        border: Border.all(color: Colors.white.withOpacity(.36), width: 2),
       ),
       child: ClipOval(
         child: imageUrl.isNotEmpty
             ? Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+
+                  return const ColoredBox(
+                    color: Colors.white,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: _primary,
+                        strokeWidth: 2.2,
+                      ),
+                    ),
+                  );
+                },
                 errorBuilder: (_, __, ___) {
-                  return _profilePlaceholder();
+                  return _profilePlaceholder(workerName);
                 },
               )
-            : _profilePlaceholder(),
+            : _profilePlaceholder(workerName),
       ),
     );
   }
 
-  Widget _profilePlaceholder() {
+  Widget _profilePlaceholder(String workerName) {
+    final parts = workerName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    final initials = parts.isEmpty
+        ? "WK"
+        : parts.length == 1
+        ? parts.first.substring(0, 1).toUpperCase()
+        : "${parts.first.substring(0, 1)}"
+                  "${parts.last.substring(0, 1)}"
+              .toUpperCase();
+
     return Container(
-      color: Colors.white,
-      child: const Icon(Icons.person_rounded, color: _primary, size: 48),
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFEFF6FF), Color(0xFFDDEBFF)],
+        ),
+      ),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: _primaryDark,
+          fontSize: 26,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrustStrip(Map<String, dynamic> worker) {
+    final bool verified =
+        worker["identityVerificationStatus"] == "approved" ||
+        worker["isVerified"] == true;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x070F172A),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _trustItem(
+            icon: verified
+                ? Icons.verified_user_rounded
+                : Icons.person_outline_rounded,
+            title: verified ? "Verified" : "Active",
+            subtitle: "Identity",
+            color: _success,
+          ),
+          _trustDivider(),
+          _trustItem(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: "Direct",
+            subtitle: "Chat",
+            color: _primary,
+          ),
+          _trustDivider(),
+          _trustItem(
+            icon: Icons.phone_outlined,
+            title: "Quick",
+            subtitle: "Contact",
+            color: const Color(0xFF0891B2),
+          ),
+          _trustDivider(),
+          _trustItem(
+            icon: Icons.lock_outline_rounded,
+            title: "Secure",
+            subtitle: "Booking",
+            color: const Color(0xFF7C3AED),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _trustItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            height: 37,
+            width: 37,
+            decoration: BoxDecoration(
+              color: color.withOpacity(.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            title,
+            maxLines: 1,
+            style: const TextStyle(
+              color: _textPrimary,
+              fontSize: 9.2,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            subtitle,
+            maxLines: 1,
+            style: const TextStyle(
+              color: _textSecondary,
+              fontSize: 7.7,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _trustDivider() {
+    return Container(width: 1, height: 45, color: _border);
+  }
+
+  Widget _sectionTitle({required String title, required String subtitle}) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 31,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [_primary, Color(0xFF06B6D4)],
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: _textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -.25,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: _textSecondary,
+                  fontSize: 9.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _safetyTrustCard(Map<String, dynamic> worker) {
+    final bool verified =
+        worker["identityVerificationStatus"] == "approved" ||
+        worker["isVerified"] == true;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEFF6FF), Color(0xFFF8FBFF)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFD8E7FF)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 50,
+            width: 50,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [_primary, Color(0xFF06B6D4)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.shield_outlined,
+              color: Colors.white,
+              size: 25,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  verified
+                      ? "Verified Professional"
+                      : "Protected SkillNova Profile",
+                  style: const TextStyle(
+                    color: _textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  verified
+                      ? "This worker's identity has been reviewed and approved."
+                      : "Bookings, chat and contact actions are managed through SkillNova.",
+                  style: const TextStyle(
+                    color: _textSecondary,
+                    fontSize: 9.4,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.check_circle_rounded, color: _success, size: 22),
+        ],
+      ),
     );
   }
 
@@ -1317,8 +1643,7 @@ class WorkerPublicProfileScreen extends StatelessWidget {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          Request(selectedWorkerId: worker['uid']),
+                      builder: (context) => Request(selectedWorkerId: workerId),
                     ),
                   ),
                   label: const Text(
@@ -1447,6 +1772,12 @@ class WorkerPublicProfileScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? "0") ?? 0;
   }
 
   double _toDouble(dynamic value) {

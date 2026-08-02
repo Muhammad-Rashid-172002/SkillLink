@@ -3,7 +3,8 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/models/service_data.dart';
-import 'package:skill_link/screens/customer_screens/Request/Request.dart' hide ServiceOption;
+import 'package:skill_link/screens/customer_screens/Request/Request.dart'
+    hide ServiceOption;
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
 
@@ -32,14 +33,14 @@ class _ExploreState extends State<Explore> {
   String _selectedSort = 'Top Rated';
   bool _showOnlyAvailable = false;
 
-List<ServiceOption> get _categories => const [
-  ServiceOption(
-    title: 'All',
-    icon: Icons.grid_view_rounded,
-    color: Color(0xFF2563EB),
-  ),
-  ...allServices,
-];
+  List<ServiceOption> get _categories => const [
+    ServiceOption(
+      title: 'All',
+      icon: Icons.grid_view_rounded,
+      color: Color(0xFF2563EB),
+    ),
+    ...allServices,
+  ];
   Stream<QuerySnapshot<Map<String, dynamic>>> get _workersStream {
     return FirebaseFirestore.instance
         .collection('users')
@@ -472,9 +473,7 @@ List<ServiceOption> get _categories => const [
                 width: 94,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: selected
-                      ? category.color.withOpacity(0.10)
-                      : _surface,
+                  color: selected ? category.color.withOpacity(0.10) : _surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: selected ? category.color : _border,
@@ -683,15 +682,30 @@ List<ServiceOption> get _categories => const [
 
     final rating = _doubleValue(worker['rating']);
     final reviews = _intValue(worker['reviewsCount'] ?? worker['totalReviews']);
-    final isAvailable = _boolValue(
-      worker['isAvailable'] ?? worker['available'],
-      defaultValue: true,
-    );
-    final verified = _boolValue(
-      worker['isVerified'] ?? worker['verified'],
-      defaultValue: false,
-    );
+    final isAvailable =
+        worker['canAcceptJobs'] == true ||
+        _boolValue(
+          worker['isAvailable'] ?? worker['available'] ?? worker['isOnline'],
+          defaultValue: true,
+        );
+    final verified =
+        worker['identityVerificationStatus']?.toString() == 'approved' ||
+        _boolValue(
+          worker['isVerified'] ?? worker['verified'],
+          defaultValue: false,
+        );
     final rate = _formatRate(worker['hourlyRate']);
+
+    final profileImageUrl =
+        worker['profileImageUrl']?.toString().trim().isNotEmpty == true
+        ? worker['profileImageUrl'].toString().trim()
+        : worker['profileImage']?.toString().trim().isNotEmpty == true
+        ? worker['profileImage'].toString().trim()
+        : worker['imageUrl']?.toString().trim().isNotEmpty == true
+        ? worker['imageUrl'].toString().trim()
+        : worker['photoUrl']?.toString().trim().isNotEmpty == true
+        ? worker['photoUrl'].toString().trim()
+        : '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -716,22 +730,47 @@ List<ServiceOption> get _categories => const [
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    height: 62,
-                    width: 62,
+                    height: 68,
+                    width: 68,
+                    padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [_primary, _secondary],
                       ),
-                      borderRadius: BorderRadius.circular(19),
+                      borderRadius: BorderRadius.circular(21),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _primary.withOpacity(0.18),
+                          blurRadius: 14,
+                          offset: const Offset(0, 7),
+                        ),
+                      ],
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      _initials(name),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: _surface,
+                        borderRadius: BorderRadius.circular(18),
                       ),
+                      child: profileImageUrl.isNotEmpty
+                          ? Image.network(
+                              profileImageUrl,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+
+                                return const Center(
+                                  child: CircularProgressIndicator(
+                                    color: _primary,
+                                    strokeWidth: 2,
+                                  ),
+                                );
+                              },
+                              errorBuilder: (_, __, ___) {
+                                return _workerAvatarFallback(name);
+                              },
+                            )
+                          : _workerAvatarFallback(name),
                     ),
                   ),
                   Positioned(left: -5, top: -5, child: _rankBadge(rank)),
@@ -897,7 +936,6 @@ List<ServiceOption> get _categories => const [
                             WorkerPublicProfileScreen(workerId: workerId),
                       ),
                     );
-                  
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _textPrimary,
@@ -954,6 +992,25 @@ List<ServiceOption> get _categories => const [
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _workerAvatarFallback(String name) {
+    return Container(
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFEFF6FF), Color(0xFFDDF4FF)],
+        ),
+      ),
+      child: Text(
+        _initials(name),
+        style: const TextStyle(
+          color: _primary,
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     );
   }
@@ -1304,7 +1361,7 @@ List<ServiceOption> get _categories => const [
       },
     );
   }
-  
+
   String _fallbackValue(dynamic value, String fallback) {
     final text = value?.toString().trim() ?? '';
     return text.isEmpty ? fallback : text;

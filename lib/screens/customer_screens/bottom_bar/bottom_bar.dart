@@ -117,7 +117,7 @@ class CustomerBottomBar extends StatelessWidget {
         return const Request();
 
       case 3:
-        return const CustomerChatScreen();
+        return const CustomerChatsScreen();
 
       case 4:
         return const CustomerProfileScreen();

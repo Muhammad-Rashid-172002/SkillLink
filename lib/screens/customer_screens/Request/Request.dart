@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/request_tracking_screen.dart';
 
@@ -40,6 +43,11 @@ class _RequestState extends State<Request> {
   bool _isSubmitting = false;
   bool _isGettingLocation = false;
   bool _useCurrentLocation = true;
+
+  final ImagePicker _imagePicker = ImagePicker();
+  final List<XFile> _selectedImages = [];
+  static const int _maxImages = 5;
+
   double? _customerLatitude;
   double? _customerLongitude;
 
@@ -214,28 +222,39 @@ class _RequestState extends State<Request> {
 
     try {
       final DocumentReference<Map<String, dynamic>> requestRef =
-          await FirebaseFirestore.instance.collection('requests').add({
-            'customerId': user.uid,
+          FirebaseFirestore.instance.collection('requests').doc();
 
-            // Null means public job, otherwise direct worker request.
-            'workerId': selectedWorkerId,
+      final List<String> imageUrls = await _uploadRequestImages(
+        userId: user.uid,
+        requestId: requestRef.id,
+      );
 
-            'title': _titleController.text.trim(),
-            'description': _descriptionController.text.trim(),
-            'category': _selectedCategory,
-            'location': _locationController.text.trim(),
-            'budget': _budgetController.text.trim(),
-            'urgency': _selectedUrgency,
-            'status': 'searching',
+      await requestRef.set({
+        'customerId': user.uid,
 
-            'isDirectRequest': isDirectRequest,
-            'requestType': isDirectRequest ? 'direct' : 'public',
+        // Null means public job, otherwise direct worker request.
+        'workerId': selectedWorkerId,
 
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-            'latitude': _customerLatitude,
-            'longitude': _customerLongitude,
-          });
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'category': _selectedCategory,
+        'location': _locationController.text.trim(),
+        'budget': _budgetController.text.trim(),
+        'urgency': _selectedUrgency,
+        'status': 'searching',
+
+        'isDirectRequest': isDirectRequest,
+        'requestType': isDirectRequest ? 'direct' : 'public',
+
+        // Firebase Storage download URLs.
+        'imageUrls': imageUrls,
+        'imageCount': imageUrls.length,
+
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'latitude': _customerLatitude,
+        'longitude': _customerLongitude,
+      });
 
       if (isDirectRequest) {
         // Direct job: only selected worker receives notification.
@@ -453,6 +472,8 @@ class _RequestState extends State<Request> {
                               ),
                               const SizedBox(height: 15),
                               _descriptionField(),
+                              const SizedBox(height: 17),
+                              _jobPhotosSection(),
                             ],
                           ),
                         ),
@@ -1054,6 +1075,349 @@ class _RequestState extends State<Request> {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showImageSourceSheet() async {
+    if (_selectedImages.length >= _maxImages) {
+      _showMessage(
+        'You can add a maximum of $_maxImages photos.',
+        isError: true,
+      );
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _border,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 17),
+                const Text(
+                  'Add job photos',
+                  style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ListTile(
+                  leading: const Icon(
+                    Icons.photo_library_outlined,
+                    color: _primary,
+                  ),
+                  title: const Text(
+                    'Choose from gallery',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _pickImagesFromGallery();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.camera_alt_outlined,
+                    color: _primary,
+                  ),
+                  title: const Text(
+                    'Take a photo',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _takePhoto();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickImagesFromGallery() async {
+    try {
+      final List<XFile> images = await _imagePicker.pickMultiImage(
+        imageQuality: 82,
+        maxWidth: 1600,
+      );
+
+      if (images.isEmpty || !mounted) return;
+
+      final int remaining = _maxImages - _selectedImages.length;
+      final List<XFile> allowedImages = images.take(remaining).toList();
+
+      setState(() {
+        _selectedImages.addAll(allowedImages);
+      });
+
+      if (images.length > remaining) {
+        _showMessage('Only $_maxImages photos are allowed.', isError: true);
+      }
+    } catch (_) {
+      if (mounted) {
+        _showMessage('Unable to select photos.', isError: true);
+      }
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 82,
+        maxWidth: 1600,
+      );
+
+      if (image == null || !mounted) return;
+
+      setState(() {
+        _selectedImages.add(image);
+      });
+    } catch (_) {
+      if (mounted) {
+        _showMessage('Unable to open the camera.', isError: true);
+      }
+    }
+  }
+
+  void _removeSelectedImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
+  Future<List<String>> _uploadRequestImages({
+    required String userId,
+    required String requestId,
+  }) async {
+    if (_selectedImages.isEmpty) return [];
+
+    final List<String> downloadUrls = [];
+
+    for (int index = 0; index < _selectedImages.length; index++) {
+      final XFile image = _selectedImages[index];
+      final String extension = _fileExtension(image.path);
+      final String fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_$index.$extension';
+
+      final Reference storageReference = FirebaseStorage.instance
+          .ref()
+          .child('request_images')
+          .child(userId)
+          .child(requestId)
+          .child(fileName);
+
+      final UploadTask uploadTask = storageReference.putFile(
+        File(image.path),
+        SettableMetadata(
+          contentType: _contentType(extension),
+          customMetadata: {'requestId': requestId, 'uploadedBy': userId},
+        ),
+      );
+
+      final TaskSnapshot snapshot = await uploadTask;
+      final String downloadUrl = await snapshot.ref.getDownloadURL();
+      downloadUrls.add(downloadUrl);
+    }
+
+    return downloadUrls;
+  }
+
+  String _fileExtension(String path) {
+    final String fileName = path.split('/').last;
+    if (!fileName.contains('.')) return 'jpg';
+
+    final String extension = fileName.split('.').last.toLowerCase();
+
+    if (extension == 'png' ||
+        extension == 'webp' ||
+        extension == 'jpeg' ||
+        extension == 'jpg') {
+      return extension;
+    }
+
+    return 'jpg';
+  }
+
+  String _contentType(String extension) {
+    switch (extension) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'jpeg':
+      case 'jpg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  Widget _jobPhotosSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _fieldLabel(
+                'Job photos (Optional) • ${_selectedImages.length}/$_maxImages',
+              ),
+            ),
+            if (_selectedImages.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  setState(_selectedImages.clear);
+                },
+                child: const Text(
+                  'Remove all',
+                  style: TextStyle(
+                    color: _danger,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        Text(
+          'Add clear photos so professionals can understand the problem before responding.',
+          style: const TextStyle(
+            color: _textSecondary,
+            fontSize: 9.2,
+            height: 1.4,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 11),
+        SizedBox(
+          height: 92,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _selectedImages.length < _maxImages
+                ? _selectedImages.length + 1
+                : _selectedImages.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              if (index == _selectedImages.length &&
+                  _selectedImages.length < _maxImages) {
+                return _addPhotoButton();
+              }
+
+              return _selectedImageTile(
+                image: _selectedImages[index],
+                index: index,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _addPhotoButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: _showImageSourceSheet,
+        child: Container(
+          width: 92,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _primary.withOpacity(0.45),
+              style: BorderStyle.solid,
+            ),
+          ),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add_a_photo_outlined, color: _primary, size: 25),
+              SizedBox(height: 7),
+              Text(
+                'Add photo',
+                style: TextStyle(
+                  color: _primary,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _selectedImageTile({required XFile image, required int index}) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 92,
+          height: 92,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _border),
+          ),
+          child: Image.file(
+            File(image.path),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) {
+              return const Icon(
+                Icons.broken_image_outlined,
+                color: _textSecondary,
+              );
+            },
+          ),
+        ),
+        Positioned(
+          top: -6,
+          right: -6,
+          child: GestureDetector(
+            onTap: () => _removeSelectedImage(index),
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: _textPrimary,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(
+                Icons.close_rounded,
+                color: Colors.white,
+                size: 14,
+              ),
+            ),
+          ),
         ),
       ],
     );

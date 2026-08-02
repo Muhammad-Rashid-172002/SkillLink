@@ -735,12 +735,12 @@ class _AuthScreenState extends State<AuthScreen>
                       ),
                     ),
                     const SizedBox(height: 18),
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
                         _heroFeature(Icons.verified_user_outlined, 'Secure'),
-                        const SizedBox(width: 8),
                         _heroFeature(Icons.flash_on_rounded, 'Fast'),
-                        const SizedBox(width: 8),
                         _heroFeature(Icons.support_agent_rounded, 'Trusted'),
                       ],
                     ),
@@ -785,18 +785,21 @@ class _AuthScreenState extends State<AuthScreen>
 
   Widget _heroFeature(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.13),
         borderRadius: BorderRadius.circular(13),
         border: Border.all(color: Colors.white.withOpacity(0.14)),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: Colors.white, size: 13),
-          const SizedBox(width: 5),
+          const SizedBox(width: 4),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 8,
@@ -1282,11 +1285,6 @@ class _AuthScreenState extends State<AuthScreen>
           _securityRow(
             Icons.phone_android_rounded,
             'Secure phone OTP verification',
-          ),
-          _securityRow(
-            Icons.lock_outline_rounded,
-            'Firebase Authentication protection',
-            isLast: true,
           ),
         ],
       ),

@@ -131,10 +131,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
     final phone = _normalizePakistanPhone(_phoneController.text);
 
     if (phone == null) {
-      _showMessage(
-        'Please enter a valid mobile number.',
-        isError: true,
-      );
+      _showMessage('Please enter a valid mobile number.', isError: true);
       _phoneFocusNode.requestFocus();
       return;
     }
@@ -149,11 +146,19 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
         verificationCompleted: (credential) async {
           await _completeVerification(credential, phone);
         },
-        verificationFailed: (error) {
-          if (mounted) {
-            setState(() => _sending = false);
-            _showMessage(_firebaseMessage(error.code), isError: true);
-          }
+        verificationFailed: (FirebaseAuthException error) {
+          debugPrint('================ OTP ERROR ================');
+          debugPrint('CODE: ${error.code}');
+          debugPrint('MESSAGE: ${error.message}');
+          debugPrint('===========================================');
+
+          if (!mounted) return;
+
+          setState(() {
+            _sending = false;
+          });
+
+          _showMessage(_firebaseMessage(error.code), isError: true);
         },
         codeSent: (verificationId, resendToken) {
           if (!mounted) return;
@@ -309,7 +314,10 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
     } catch (error) {
       if (!mounted) return;
 
-      _showMessage('An error occurred while completing phone verification.', isError: true);
+      _showMessage(
+        'An error occurred while completing phone verification.',
+        isError: true,
+      );
       debugPrint('Phone verification complete error: $error');
     } finally {
       if (mounted && !_navigating) {
@@ -361,22 +369,30 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
     switch (code) {
       case 'invalid-phone-number':
         return 'Please enter a valid mobile number.';
+
       case 'invalid-verification-code':
-        return 'Please check the OTP and try again.';
+        return 'The verification code is incorrect.';
+
       case 'session-expired':
-        return 'OTP has expired. Please request a new code.';
-      case 'credential-already-in-use':
-        return 'This phone number is linked to another account.';
-      case 'too-many-requests':
-        return 'Too many attempts have been made. Please try again later.';
-      case 'quota-exceeded':
-        return 'SMS quota has been exceeded. Please try again later.';
+        return 'The verification code has expired. Please request a new one.';
+
       case 'network-request-failed':
-        return 'Please check your internet connection.';
-      case 'user-not-found':
-        return 'User session not found. Please log in again.';
+        return 'No internet connection. Please check your network and try again.';
+
+      case 'too-many-requests':
+        return 'Too many attempts detected. Please try again after a few minutes.';
+
+      case 'quota-exceeded':
+        return 'Verification service is temporarily unavailable. Please try again later.';
+
+      case 'credential-already-in-use':
+        return 'This mobile number is already linked to another account.';
+
+      case 'app-not-authorized':
+        return 'Unable to verify your mobile number at the moment. Please try again later.';
+
       default:
-        return 'Phone number could not be verified.';
+        return 'Something went wrong. Please try again.';
     }
   }
 
@@ -1150,7 +1166,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
                 Text(
                   _codeSent
                       ? 'Enter the code received on your mobile number.'
-                      : 'Firebase will send a one-time secure verification code.',
+                      : 'SkillNova will send a one-time verification code to your mobile number.',
                   style: const TextStyle(
                     color: _textSecondary,
                     fontSize: 9.7,
@@ -1287,7 +1303,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Protected by Firebase Authentication',
+                  'Protected by SkillNova Security',
                   style: TextStyle(
                     color: Color(0xFF1E3A8A),
                     fontSize: 12,
@@ -1296,7 +1312,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen>
                 ),
                 SizedBox(height: 5),
                 Text(
-                  'OTP is used only to confirm ownership of your mobile number. Never share your verification code with anyone.',
+                  'Your OTP is used only to verify ownership of your mobile number. Never share this code with anyone.',
                   style: TextStyle(
                     color: Color(0xFF1E40AF),
                     fontSize: 10,

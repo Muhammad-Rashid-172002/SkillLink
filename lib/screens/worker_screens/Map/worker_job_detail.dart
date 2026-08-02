@@ -35,6 +35,7 @@ class WorkerJobDetailScreen extends StatefulWidget {
 class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
   final EmergencyService _emergencyService = EmergencyService();
   bool _isSendingSos = false;
+  int _activeImageIndex = 0;
 
   Future<void> _updateStatus(
     BuildContext context,
@@ -209,7 +210,11 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildMainJobCard(status),
+                        _buildMainJobCard(status, data ?? <String, dynamic>{}),
+                        const SizedBox(height: 16),
+                        _buildJobMediaSection(_extractImageUrls(data)),
+                        const SizedBox(height: 16),
+                        _buildCustomerCard(data ?? <String, dynamic>{}),
                         if (_isActiveStatus(status)) ...[
                           const SizedBox(height: 16),
                           _buildEmergencySafetyCard(
@@ -218,7 +223,7 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
                           ),
                         ],
                         const SizedBox(height: 16),
-                        _buildDetailsSection(),
+                        _buildDetailsSection(data ?? <String, dynamic>{}),
                         const SizedBox(height: 16),
                         _buildStatusProgress(status),
                       ],
@@ -1387,7 +1392,7 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
     );
   }
 
-  Widget _buildMainJobCard(String status) {
+  Widget _buildMainJobCard(String status, Map<String, dynamic> requestData) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -1451,6 +1456,20 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
                   height: 1.25,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -.45,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                requestData['description']?.toString().trim().isNotEmpty == true
+                    ? requestData['description'].toString().trim()
+                    : 'Review the complete job details and customer requirements below.',
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(.82),
+                  fontSize: 10.6,
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 14),
@@ -1527,19 +1546,598 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
     );
   }
 
-  Widget _buildDetailsSection() {
+  List<String> _extractImageUrls(Map<String, dynamic>? data) {
+    final rawImages = data?['imageUrls'];
+
+    if (rawImages is! List) return <String>[];
+
+    return rawImages
+        .map((item) => item?.toString().trim() ?? '')
+        .where((url) => url.isNotEmpty)
+        .toList();
+  }
+
+  Widget _buildJobMediaSection(List<String> imageUrls) {
+    if (imageUrls.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x070F172A),
+              blurRadius: 16,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 48,
+              width: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const Icon(
+                Icons.photo_library_outlined,
+                color: Color(0xFF94A3B8),
+                size: 23,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No job photos attached',
+                    style: TextStyle(
+                      color: Color(0xFF0F172A),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'The customer posted this job without reference images.',
+                    style: TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 9.8,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final safeIndex = _activeImageIndex.clamp(0, imageUrls.length - 1);
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(17),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x070F172A),
-            blurRadius: 16,
-            offset: Offset(0, 8),
+            color: Color(0x090F172A),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 42,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A).withOpacity(.09),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.photo_library_rounded,
+                  color: Color(0xFF16A34A),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Customer Job Photos',
+                      style: TextStyle(
+                        color: Color(0xFF0F172A),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Tap the main image to view it full screen',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 9.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A).withOpacity(.09),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${safeIndex + 1}/${imageUrls.length}',
+                  style: const TextStyle(
+                    color: Color(0xFF16A34A),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          GestureDetector(
+            onTap: () =>
+                _openImageViewer(imageUrls: imageUrls, initialIndex: safeIndex),
+            child: Hero(
+              tag: 'job_image_${widget.requestId}_$safeIndex',
+              child: Container(
+                height: 230,
+                width: double.infinity,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(21),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      imageUrls[safeIndex],
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF16A34A),
+                            strokeWidth: 2.4,
+                          ),
+                        );
+                      },
+                      errorBuilder: (_, __, ___) {
+                        return const Center(
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            color: Color(0xFF94A3B8),
+                            size: 42,
+                          ),
+                        );
+                      },
+                    ),
+                    Positioned(
+                      right: 12,
+                      bottom: 12,
+                      child: Container(
+                        height: 40,
+                        width: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(.48),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withOpacity(.24),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.fullscreen_rounded,
+                          color: Colors.white,
+                          size: 23,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (imageUrls.length > 1) ...[
+            const SizedBox(height: 11),
+            SizedBox(
+              height: 68,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: imageUrls.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 9),
+                itemBuilder: (context, index) {
+                  final selected = index == safeIndex;
+
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() => _activeImageIndex = index);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      width: 72,
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          imageUrls[index],
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) {
+                            return const ColoredBox(
+                              color: Color(0xFFF1F5F9),
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openImageViewer({
+    required List<String> imageUrls,
+    required int initialIndex,
+  }) async {
+    final controller = PageController(initialPage: initialIndex);
+    int currentIndex = initialIndex;
+
+    await Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        opaque: false,
+        barrierColor: Colors.black,
+        pageBuilder: (_, __, ___) {
+          return StatefulBuilder(
+            builder: (viewerContext, setViewerState) {
+              return Scaffold(
+                backgroundColor: Colors.black,
+                body: SafeArea(
+                  child: Stack(
+                    children: [
+                      PageView.builder(
+                        controller: controller,
+                        itemCount: imageUrls.length,
+                        onPageChanged: (index) {
+                          currentIndex = index;
+                          setViewerState(() {});
+                        },
+                        itemBuilder: (_, index) {
+                          return InteractiveViewer(
+                            minScale: 1,
+                            maxScale: 4,
+                            child: Center(
+                              child: Hero(
+                                tag: 'job_image_${widget.requestId}_$index',
+                                child: Image.network(
+                                  imageUrls[index],
+                                  fit: BoxFit.contain,
+                                  loadingBuilder: (context, child, progress) {
+                                    if (progress == null) return child;
+
+                                    return const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      Positioned(
+                        top: 14,
+                        left: 14,
+                        child: Material(
+                          color: Colors.white.withOpacity(.14),
+                          shape: const CircleBorder(),
+                          child: IconButton(
+                            onPressed: () => Navigator.pop(viewerContext),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 18,
+                        left: 0,
+                        right: 0,
+                        child: IgnorePointer(
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 13,
+                                vertical: 7,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(.45),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${currentIndex + 1} of ${imageUrls.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+
+    controller.dispose();
+  }
+
+  Widget _buildCustomerCard(Map<String, dynamic> requestData) {
+    final customerId = requestData['customerId']?.toString().trim() ?? '';
+
+    if (customerId.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(customerId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final customer = snapshot.data?.data();
+
+        final name = customer?['name']?.toString().trim().isNotEmpty == true
+            ? customer!['name'].toString().trim()
+            : 'SkillNova Customer';
+
+        final city = customer?['city']?.toString().trim().isNotEmpty == true
+            ? customer!['city'].toString().trim()
+            : widget.location;
+
+        final profileImageUrl =
+            customer?['profileImageUrl']?.toString().trim() ?? '';
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x070F172A),
+                blurRadius: 16,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                height: 58,
+                width: 58,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF16A34A), Color(0xFF14B8A6)],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: profileImageUrl.isNotEmpty
+                    ? Image.network(
+                        profileImageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            _customerInitialAvatar(name),
+                      )
+                    : _customerInitialAvatar(name),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'POSTED BY',
+                      style: TextStyle(
+                        color: Color(0xFF94A3B8),
+                        fontSize: 8.2,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF0F172A),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        const Icon(
+                          Icons.verified_rounded,
+                          color: Color(0xFF16A34A),
+                          size: 15,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: Color(0xFF64748B),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            city,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 9.6,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A).withOpacity(.08),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(
+                      Icons.shield_outlined,
+                      color: Color(0xFF16A34A),
+                      size: 17,
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'CUSTOMER',
+                      style: TextStyle(
+                        color: Color(0xFF16A34A),
+                        fontSize: 7.4,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _customerInitialAvatar(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    final initials = parts.isEmpty
+        ? 'CU'
+        : parts.length == 1
+        ? parts.first.substring(0, 1).toUpperCase()
+        : '${parts.first.substring(0, 1)}'
+                  '${parts.last.substring(0, 1)}'
+              .toUpperCase();
+
+    return Container(
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF16A34A), Color(0xFF14B8A6)],
+        ),
+      ),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 17,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailsSection(Map<String, dynamic> requestData) {
+    final description =
+        requestData['description']?.toString().trim().isNotEmpty == true
+        ? requestData['description'].toString().trim()
+        : 'No additional description was provided by the customer.';
+
+    final requestType = requestData['isDirectRequest'] == true
+        ? 'Direct request'
+        : 'Public job';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 18,
+            offset: Offset(0, 9),
           ),
         ],
       ),
@@ -1549,27 +2147,74 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
           const Row(
             children: [
               Icon(
-                Icons.info_outline_rounded,
+                Icons.assignment_outlined,
                 color: Color(0xFF16A34A),
-                size: 19,
+                size: 20,
               ),
               SizedBox(width: 8),
               Text(
-                "Job Information",
+                "Complete Job Information",
                 style: TextStyle(
                   color: Color(0xFF0F172A),
-                  fontSize: 14.5,
+                  fontSize: 15,
                   fontWeight: FontWeight.w900,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 15),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF0FDF4), Color(0xFFF8FAFC)],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFDCFCE7)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.notes_rounded,
+                      color: Color(0xFF16A34A),
+                      size: 17,
+                    ),
+                    SizedBox(width: 7),
+                    Text(
+                      'CUSTOMER DESCRIPTION',
+                      style: TextStyle(
+                        color: Color(0xFF166534),
+                        fontSize: 8.8,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .4,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 9),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: Color(0xFF334155),
+                    fontSize: 11,
+                    height: 1.55,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
           _row(Icons.location_on_outlined, "LOCATION", widget.location),
           _row(Icons.near_me_outlined, "DISTANCE", widget.distance),
           _row(Icons.category_outlined, "CATEGORY", widget.category),
           _row(Icons.payments_outlined, "BUDGET", widget.budget),
           _row(Icons.priority_high_rounded, "URGENCY", widget.urgency),
+          _row(Icons.work_outline_rounded, "REQUEST TYPE", requestType),
         ],
       ),
     );

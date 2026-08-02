@@ -1,19 +1,18 @@
-import 'dart:ui';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/customer_screens/Chat/chat_detail_screen.dart';
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 
-class CustomerChatScreen extends StatefulWidget {
-  const CustomerChatScreen({super.key});
+class CustomerChatsScreen extends StatefulWidget {
+  const CustomerChatsScreen({super.key});
 
   @override
-  State<CustomerChatScreen> createState() => _CustomerChatScreenState();
+  State<CustomerChatsScreen> createState() => _CustomerChatsScreenState();
 }
 
-class _CustomerChatScreenState extends State<CustomerChatScreen> {
+class _CustomerChatsScreenState extends State<CustomerChatsScreen>
+    with SingleTickerProviderStateMixin {
   static const Color _background = Color(0xFFF4F7FB);
   static const Color _surface = Colors.white;
   static const Color _primary = Color(0xFF2563EB);
@@ -25,508 +24,350 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
   static const Color _danger = Color(0xFFDC2626);
 
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
+  late final TabController _tabController;
 
   String _searchQuery = '';
+  bool _isSearchFocused = false;
+
+  String get _currentUserId => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _chatStream {
+    return FirebaseFirestore.instance
+        .collection('chats')
+        .where('customerId', isEqualTo: _currentUserId)
+        .snapshots();
+  }
 
   @override
   void initState() {
     super.initState();
 
-    _searchController.addListener(() {
-      final value = _searchController.text.trim().toLowerCase();
+    _tabController = TabController(length: 2, vsync: this);
 
-      if (value != _searchQuery && mounted) {
-        setState(() => _searchQuery = value);
-      }
+    _searchFocusNode.addListener(() {
+      if (!mounted) return;
+
+      setState(() {
+        _isSearchFocused = _searchFocusNode.hasFocus;
+      });
     });
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return _signedOutView();
+    if (_currentUserId.isEmpty) {
+      return const Scaffold(
+        backgroundColor: _background,
+        body: Center(
+          child: Text(
+            'Please sign in to view your chats.',
+            style: TextStyle(color: _textPrimary, fontWeight: FontWeight.w800),
+          ),
+        ),
+      );
     }
-
-    final customerId = user.uid;
 
     return Scaffold(
       backgroundColor: _background,
+      resizeToAvoidBottomInset: true,
       bottomNavigationBar: const CustomerBottomBar(selectedIndex: 3),
-      body: Stack(
-        children: [
-          Positioned(
-            top: -150,
-            right: -120,
-            child: _ambientCircle(size: 330, color: _primary.withOpacity(0.09)),
-          ),
-          Positioned(
-            bottom: -165,
-            left: -135,
-            child: _ambientCircle(
-              size: 350,
-              color: _secondary.withOpacity(0.06),
-            ),
-          ),
-          SafeArea(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('chats')
-                  .where('customerId', isEqualTo: customerId)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return _loadingScreen();
-                }
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _topArea(),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _chatStream,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
+                    return _loadingState();
+                  }
 
-                if (snapshot.hasError) {
-                  return _errorScreen(snapshot.error.toString());
-                }
-                final allChats = snapshot.data?.docs ?? [];
+                  if (snapshot.hasError) {
+                    return _errorState();
+                  }
 
-                final chatsWithMessages = allChats.where((doc) {
-                  final data = doc.data();
+                  final documents = snapshot.data?.docs ?? [];
 
-                  final String lastMessage =
-                      data['lastMessage']?.toString().trim() ?? '';
+                  final sortedChats = [...documents];
 
-                  final bool archived = data['archivedByCustomer'] == true;
-
-                  // Sirf woh chats show hongi jin mein message mojood ho.
-                  return lastMessage.isNotEmpty && !archived;
-                }).toList();
-
-                final uniqueChats = _removeDuplicateChats(chatsWithMessages);
-
-                final unreadTotal = uniqueChats.fold<int>(0, (total, doc) {
-                  final data = doc.data();
-                  return total + _intValue(data['unreadCountCustomer']);
-                });
-
-                return RefreshIndicator(
-                  color: _primary,
-                  onRefresh: () async {
-                    await Future<void>.delayed(
-                      const Duration(milliseconds: 500),
+                  sortedChats.sort((first, second) {
+                    final firstTime = _timestampValue(
+                      first.data()['lastMessageTime'] ??
+                          first.data()['updatedAt'],
                     );
-                  },
-                  child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    slivers: [
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate([
-                            _header(
-                              unreadTotal: unreadTotal,
-                              totalChats: uniqueChats.length,
-                            ),
-                            const SizedBox(height: 20),
-                            _heroCard(
-                              totalChats: uniqueChats.length,
-                              unreadTotal: unreadTotal,
-                            ),
-                            const SizedBox(height: 18),
-                            _searchBar(),
-                            const SizedBox(height: 20),
-                            _sectionHeader(
-                              totalChats: uniqueChats.length,
-                              unreadTotal: unreadTotal,
-                            ),
-                            const SizedBox(height: 13),
-                            if (uniqueChats.isEmpty)
-                              _emptyState()
-                            else
-                              ...uniqueChats.map(
-                                (chatDoc) => _chatConversationCard(chatDoc),
-                              ),
-                          ]),
-                        ),
+
+                    final secondTime = _timestampValue(
+                      second.data()['lastMessageTime'] ??
+                          second.data()['updatedAt'],
+                    );
+
+                    return secondTime.compareTo(firstTime);
+                  });
+
+                  return TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _chatList(
+                        chats: sortedChats.where((document) {
+                          return document.data()['archivedByCustomer'] != true;
+                        }).toList(),
+                        archived: false,
+                      ),
+                      _chatList(
+                        chats: sortedChats.where((document) {
+                          return document.data()['archivedByCustomer'] == true;
+                        }).toList(),
+                        archived: true,
                       ),
                     ],
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _removeDuplicateChats(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> chats,
-  ) {
-    final Map<String, QueryDocumentSnapshot<Map<String, dynamic>>> unique = {};
-
-    for (final chat in chats) {
-      final data = chat.data();
-
-      final workerId = (data['workerId'] ?? '').toString();
-
-      if (workerId.isEmpty) continue;
-
-      final currentTime = _dateFromValue(data['updatedAt']);
-
-      if (!unique.containsKey(workerId)) {
-        unique[workerId] = chat;
-      } else {
-        final oldTime = _dateFromValue(unique[workerId]!.data()['updatedAt']);
-
-        if (currentTime.isAfter(oldTime)) {
-          unique[workerId] = chat;
-        }
-      }
-    }
-
-    return unique.values.toList()..sort(
-      (a, b) => _dateFromValue(
-        b.data()['updatedAt'],
-      ).compareTo(_dateFromValue(a.data()['updatedAt'])),
-    );
-  }
-
-  Widget _header({required int unreadTotal, required int totalChats}) {
-    return Row(
-      children: [
-        Container(
-          height: 50,
-          width: 50,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [_primary, _secondary]),
-            borderRadius: BorderRadius.circular(17),
-            boxShadow: [
-              BoxShadow(
-                color: _primary.withOpacity(0.22),
-                blurRadius: 18,
-                offset: const Offset(0, 9),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.forum_rounded, color: Colors.white, size: 25),
-        ),
-        const SizedBox(width: 13),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Messages',
-                style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.45,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Chat with your connected workers',
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10.6,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: unreadTotal > 0
-                ? _primary.withOpacity(0.09)
-                : _success.withOpacity(0.09),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                unreadTotal > 0
-                    ? Icons.mark_chat_unread_outlined
-                    : Icons.done_all_rounded,
-                color: unreadTotal > 0 ? _primary : _success,
-                size: 14,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                unreadTotal > 0 ? '$unreadTotal unread' : '$totalChats chats',
-                style: TextStyle(
-                  color: unreadTotal > 0 ? _primary : _success,
-                  fontSize: 9.4,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _heroCard({required int totalChats, required int unreadTotal}) {
+  Widget _topArea() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_primary, _secondary],
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+      decoration: const BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
         ),
-        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: _primary.withOpacity(0.24),
-            blurRadius: 28,
-            offset: const Offset(0, 15),
+            color: Color(0x0A0F172A),
+            blurRadius: 22,
+            offset: Offset(0, 10),
           ),
         ],
       ),
-      child: Stack(
+      child: Column(
         children: [
-          Positioned(
-            top: -70,
-            right: -55,
-            child: Container(
-              height: 180,
-              width: 180,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.09),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -95,
-            left: -55,
-            child: Container(
-              height: 180,
-              width: 180,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.07),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
           Row(
             children: [
-              Expanded(
+              Container(
+                height: 48,
+                width: 48,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [_primary, _secondary],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _primary.withOpacity(.20),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.forum_rounded,
+                  color: Colors.white,
+                  size: 25,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.14),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'CUSTOMER MESSAGING',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8.9,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.7,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
                     Text(
-                      unreadTotal > 0
-                          ? '$unreadTotal new messages'
-                          : 'Stay connected',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        height: 1.15,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.6,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      totalChats == 0
-                          ? 'Your worker conversations will appear here.'
-                          : 'You have $totalChats active worker conversations.',
+                      'Messages',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.82),
-                        fontSize: 11.2,
-                        height: 1.45,
+                        color: _textPrimary,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -.45,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Chat with your hired professionals',
+                      style: TextStyle(
+                        color: _textSecondary,
+                        fontSize: 10.3,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 14),
-              Container(
-                height: 94,
-                width: 80,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withOpacity(0.18)),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      color: Colors.white,
-                      size: 42,
-                    ),
-                    if (unreadTotal > 0)
-                      Positioned(
-                        top: 17,
-                        right: 15,
-                        child: Container(
-                          height: 20,
-                          constraints: const BoxConstraints(minWidth: 20),
-                          padding: const EdgeInsets.symmetric(horizontal: 5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            unreadTotal > 99 ? '99+' : '$unreadTotal',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _searchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: _border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x070F172A),
-            blurRadius: 14,
-            offset: Offset(0, 7),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: _searchController,
-        textInputAction: TextInputAction.search,
-        style: const TextStyle(
-          color: _textPrimary,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Search workers or services...',
-          hintStyle: const TextStyle(
-            color: Color(0xFF94A3B8),
-            fontSize: 10.8,
-            fontWeight: FontWeight.w600,
-          ),
-          prefixIcon: const Icon(
-            Icons.search_rounded,
-            color: Color(0xFF94A3B8),
-            size: 21,
-          ),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  onPressed: _searchController.clear,
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: _textSecondary,
-                    size: 18,
-                  ),
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 15,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionHeader({required int totalChats, required int unreadTotal}) {
-    return Row(
-      children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Recent conversations',
-                style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 17.5,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.3,
-                ),
+          const SizedBox(height: 16),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: _isSearchFocused ? _primary : _border,
+                width: _isSearchFocused ? 1.5 : 1,
               ),
-              SizedBox(height: 4),
-              Text(
-                'Latest worker messages and updates',
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10,
+              boxShadow: _isSearchFocused
+                  ? [
+                      BoxShadow(
+                        color: _primary.withOpacity(.10),
+                        blurRadius: 14,
+                        offset: const Offset(0, 7),
+                      ),
+                    ]
+                  : const [],
+            ),
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.search,
+              autocorrect: false,
+              enableSuggestions: true,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.trim().toLowerCase();
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Search worker, service or message',
+                hintStyle: const TextStyle(
+                  color: Color(0xFF98A2B3),
+                  fontSize: 11.2,
                   fontWeight: FontWeight.w600,
                 ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: _primary,
+                  size: 21,
+                ),
+                suffixIcon: _searchQuery.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: () {
+                          _searchController.clear();
+
+                          setState(() {
+                            _searchQuery = '';
+                          });
+
+                          _searchFocusNode.requestFocus();
+                        },
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: _textSecondary,
+                          size: 19,
+                        ),
+                      ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 17,
+                ),
               ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: _primary.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Text(
-            '$totalChats total',
-            style: const TextStyle(
-              color: _primary,
-              fontSize: 9.2,
-              fontWeight: FontWeight.w900,
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 14),
+          Container(
+            height: 48,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              labelColor: _primary,
+              unselectedLabelColor: _textSecondary,
+              indicator: BoxDecoration(
+                color: _surface,
+                borderRadius: BorderRadius.circular(13),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0A0F172A),
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              labelStyle: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.chat_bubble_outline_rounded, size: 17),
+                  text: 'Active',
+                  iconMargin: EdgeInsets.only(bottom: 2),
+                ),
+                Tab(
+                  icon: Icon(Icons.archive_outlined, size: 17),
+                  text: 'Archived',
+                  iconMargin: EdgeInsets.only(bottom: 2),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _chatConversationCard(
-    QueryDocumentSnapshot<Map<String, dynamic>> chatDoc,
-  ) {
-    final chat = chatDoc.data();
+  Widget _chatList({
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> chats,
+    required bool archived,
+  }) {
+    if (chats.isEmpty) {
+      return _emptyState(archived: archived);
+    }
+
+    return ListView.separated(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 110),
+      itemCount: chats.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final chat = chats[index];
+
+        return _chatTile(
+          chatId: chat.id,
+          chat: chat.data(),
+          archived: archived,
+        );
+      },
+    );
+  }
+
+  Widget _chatTile({
+    required String chatId,
+    required Map<String, dynamic> chat,
+    required bool archived,
+  }) {
     final workerId = chat['workerId']?.toString().trim() ?? '';
 
     if (workerId.isEmpty) {
@@ -539,121 +380,187 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
           .doc(workerId)
           .snapshots(),
       builder: (context, workerSnapshot) {
-        if (workerSnapshot.connectionState == ConnectionState.waiting &&
-            !workerSnapshot.hasData) {
-          return _chatSkeleton();
-        }
-
         final worker = workerSnapshot.data?.data();
 
-        if (worker == null) {
+        final workerName = worker?['name']?.toString().trim().isNotEmpty == true
+            ? worker!['name'].toString().trim()
+            : chat['workerName']?.toString().trim().isNotEmpty == true
+            ? chat['workerName'].toString().trim()
+            : 'Worker';
+
+        final workerSkill =
+            worker?['skill']?.toString().trim().isNotEmpty == true
+            ? worker!['skill'].toString().trim()
+            : chat['service']?.toString().trim().isNotEmpty == true
+            ? chat['service'].toString().trim()
+            : 'Professional Service';
+
+        final workerPhone =
+            worker?['phone']?.toString().trim() ??
+            chat['workerPhone']?.toString().trim();
+
+        final imageUrl = _workerImageUrl(worker, chat);
+
+        final isOnline = worker?['isOnline'] == true;
+
+        final lastMessage =
+            chat['lastMessage']?.toString().trim().isNotEmpty == true
+            ? chat['lastMessage'].toString().trim()
+            : 'Start a conversation';
+
+        final lastMessageType = chat['lastMessageType']?.toString() ?? 'text';
+
+        final unreadCount = _intValue(
+          chat['customerUnreadCount'] ?? chat['unreadCountCustomer'],
+        );
+
+        final lastSenderId = chat['lastSenderId']?.toString() ?? '';
+
+        final timestamp = chat['lastMessageTime'] ?? chat['updatedAt'];
+
+        final matchesSearch =
+            _searchQuery.isEmpty ||
+            workerName.toLowerCase().contains(_searchQuery) ||
+            workerSkill.toLowerCase().contains(_searchQuery) ||
+            lastMessage.toLowerCase().contains(_searchQuery);
+
+        if (!matchesSearch) {
           return const SizedBox.shrink();
         }
-
-        final workerName = _fallback(worker['name'], 'Worker');
-        final workerSkill = _fallback(worker['skill'], 'Skilled worker');
-        final workerPhone = worker['phone']?.toString();
-        final workerImageUrl = worker['imageUrl']?.toString();
-
-        final combinedSearch =
-            '$workerName $workerSkill '
-                    '${chat['lastMessage'] ?? ''}'
-                .toLowerCase();
-
-        if (_searchQuery.isNotEmpty && !combinedSearch.contains(_searchQuery)) {
-          return const SizedBox.shrink();
-        }
-
-        final lastMessage = chat['lastMessage']?.toString().trim() ?? '';
-        final unreadCount = _intValue(chat['unreadCountCustomer']);
-        final updatedAt = _dateFromValue(chat['updatedAt']);
-        final lastMessageSenderId =
-            chat['lastMessageSenderId']?.toString().trim() ?? '';
-        final isLastMessageMine =
-            lastMessageSenderId == FirebaseAuth.instance.currentUser?.uid;
 
         return Dismissible(
-          key: ValueKey(chatDoc.id),
+          key: ValueKey('$chatId-$archived'),
           direction: DismissDirection.endToStart,
-          confirmDismiss: (_) => _confirmArchive(context),
-          onDismissed: (_) async {
-            await chatDoc.reference.set({
-              'archivedByCustomer': true,
-              'archivedAtCustomer': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
+          confirmDismiss: (_) async {
+            await _toggleArchive(chatId: chatId, archive: !archived);
 
-            if (mounted) {
-              _showMessage('Conversation archived.');
-            }
+            return false;
           },
           background: Container(
-            margin: const EdgeInsets.only(bottom: 13),
-            padding: const EdgeInsets.only(right: 22),
             alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 22),
             decoration: BoxDecoration(
-              color: _danger,
+              gradient: LinearGradient(
+                colors: archived
+                    ? const [Color(0xFF16A34A), Color(0xFF14B8A6)]
+                    : const [Color(0xFF475569), Color(0xFF334155)],
+              ),
               borderRadius: BorderRadius.circular(22),
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Icon(
+                  archived ? Icons.unarchive_rounded : Icons.archive_rounded,
+                  color: Colors.white,
+                ),
+                const SizedBox(height: 4),
                 Text(
-                  'Archive',
-                  style: TextStyle(
+                  archived ? 'Unarchive' : 'Archive',
+                  style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 10.5,
+                    fontSize: 9,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(width: 8),
-                Icon(Icons.archive_outlined, color: Colors.white, size: 22),
               ],
             ),
           ),
           child: Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(22),
             child: InkWell(
               borderRadius: BorderRadius.circular(22),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ChatDetailScreen(
-                      chatId: chatDoc.id,
-                      workerId: workerId,
-                      workerName: workerName,
-                      workerSkill: workerSkill,
-                      workerPhone: workerPhone,
-                      workerImageUrl: workerImageUrl,
-                    ),
-                  ),
-                );
-              },
+              onTap: () => _openChat(
+                chatId: chatId,
+                workerId: workerId,
+                workerName: workerName,
+                workerSkill: workerSkill,
+                workerPhone: workerPhone,
+                workerImageUrl: imageUrl,
+              ),
+              onLongPress: () => _showChatOptions(
+                chatId: chatId,
+                workerName: workerName,
+                archived: archived,
+              ),
               child: Container(
-                margin: const EdgeInsets.only(bottom: 13),
-                padding: const EdgeInsets.all(15),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: unreadCount > 0
-                      ? _primary.withOpacity(0.045)
-                      : _surface,
+                  color: _surface,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
                     color: unreadCount > 0
-                        ? _primary.withOpacity(0.20)
+                        ? _primary.withOpacity(.30)
                         : _border,
+                    width: unreadCount > 0 ? 1.3 : 1,
                   ),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x070F172A),
-                      blurRadius: 15,
-                      offset: Offset(0, 7),
+                      color: Color(0x080F172A),
+                      blurRadius: 16,
+                      offset: Offset(0, 8),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
-                    _workerAvatar(name: workerName, imageUrl: workerImageUrl),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          height: 60,
+                          width: 60,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [_primary, _secondary],
+                            ),
+                            borderRadius: BorderRadius.circular(19),
+                          ),
+                          child: Container(
+                            clipBehavior: Clip.antiAlias,
+                            decoration: BoxDecoration(
+                              color: _surface,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: imageUrl.isNotEmpty
+                                ? Image.network(
+                                    imageUrl,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, progress) {
+                                      if (progress == null) return child;
+
+                                      return const Center(
+                                        child: CircularProgressIndicator(
+                                          color: _primary,
+                                          strokeWidth: 2,
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (_, __, ___) {
+                                      return _avatarFallback(workerName);
+                                    },
+                                  )
+                                : _avatarFallback(workerName),
+                          ),
+                        ),
+                        Positioned(
+                          right: -2,
+                          bottom: -2,
+                          child: Container(
+                            height: 18,
+                            width: 18,
+                            decoration: BoxDecoration(
+                              color: isOnline
+                                  ? _success
+                                  : const Color(0xFFCBD5E1),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: _surface, width: 3),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -668,7 +575,7 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     color: _textPrimary,
-                                    fontSize: 13.5,
+                                    fontSize: 13.8,
                                     fontWeight: unreadCount > 0
                                         ? FontWeight.w900
                                         : FontWeight.w800,
@@ -677,13 +584,15 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                _formatChatTime(updatedAt),
+                                _formatTime(timestamp),
                                 style: TextStyle(
                                   color: unreadCount > 0
                                       ? _primary
                                       : _textSecondary,
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 8.7,
+                                  fontWeight: unreadCount > 0
+                                      ? FontWeight.w900
+                                      : FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -691,42 +600,62 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _primary.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
+                              Flexible(
                                 child: Text(
                                   workerSkill,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     color: _primary,
-                                    fontSize: 8.6,
-                                    fontWeight: FontWeight.w900,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              const Icon(
-                                Icons.verified_rounded,
-                                color: _primary,
-                                size: 13,
+                              Container(
+                                height: 3,
+                                width: 3,
+                                decoration: const BoxDecoration(
+                                  color: _textSecondary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isOnline ? 'Online' : 'Offline',
+                                style: TextStyle(
+                                  color: isOnline ? _success : _textSecondary,
+                                  fontSize: 8.7,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              if (isLastMessageMine) ...[
+                              if (lastSenderId == _currentUserId) ...[
                                 const Icon(
                                   Icons.done_all_rounded,
+                                  color: _primary,
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              if (lastMessageType == 'image') ...[
+                                const Icon(
+                                  Icons.photo_outlined,
                                   color: _textSecondary,
-                                  size: 13,
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              if (lastMessageType == 'audio') ...[
+                                const Icon(
+                                  Icons.mic_none_rounded,
+                                  color: _textSecondary,
+                                  size: 14,
                                 ),
                                 const SizedBox(width: 4),
                               ],
@@ -739,7 +668,7 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                                     color: unreadCount > 0
                                         ? _textPrimary
                                         : _textSecondary,
-                                    fontSize: 10.4,
+                                    fontSize: 10.2,
                                     fontWeight: unreadCount > 0
                                         ? FontWeight.w800
                                         : FontWeight.w600,
@@ -749,16 +678,19 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                               if (unreadCount > 0) ...[
                                 const SizedBox(width: 8),
                                 Container(
-                                  height: 22,
                                   constraints: const BoxConstraints(
                                     minWidth: 22,
+                                    minHeight: 22,
                                   ),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 6,
+                                    vertical: 3,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: _primary,
-                                    borderRadius: BorderRadius.circular(11),
+                                    gradient: const LinearGradient(
+                                      colors: [_primary, _secondary],
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   alignment: Alignment.center,
                                   child: Text(
@@ -777,17 +709,48 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      height: 34,
-                      width: 34,
-                      decoration: BoxDecoration(
-                        color: _primary.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
+                    PopupMenuButton<String>(
+                      tooltip: 'Chat options',
+                      color: _surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: _primary,
-                        size: 14,
+                      onSelected: (value) async {
+                        if (value == 'archive') {
+                          await _toggleArchive(
+                            chatId: chatId,
+                            archive: !archived,
+                          );
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem<String>(
+                          value: 'archive',
+                          child: Row(
+                            children: [
+                              Icon(
+                                archived
+                                    ? Icons.unarchive_outlined
+                                    : Icons.archive_outlined,
+                                color: _textPrimary,
+                                size: 19,
+                              ),
+                              const SizedBox(width: 9),
+                              Text(
+                                archived ? 'Unarchive chat' : 'Archive chat',
+                                style: const TextStyle(
+                                  color: _textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      icon: const Icon(
+                        Icons.more_vert_rounded,
+                        color: _textSecondary,
+                        size: 20,
                       ),
                     ),
                   ],
@@ -800,489 +763,304 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
     );
   }
 
-  Widget _workerAvatar({required String name, String? imageUrl}) {
-    final url = imageUrl?.trim() ?? '';
+  Future<void> _openChat({
+    required String chatId,
+    required String workerId,
+    required String workerName,
+    required String workerSkill,
+    required String? workerPhone,
+    required String workerImageUrl,
+  }) async {
+    FocusScope.of(context).unfocus();
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          height: 56,
-          width: 56,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [_primary, _secondary]),
-            borderRadius: BorderRadius.circular(19),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: url.isNotEmpty
-              ? Image.network(
-                  url,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) {
-                    return _initialsAvatar(name);
-                  },
-                )
-              : _initialsAvatar(name),
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatDetailScreen(
+          chatId: chatId,
+          workerId: workerId,
+          workerName: workerName,
+          workerSkill: workerSkill,
+          workerPhone: workerPhone,
+          workerImageUrl: workerImageUrl,
         ),
-        Positioned(
-          right: -3,
-          bottom: -3,
+      ),
+    );
+  }
+
+  Future<void> _toggleArchive({
+    required String chatId,
+    required bool archive,
+  }) async {
+    try {
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+        'archivedByCustomer': archive,
+        'archivedAtCustomer': archive ? FieldValue.serverTimestamp() : null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
+
+      _showMessage(
+        archive ? 'Chat moved to archive.' : 'Chat restored to active chats.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      _showMessage('Unable to update chat archive.', isError: true);
+    }
+  }
+
+  Future<void> _showChatOptions({
+    required String chatId,
+    required String workerName,
+    required bool archived,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
           child: Container(
-            height: 17,
-            width: 17,
+            margin: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             decoration: BoxDecoration(
-              color: _success,
-              shape: BoxShape.circle,
-              border: Border.all(color: _surface, width: 3),
+              color: _surface,
+              borderRadius: BorderRadius.circular(24),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _initialsAvatar(String name) {
-    return Center(
-      child: Text(
-        _initials(name),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 15,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-
-  Widget _chatSkeleton() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 13),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 56,
-            width: 56,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8EDF4),
-              borderRadius: BorderRadius.circular(19),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  height: 11,
-                  width: 120,
+                  height: 4,
+                  width: 42,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8EDF4),
-                    borderRadius: BorderRadius.circular(8),
+                    color: _border,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Text(
+                  workerName,
+                  style: const TextStyle(
+                    color: _textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 10),
-                Container(
-                  height: 9,
-                  width: 80,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8EDF4),
-                    borderRadius: BorderRadius.circular(8),
+                ListTile(
+                  leading: Icon(
+                    archived ? Icons.unarchive_rounded : Icons.archive_rounded,
+                    color: _primary,
                   ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  height: 9,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8EDF4),
-                    borderRadius: BorderRadius.circular(8),
+                  title: Text(
+                    archived ? 'Unarchive chat' : 'Archive chat',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+
+                    await _toggleArchive(chatId: chatId, archive: !archived);
+                  },
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _emptyState() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 30),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x070F172A),
-            blurRadius: 15,
-            offset: Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            height: 76,
-            width: 76,
-            decoration: BoxDecoration(
-              color: _primary.withOpacity(0.09),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: const Icon(
-              Icons.chat_bubble_outline_rounded,
-              color: _primary,
-              size: 37,
-            ),
-          ),
-          const SizedBox(height: 17),
-          const Text(
-            'No conversations yet',
-            style: TextStyle(
-              color: _textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 7),
-          const Text(
-            'When a worker connects with your request, your conversation will appear here.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _textSecondary,
-              fontSize: 10.5,
-              height: 1.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _loadingScreen() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
-      child: Column(
-        children: [
-          _header(unreadTotal: 0, totalChats: 0),
-          const SizedBox(height: 24),
-          Expanded(
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.all(26),
-                decoration: BoxDecoration(
-                  color: _surface,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: _border),
-                ),
-                child: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(
-                      color: _primary,
-                      strokeWidth: 2.6,
-                    ),
-                    SizedBox(height: 14),
-                    Text(
-                      'Loading conversations...',
-                      style: TextStyle(
-                        color: _textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _errorScreen(String error) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
-      child: Column(
-        children: [
-          _header(unreadTotal: 0, totalChats: 0),
-          const SizedBox(height: 24),
-          Expanded(
-            child: Center(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(25),
-                decoration: BoxDecoration(
-                  color: _surface,
-                  borderRadius: BorderRadius.circular(23),
-                  border: Border.all(color: _border),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      height: 62,
-                      width: 62,
-                      decoration: BoxDecoration(
-                        color: _danger.withOpacity(0.09),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(
-                        Icons.cloud_off_rounded,
-                        color: _danger,
-                        size: 31,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    const Text(
-                      'Unable to load conversations',
-                      style: TextStyle(
-                        color: _textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Please check your internet connection and Firestore index.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _textSecondary,
-                        fontSize: 10.5,
-                        height: 1.45,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      error,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: _danger,
-                        fontSize: 8.8,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _signedOutView() {
-    return const Scaffold(
-      backgroundColor: _background,
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Please sign in again to view your conversations.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: _textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<bool?> _confirmArchive(BuildContext context) {
-    return showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                height: 58,
-                width: 58,
-                decoration: BoxDecoration(
-                  color: _danger.withOpacity(0.09),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(
-                  Icons.archive_outlined,
-                  color: _danger,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(height: 15),
-              const Text(
-                'Archive conversation?',
-                style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'This conversation will be hidden from your active chat list.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                        side: const BorderSide(color: _border),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: _textPrimary,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0,
-                        backgroundColor: _danger,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(0, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                      child: const Text(
-                        'Archive',
-                        style: TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
         );
       },
     );
   }
 
-  DateTime _dateFromValue(dynamic value) {
-    if (value is Timestamp) {
-      return value.toDate();
+  String _workerImageUrl(
+    Map<String, dynamic>? worker,
+    Map<String, dynamic> chat,
+  ) {
+    final candidates = [
+      worker?['profileImageUrl'],
+      worker?['profileImage'],
+      worker?['imageUrl'],
+      worker?['photoUrl'],
+      chat['workerImageUrl'],
+      chat['workerImage'],
+    ];
+
+    for (final candidate in candidates) {
+      final value = candidate?.toString().trim() ?? '';
+
+      if (value.isNotEmpty) {
+        return value;
+      }
     }
 
-    if (value is DateTime) {
-      return value;
-    }
-
-    if (value is String) {
-      return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
-    }
-
-    return DateTime.fromMillisecondsSinceEpoch(0);
+    return '';
   }
 
-  String _formatChatTime(DateTime date) {
-    if (date.millisecondsSinceEpoch == 0) {
-      return '';
-    }
-
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (_isSameDay(date, now)) {
-      final hour = date.hour == 0
-          ? 12
-          : (date.hour > 12 ? date.hour - 12 : date.hour);
-      final minute = date.minute.toString().padLeft(2, '0');
-      final period = date.hour >= 12 ? 'PM' : 'AM';
-
-      return '$hour:$minute $period';
-    }
-
-    if (difference.inDays == 1) {
-      return 'Yesterday';
-    }
-
-    if (difference.inDays < 7) {
-      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-      return days[date.weekday - 1];
-    }
-
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
-  bool _isSameDay(DateTime first, DateTime second) {
-    return first.year == second.year &&
-        first.month == second.month &&
-        first.day == second.day;
-  }
-
-  int _intValue(dynamic value) {
-    if (value is num) return value.toInt();
-
-    return int.tryParse(value?.toString() ?? '') ?? 0;
-  }
-
-  String _fallback(dynamic value, String fallback) {
-    final text = value?.toString().trim() ?? '';
-    return text.isEmpty ? fallback : text;
-  }
-
-  String _initials(String name) {
+  Widget _avatarFallback(String name) {
     final parts = name
         .trim()
         .split(RegExp(r'\s+'))
         .where((part) => part.isNotEmpty)
         .toList();
 
-    if (parts.isEmpty) return 'SW';
+    final initials = parts.isEmpty
+        ? 'WK'
+        : parts.length == 1
+        ? parts.first.substring(0, 1).toUpperCase()
+        : '${parts.first.substring(0, 1)}'
+                  '${parts.last.substring(0, 1)}'
+              .toUpperCase();
 
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
+    return Container(
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFEFF6FF), Color(0xFFDDF4FF)],
+        ),
+      ),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: _primary,
+          fontSize: 17,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
 
-    return '${parts.first.substring(0, 1)}'
-            '${parts.last.substring(0, 1)}'
-        .toUpperCase();
+  Widget _emptyState({required bool archived}) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(24, 65, 24, 120),
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x070F172A),
+                blurRadius: 18,
+                offset: Offset(0, 9),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                height: 76,
+                width: 76,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: archived
+                        ? [
+                            const Color(0xFF64748B).withOpacity(.14),
+                            const Color(0xFF94A3B8).withOpacity(.08),
+                          ]
+                        : [
+                            _primary.withOpacity(.14),
+                            _secondary.withOpacity(.08),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  archived ? Icons.archive_outlined : Icons.forum_outlined,
+                  color: archived ? _textSecondary : _primary,
+                  size: 34,
+                ),
+              ),
+              const SizedBox(height: 17),
+              Text(
+                archived ? 'No archived chats' : 'No active conversations',
+                style: const TextStyle(
+                  color: _textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                archived
+                    ? 'Chats you archive will appear here.'
+                    : 'Your conversations with workers will appear here.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _textSecondary,
+                  fontSize: 10.5,
+                  height: 1.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _loadingState() {
+    return ListView.separated(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 100),
+      itemCount: 5,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, __) {
+        return Container(
+          height: 90,
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: _border),
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(color: _primary, strokeWidth: 2.3),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _errorState() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF7F7),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFFFECACA)),
+        ),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, color: _danger, size: 40),
+            SizedBox(height: 12),
+            Text(
+              'Unable to load chats',
+              style: TextStyle(
+                color: _textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            SizedBox(height: 6),
+            Text(
+              'Check your internet connection and try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _textSecondary,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showMessage(String message, {bool isError = false}) {
@@ -1321,14 +1099,47 @@ class _CustomerChatScreenState extends State<CustomerChatScreen> {
       );
   }
 
-  Widget _ambientCircle({required double size, required Color color}) {
-    return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-      child: Container(
-        height: size,
-        width: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-    );
+  DateTime _timestampValue(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  int _intValue(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+
+    return int.tryParse(value?.toString() ?? '0') ?? 0;
+  }
+
+  String _formatTime(dynamic value) {
+    if (value is! Timestamp) return '';
+
+    final date = value.toDate();
+    final now = DateTime.now();
+
+    if (DateUtils.isSameDay(date, now)) {
+      final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+      final minute = date.minute.toString().padLeft(2, '0');
+      final period = date.hour >= 12 ? 'PM' : 'AM';
+
+      return '$hour:$minute $period';
+    }
+
+    final yesterday = now.subtract(const Duration(days: 1));
+
+    if (DateUtils.isSameDay(date, yesterday)) {
+      return 'Yesterday';
+    }
+
+    if (now.difference(date).inDays < 7) {
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+      return days[date.weekday - 1];
+    }
+
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

@@ -1004,7 +1004,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 _aboutRow(
                   Icons.verified_outlined,
                   "Version",
-                  "1.0.0.6",
+                  "1.1.1+7",
                   const Color(0xFF2563EB),
                 ),
 

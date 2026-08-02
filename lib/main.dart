@@ -45,6 +45,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp();
+  final app = Firebase.app();
+
+  debugPrint('Firebase projectId: ${app.options.projectId}');
+  debugPrint('Firebase appId: ${app.options.appId}');
+  debugPrint('Firebase messagingSenderId: ${app.options.messagingSenderId}');
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -53,7 +58,6 @@ Future<void> main() async {
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
-
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -569,5 +573,3 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-
-
