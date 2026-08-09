@@ -48,7 +48,7 @@ class _LiveSelfieScreenState extends State<LiveSelfieScreen> {
     } on Exception catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Front camera open nahi ho saka. Camera permission aur device settings check karein.',
+        'Unable to open the front camera. Please check that camera permission is granted and try again.',
         isError: true,
       );
       debugPrint('Live selfie capture error: $error');
@@ -60,7 +60,7 @@ class _LiveSelfieScreenState extends State<LiveSelfieScreen> {
 
     if (user == null) {
       _showMessage(
-        'Session expire ho gayi hai. Dobara login karein.',
+        'Your session has expired. Please sign in again.',
         isError: true,
       );
       return;
@@ -68,7 +68,7 @@ class _LiveSelfieScreenState extends State<LiveSelfieScreen> {
 
     if (_selfie == null || _uploading) {
       _showMessage(
-        'Upload se pehle fresh selfie capture karein.',
+        'Please capture a fresh selfie before uploading.',
         isError: true,
       );
       return;
@@ -140,14 +140,14 @@ class _LiveSelfieScreenState extends State<LiveSelfieScreen> {
       if (!mounted) return;
 
       _showMessage(
-        error.message ?? 'Selfie upload nahi ho saka. Dobara try karein.',
+        error.message ?? 'Failed to upload the selfie. Please try again.',
         isError: true,
       );
     } catch (error) {
       if (!mounted) return;
 
       _showMessage(
-        'Unexpected error aya hai. Dobara try karein.',
+        'An unexpected error occurred. Please try again.',
         isError: true,
       );
       debugPrint('Live selfie upload error: $error');
@@ -1150,7 +1150,7 @@ class _LiveSelfieScreenState extends State<LiveSelfieScreen> {
                 ),
                 SizedBox(height: 5),
                 Text(
-                  'Only the private Firebase Storage path is saved. A public download URL is not stored in Firestore.',
+                  'Your CNIC and selfie will be securely stored and used for identity verification purposes only.',
                   style: TextStyle(
                     color: Color(0xFF1E40AF),
                     fontSize: 10,

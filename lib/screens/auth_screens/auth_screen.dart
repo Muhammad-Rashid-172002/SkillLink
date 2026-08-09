@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'email_verification_screen.dart';
 import 'phone_verification_screen.dart';
@@ -43,6 +44,7 @@ class _AuthScreenState extends State<AuthScreen>
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   late final AnimationController _animationController;
   late final Animation<double> _floatingAnimation;
@@ -51,6 +53,7 @@ class _AuthScreenState extends State<AuthScreen>
   bool _hidePassword = true;
   bool _isLoading = false;
   bool _acceptTerms = false;
+  bool _googleInitialized = false;
 
   bool get _isCustomer => widget.role.toLowerCase() == 'customer';
   bool get _isWorker => !_isCustomer;
@@ -77,6 +80,8 @@ class _AuthScreenState extends State<AuthScreen>
     _floatingAnimation = Tween<double>(begin: -4, end: 4).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+
+    _initializeGoogleSignIn();
   }
 
   @override
@@ -89,6 +94,203 @@ class _AuthScreenState extends State<AuthScreen>
     _emailFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _initializeGoogleSignIn() async {
+    try {
+      await _googleSignIn.initialize();
+      _googleInitialized = true;
+    } catch (error) {
+      debugPrint('Google Sign-In initialization error: $error');
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    FocusScope.of(context).unfocus();
+
+    if (_isLoading) return;
+
+    if (!_isLogin && !_acceptTerms) {
+      _message(
+        'Please accept the Terms of Service and Privacy Policy first.',
+        error: true,
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      if (!_googleInitialized) {
+        await _initializeGoogleSignIn();
+      }
+
+      final googleUser = await _googleSignIn.authenticate();
+      final googleAuth = googleUser.authentication;
+
+      if (googleAuth.idToken == null) {
+        throw FirebaseAuthException(code: 'google-token-missing');
+      }
+
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+
+      final result = await _auth.signInWithCredential(credential);
+      final user = result.user;
+
+      if (user == null) {
+        throw FirebaseAuthException(code: 'user-not-found');
+      }
+
+      final reference = _firestore.collection('users').doc(user.uid);
+      final snapshot = await reference.get();
+
+      if (!snapshot.exists) {
+        await reference.set({
+          'uid': user.uid,
+          'name':
+              (user.displayName ?? googleUser.displayName ?? 'SkillNova User')
+                  .trim(),
+          'email': user.email ?? googleUser.email,
+          'photoUrl': user.photoURL ?? googleUser.photoUrl,
+          'role': _role,
+          'authProvider': 'google',
+          'emailVerified': true,
+          'emailVerifiedAt': FieldValue.serverTimestamp(),
+          'phoneVerified': user.phoneNumber != null,
+          'phoneNumber': user.phoneNumber,
+          'profileCompleted': false,
+          'identityVerificationStatus': _role == 'worker'
+              ? 'not_submitted'
+              : 'not_required',
+          'backgroundVerificationStatus': _role == 'worker'
+              ? 'not_submitted'
+              : 'not_required',
+          'verificationLevel': _role == 'worker' ? 'unverified' : 'basic',
+          'canAcceptJobs': false,
+          'accountStatus': 'active',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        final data = snapshot.data() ?? <String, dynamic>{};
+        final savedRole = data['role']?.toString().toLowerCase();
+
+        if (savedRole != 'customer' && savedRole != 'worker') {
+          await _auth.signOut();
+          await _googleSignIn.signOut();
+          throw FirebaseException(
+            plugin: 'cloud_firestore',
+            message: 'Account role is invalid.',
+          );
+        }
+
+        if (savedRole != _role) {
+          await _auth.signOut();
+          await _googleSignIn.signOut();
+          throw FirebaseException(
+            plugin: 'cloud_firestore',
+            message:
+                'This Google account is registered as a $savedRole. Please select the correct role.',
+          );
+        }
+
+        if (data['accountStatus'] == 'suspended' ||
+            data['accountStatus'] == 'blocked') {
+          await _auth.signOut();
+          await _googleSignIn.signOut();
+          throw FirebaseException(
+            plugin: 'cloud_firestore',
+            message: 'This account is restricted. Contact support.',
+          );
+        }
+
+        await reference.set({
+          'name': user.displayName ?? data['name'],
+          'email': user.email ?? data['email'],
+          'photoUrl': user.photoURL ?? data['photoUrl'],
+          'authProvider': 'google',
+          'emailVerified': true,
+          'emailVerifiedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      await saveFcmToken();
+
+      if (!mounted) return;
+      await _routeAuthenticatedUser(user.uid);
+    } on GoogleSignInException catch (error) {
+      debugPrint('Google Sign-In exception: $error');
+      _message(
+        'Google Sign-In was cancelled or could not be completed.',
+        error: true,
+      );
+    } on FirebaseAuthException catch (error) {
+      _message(_authMessage(error.code), error: true);
+    } on FirebaseException catch (error) {
+      _message(error.message ?? 'Google Sign-In failed.', error: true);
+    } catch (error) {
+      debugPrint('Google Sign-In error: $error');
+      _message('Google Sign-In failed. Please try again.', error: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _routeAuthenticatedUser(String uid) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final snapshot = await _firestore.collection('users').doc(uid).get();
+    if (!snapshot.exists) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        message: 'Profile record was not found.',
+      );
+    }
+
+    final data = snapshot.data() ?? <String, dynamic>{};
+    final savedRole = data['role']?.toString().toLowerCase();
+
+    if (savedRole != 'customer' && savedRole != 'worker') {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        message: 'Account role is invalid.',
+      );
+    }
+
+    if (!user.emailVerified) {
+      _replace(EmailVerificationScreen(role: savedRole!));
+      return;
+    }
+
+    if (data['phoneVerified'] != true || user.phoneNumber == null) {
+      _replace(PhoneVerificationScreen(role: savedRole!));
+      return;
+    }
+
+    if (data['profileCompleted'] != true) {
+      _replace(
+        savedRole == 'worker'
+            ? const WorkerProfileSetupScreen()
+            : const CustomerProfileSetupScreen(),
+      );
+      return;
+    }
+
+    if (savedRole == 'worker') {
+      final identity =
+          data['identityVerificationStatus']?.toString() ?? 'not_submitted';
+      _replace(
+        identity == 'approved'
+            ? const WorkerHomeScreen()
+            : const WorkerVerificationCenterScreen(),
+      );
+    } else {
+      _replace(const CustomerHomeScreen());
+    }
   }
 
   Future<void> _submit() async {
@@ -477,6 +679,10 @@ class _AuthScreenState extends State<AuthScreen>
         return 'Check your internet connection.';
       case 'user-disabled':
         return 'This account has been disabled.';
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with this email using another sign-in method.';
+      case 'google-token-missing':
+        return 'Google did not return a valid sign-in token.';
       default:
         return 'Authentication failed. Please try again.';
     }
@@ -503,6 +709,12 @@ class _AuthScreenState extends State<AuthScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screen = MediaQuery.sizeOf(context);
+    final isCompact = screen.height < 760 || screen.width < 360;
+    final horizontalPadding = screen.width >= 700
+        ? 32.0
+        : (isCompact ? 14.0 : 20.0);
+
     return Scaffold(
       backgroundColor: _background,
       body: Stack(
@@ -524,19 +736,26 @@ class _AuthScreenState extends State<AuthScreen>
             child: Center(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  isCompact ? 10 : 16,
+                  horizontalPadding,
+                  isCompact ? 18 : 30,
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 520),
                   child: Column(
                     children: [
                       _buildTopBar(),
-                      const SizedBox(height: 18),
+                      SizedBox(height: isCompact ? 10 : 18),
                       _buildHero(),
-                      const SizedBox(height: 18),
+                      SizedBox(height: isCompact ? 12 : 18),
                       _buildAuthCard(),
-                      const SizedBox(height: 18),
-                      _buildTrustCard(),
-                      const SizedBox(height: 14),
+                      if (!isCompact) ...[
+                        const SizedBox(height: 18),
+                        _buildTrustCard(),
+                      ],
+                      SizedBox(height: isCompact ? 10 : 14),
                       _buildBottomNote(),
                     ],
                   ),
@@ -973,6 +1192,10 @@ class _AuthScreenState extends State<AuthScreen>
                   ],
                   SizedBox(height: _isLogin ? 8 : 18),
                   _buildSubmitButton(),
+                  const SizedBox(height: 16),
+                  _buildSocialDivider(),
+                  const SizedBox(height: 16),
+                  _buildGoogleButton(),
                 ],
               ),
             ),
@@ -1246,6 +1469,77 @@ class _AuthScreenState extends State<AuthScreen>
         label: Text(
           _isLogin ? 'Log In Securely' : 'Create Secure Account',
           style: const TextStyle(fontSize: 13.2, fontWeight: FontWeight.w900),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialDivider() {
+    return const Row(
+      children: [
+        Expanded(child: Divider(color: _border, height: 1)),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'OR CONTINUE WITH',
+            style: TextStyle(
+              color: _textSecondary,
+              fontSize: 8.8,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.75,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: _border, height: 1)),
+      ],
+    );
+  }
+
+  Widget _buildGoogleButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: OutlinedButton(
+        onPressed: _isLoading ? null : _signInWithGoogle,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _textPrimary,
+          backgroundColor: _surface,
+          side: const BorderSide(color: _border, width: 1.2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          elevation: 0,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                shape: BoxShape.circle,
+                border: Border.all(color: _border),
+              ),
+              child: const Text(
+                'G',
+                style: TextStyle(
+                  color: Color(0xFF4285F4),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(width: 11),
+            Text(
+              _isLogin ? 'Continue with Google' : 'Sign up with Google',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -161,7 +161,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     } on FirebaseAuthException catch (error) {
       if (showMessage && mounted) {
         _showMessage(
-          error.message ?? "We couldn't verify your email status. Please try again.",
+          error.message ??
+              "We couldn't verify your email status. Please try again.",
           isError: true,
         );
       }
@@ -262,7 +263,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
-      _showMessage(error.message ?? 'Sign out could not be completed.', isError: true);
+      _showMessage(
+        error.message ?? 'Sign out could not be completed.',
+        isError: true,
+      );
     }
   }
 
@@ -697,7 +701,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
-                        'SECURE ACCOUNT SETUP',
+                        'ACCOUNT PROTECTION',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 8.3,
@@ -741,7 +745,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                     ),
                     const SizedBox(height: 9),
                     Text(
-                      '1 OF 4 VERIFICATION STEPS',
+                      'EMAIL PROTECTION IN PROGRESS',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.76),
                         fontSize: 8,
@@ -845,7 +849,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  'PENDING',
+                  'AWAITING',
                   style: TextStyle(
                     color: _warning,
                     fontSize: 7.8,
@@ -1070,7 +1074,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'SkillNova automatically checks every few seconds.',
+                  'We automatically detect when your email is verified.',
                   style: TextStyle(
                     color: _textSecondary,
                     fontSize: 9.7,
@@ -1185,40 +1189,114 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
 
   Widget _buildSecurityCard() {
     return Container(
-      padding: const EdgeInsets.all(17),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _primary.withOpacity(0.10),
+            _secondary.withOpacity(0.06),
+            Colors.white,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _primary.withOpacity(0.16)),
+        boxShadow: [
+          BoxShadow(
+            color: _primary.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.shield_outlined, color: Color(0xFF2563EB), size: 23),
-          SizedBox(width: 11),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_primaryDark, _primary, _secondary],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: _primary.withOpacity(0.20),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.enhanced_encryption_outlined,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Secure Firebase verification',
+                const Text(
+                  'Your account stays protected',
                   style: TextStyle(
-                    color: Color(0xFF1E3A8A),
-                    fontSize: 12,
+                    color: _textPrimary,
+                    fontSize: 13,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 5),
-                Text(
-                  'The verification link confirms account ownership. SkillNova never asks for your email password.',
+                const SizedBox(height: 6),
+                const Text(
+                  'This private verification link confirms that the email belongs to you. SkillNova never asks for your email password or verification code.',
                   style: TextStyle(
-                    color: Color(0xFF1E40AF),
-                    fontSize: 10,
+                    color: _textSecondary,
+                    fontSize: 10.2,
                     height: 1.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    _protectionChip(Icons.lock_outline_rounded, 'Private link'),
+                    _protectionChip(
+                      Icons.visibility_off_outlined,
+                      'Password safe',
+                    ),
+                  ],
+                ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _protectionChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.78),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _primary.withOpacity(0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: _primary, size: 14),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: _primaryDark,
+              fontSize: 8.7,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -1243,7 +1321,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
         ),
         const SizedBox(height: 2),
         const Text(
-          'Keep this screen open for automatic verification.',
+          'Keep this screen open while we confirm your email.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: _textSecondary,

@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
 
-class JobsByStatusScreen extends StatelessWidget {
+class JobsByStatusScreen extends StatefulWidget {
   final String title;
   final String status;
 
@@ -13,129 +13,293 @@ class JobsByStatusScreen extends StatelessWidget {
     required this.status,
   });
 
+  @override
+  State<JobsByStatusScreen> createState() => _JobsByStatusScreenState();
+}
+
+class _JobsByStatusScreenState extends State<JobsByStatusScreen> {
   static const Color _background = Color(0xFFF4F7FB);
+  static const Color _surface = Colors.white;
   static const Color _primary = Color(0xFF16A34A);
   static const Color _secondary = Color(0xFF14B8A6);
   static const Color _textPrimary = Color(0xFF0F172A);
   static const Color _textSecondary = Color(0xFF64748B);
   static const Color _border = Color(0xFFE2E8F0);
+  static const Color _warning = Color(0xFFF59E0B);
+  static const Color _danger = Color(0xFFEF4444);
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  late final Future<_WorkerJobProfile> _workerProfileFuture;
+
+  String get _status => widget.status.trim().toLowerCase();
+  bool get _isAvailableJobs => _status == 'searching';
+
+  @override
+  void initState() {
+    super.initState();
+    _workerProfileFuture = _loadWorkerProfile();
+  }
+
+  Future<_WorkerJobProfile> _loadWorkerProfile() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw StateError('Your session has expired. Please sign in again.');
+    }
+
+    final snapshot = await _firestore.collection('users').doc(user.uid).get();
+    final data = snapshot.data() ?? <String, dynamic>{};
+
+    final skill = _safeText(
+      data['skill'] ?? data['mainSkill'] ?? data['category'],
+      fallback: 'General Service',
+    );
+
+    return _WorkerJobProfile(
+      uid: user.uid,
+      skill: skill,
+      normalizedSkill: _normalizeCategory(skill),
+    );
+  }
+
+  Query<Map<String, dynamic>> _jobsQuery(_WorkerJobProfile worker) {
+    Query<Map<String, dynamic>> query = _firestore.collection('requests');
+
+    if (_status == 'searching') {
+      return query.where('status', isEqualTo: 'searching');
+    }
+
+    if (_status == 'active') {
+      return query
+          .where('workerId', isEqualTo: worker.uid)
+          .where(
+            'status',
+            whereIn: const ['accepted', 'on_the_way', 'in_progress'],
+          );
+    }
+
+    if (_status == 'completed') {
+      return query
+          .where('workerId', isEqualTo: worker.uid)
+          .where('status', isEqualTo: 'completed');
+    }
+
+    return query.where('workerId', isEqualTo: worker.uid);
+  }
+
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterJobs({
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> documents,
+    required _WorkerJobProfile worker,
+  }) {
+    if (!_isAvailableJobs) return documents;
+
+    return documents.where((document) {
+      final data = document.data();
+
+      final assignedWorkerId = data['workerId']?.toString().trim() ?? '';
+
+      final isPublic = assignedWorkerId.isEmpty;
+      final isAssignedToCurrentWorker = assignedWorkerId == worker.uid;
+
+      if (!isPublic && !isAssignedToCurrentWorker) return false;
+
+      final category = _safeText(
+        data['category'] ??
+            data['skill'] ??
+            data['service'] ??
+            data['serviceType'],
+        fallback: '',
+      );
+
+      if (category.isEmpty) return false;
+
+      final normalizedJobCategory = _normalizeCategory(category);
+
+      return _categoriesMatch(
+        workerCategory: worker.normalizedSkill,
+        jobCategory: normalizedJobCategory,
+      );
+    }).toList();
+  }
+
+  bool _categoriesMatch({
+    required String workerCategory,
+    required String jobCategory,
+  }) {
+    if (workerCategory.isEmpty || jobCategory.isEmpty) return false;
+
+    if (workerCategory == jobCategory) return true;
+
+    final workerTokens = workerCategory.split(' ').toSet();
+    final jobTokens = jobCategory.split(' ').toSet();
+
+    return workerTokens.intersection(jobTokens).isNotEmpty;
+  }
+
+  String _normalizeCategory(String value) {
+    var text = value
+        .toLowerCase()
+        .trim()
+        .replaceAll('&', ' and ')
+        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    const aliases = <String, String>{
+      'electric': 'electrician',
+      'electrical': 'electrician',
+      'electrical work': 'electrician',
+      'electric work': 'electrician',
+      'electrician service': 'electrician',
+      'ac': 'ac technician',
+      'air conditioner': 'ac technician',
+      'air conditioning': 'ac technician',
+      'ac repair': 'ac technician',
+      'ac service': 'ac technician',
+      'hvac': 'ac technician',
+      'plumbing': 'plumber',
+      'plumber service': 'plumber',
+      'painting': 'painter',
+      'paint work': 'painter',
+      'carpentry': 'carpenter',
+      'wood work': 'carpenter',
+      'woodwork': 'carpenter',
+      'cleaning': 'cleaner',
+      'home cleaning': 'cleaner',
+      'appliance repair': 'appliance technician',
+      'home appliance': 'appliance technician',
+      'mobile repair': 'mobile technician',
+      'phone repair': 'mobile technician',
+    };
+
+    return aliases[text] ?? text;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-
-    Query query = FirebaseFirestore.instance.collection("requests");
-
-    if (status == "searching") {
-      query = query.where("status", isEqualTo: "searching");
-    } else if (status == "active") {
-      query = query
-          .where("workerId", isEqualTo: uid)
-          .where("status", whereIn: ["accepted", "on_the_way", "in_progress"]);
-    } else if (status == "completed") {
-      query = query
-          .where("workerId", isEqualTo: uid)
-          .where("status", isEqualTo: "completed");
-    }
-
-    final bool isAvailableJobs = status == "searching";
-
     return Scaffold(
       backgroundColor: _background,
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildTopSection(context, isAvailableJobs: isAvailableJobs),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: query.snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return _buildErrorState(snapshot.error.toString());
-                  }
+        child: FutureBuilder<_WorkerJobProfile>(
+          future: _workerProfileFuture,
+          builder: (context, profileSnapshot) {
+            if (profileSnapshot.connectionState == ConnectionState.waiting) {
+              return Column(
+                children: [
+                  _buildTopSection(worker: null),
+                  Expanded(child: _buildLoadingState()),
+                ],
+              );
+            }
 
-                  if (!snapshot.hasData) {
-                    return _buildLoadingState();
-                  }
+            if (profileSnapshot.hasError || !profileSnapshot.hasData) {
+              return Column(
+                children: [
+                  _buildTopSection(worker: null),
+                  Expanded(
+                    child: _buildErrorState(
+                      profileSnapshot.error?.toString() ??
+                          'Worker profile could not be loaded.',
+                    ),
+                  ),
+                ],
+              );
+            }
 
-                  final documents = snapshot.data!.docs;
+            final worker = profileSnapshot.data!;
+            final query = _jobsQuery(worker);
 
-                  final jobs = isAvailableJobs
-                      ? documents.where((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
+            return Column(
+              children: [
+                _buildTopSection(worker: worker),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: query.snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return _buildErrorState(snapshot.error.toString());
+                      }
 
-                          final String assignedWorkerId =
-                              data['workerId']?.toString().trim() ?? '';
+                      if (!snapshot.hasData) {
+                        return _buildLoadingState();
+                      }
 
-                          final bool isPublic = assignedWorkerId.isEmpty;
+                      final jobs = _filterJobs(
+                        documents: snapshot.data!.docs,
+                        worker: worker,
+                      );
 
-                          final bool isForCurrentWorker =
-                              assignedWorkerId == uid;
+                      if (jobs.isEmpty) {
+                        return _buildEmptyState(worker: worker);
+                      }
 
-                          return isPublic || isForCurrentWorker;
-                        }).toList()
-                      : documents;
+                      return RefreshIndicator(
+                        color: _primary,
+                        onRefresh: () async {
+                          await Future<void>.delayed(
+                            const Duration(milliseconds: 450),
+                          );
+                          if (mounted) setState(() {});
+                        },
+                        child: ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+                          itemCount: jobs.length,
+                          itemBuilder: (context, index) {
+                            final document = jobs[index];
 
-                  if (jobs.isEmpty) {
-                    return _buildEmptyState(isAvailableJobs: isAvailableJobs);
-                  }
-
-                  return ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
-                    itemCount: jobs.length,
-                    itemBuilder: (context, index) {
-                      final document = jobs[index];
-                      final job = document.data() as Map<String, dynamic>;
-
-                      return _buildJobCard(
-                        context: context,
-                        requestId: document.id,
-                        job: job,
-                        isAvailableJobs: isAvailableJobs,
+                            return _buildJobCard(
+                              context: context,
+                              requestId: document.id,
+                              job: document.data(),
+                              worker: worker,
+                            );
+                          },
+                        ),
                       );
                     },
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildTopSection(
-    BuildContext context, {
-    required bool isAvailableJobs,
-  }) {
+  Widget _buildTopSection({_WorkerJobProfile? worker}) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: _surface,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
         boxShadow: [
           BoxShadow(
-            color: Color(0x090F172A),
-            blurRadius: 24,
-            offset: Offset(0, 10),
+            color: Color(0x0A0F172A),
+            blurRadius: 26,
+            offset: Offset(0, 11),
           ),
         ],
       ),
       child: Column(
         children: [
-          _buildHeader(context),
+          _buildHeader(),
           const SizedBox(height: 18),
-          _buildHeroCard(isAvailableJobs: isAvailableJobs),
+          _buildHeroCard(worker: worker),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader() {
     return Row(
       children: [
         Material(
@@ -143,7 +307,7 @@ class JobsByStatusScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(15),
           child: InkWell(
             borderRadius: BorderRadius.circular(15),
-            onTap: () => Navigator.pop(context),
+            onTap: () => Navigator.maybePop(context),
             child: Container(
               height: 46,
               width: 46,
@@ -165,7 +329,7 @@ class JobsByStatusScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title,
+                widget.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -177,9 +341,9 @@ class JobsByStatusScreen extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                status == "searching"
-                    ? "Explore available work opportunities"
-                    : "Track your active and ongoing jobs",
+                _isAvailableJobs
+                    ? 'Personalized opportunities for your skill'
+                    : 'Track your assigned jobs and progress',
                 style: const TextStyle(
                   color: _textSecondary,
                   fontSize: 10.5,
@@ -197,8 +361,8 @@ class JobsByStatusScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(15),
           ),
           child: Icon(
-            status == "searching"
-                ? Icons.travel_explore_rounded
+            _isAvailableJobs
+                ? Icons.auto_awesome_rounded
                 : Icons.assignment_turned_in_outlined,
             color: _primary,
             size: 21,
@@ -208,7 +372,9 @@ class JobsByStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeroCard({required bool isAvailableJobs}) {
+  Widget _buildHeroCard({_WorkerJobProfile? worker}) {
+    final skill = worker?.skill ?? 'Loading your skill';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -218,11 +384,11 @@ class JobsByStatusScreen extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [_primary, _secondary],
         ),
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(27),
         boxShadow: [
           BoxShadow(
-            color: _primary.withOpacity(.22),
-            blurRadius: 24,
+            color: _primary.withOpacity(.23),
+            blurRadius: 25,
             offset: const Offset(0, 12),
           ),
         ],
@@ -237,6 +403,18 @@ class JobsByStatusScreen extends StatelessWidget {
               width: 160,
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(.09),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -85,
+            left: -45,
+            child: Container(
+              height: 145,
+              width: 145,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(.06),
                 shape: BoxShape.circle,
               ),
             ),
@@ -257,7 +435,9 @@ class JobsByStatusScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        isAvailableJobs ? "AVAILABLE JOBS" : "ACTIVE WORK",
+                        _isAvailableJobs
+                            ? 'SKILL-MATCHED JOBS'
+                            : 'YOUR ASSIGNED WORK',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 8.7,
@@ -268,9 +448,9 @@ class JobsByStatusScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      isAvailableJobs
-                          ? "Find your next opportunity"
-                          : "Manage your current jobs",
+                      _isAvailableJobs
+                          ? 'Jobs selected for you'
+                          : 'Manage your current jobs',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -280,34 +460,73 @@ class JobsByStatusScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 7),
                     Text(
-                      isAvailableJobs
-                          ? "Browse open requests and choose work that suits you."
-                          : "View accepted, on-the-way and in-progress jobs.",
+                      _isAvailableJobs
+                          ? 'Only opportunities related to your registered skill are shown.'
+                          : 'View accepted, on-the-way and in-progress work.',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(.82),
+                        color: Colors.white.withOpacity(.83),
                         fontSize: 10.6,
                         height: 1.45,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    if (_isAvailableJobs) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(.14),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(.16),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.handyman_rounded,
+                              color: Colors.white,
+                              size: 15,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                skill,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(width: 12),
               Container(
-                height: 84,
-                width: 74,
+                height: 88,
+                width: 76,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(.14),
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.circular(23),
                   border: Border.all(color: Colors.white.withOpacity(.18)),
                 ),
                 child: Icon(
-                  isAvailableJobs
-                      ? Icons.search_rounded
-                      : Icons.handyman_rounded,
+                  _isAvailableJobs
+                      ? _categoryIcon(worker?.normalizedSkill ?? '')
+                      : Icons.work_history_rounded,
                   color: Colors.white,
-                  size: 37,
+                  size: 38,
                 ),
               ),
             ],
@@ -321,36 +540,33 @@ class JobsByStatusScreen extends StatelessWidget {
     required BuildContext context,
     required String requestId,
     required Map<String, dynamic> job,
-    required bool isAvailableJobs,
+    required _WorkerJobProfile worker,
   }) {
-    final String jobTitle = _safeText(job["title"], fallback: "Untitled Job");
+    final jobTitle = _safeText(job['title'], fallback: 'Untitled Job');
 
-    final String category = _safeText(
-      job["category"],
-      fallback: "General Service",
+    final category = _safeText(
+      job['category'] ?? job['skill'] ?? job['service'] ?? job['serviceType'],
+      fallback: 'General Service',
     );
 
-    final String location = _safeText(
-      job["location"],
-      fallback: "Location not provided",
+    final location = _safeText(
+      job['location'],
+      fallback: 'Location not provided',
     );
 
-    final String budget = _safeText(job["budget"], fallback: "Budget not set");
-
-    final String urgency = _safeText(job["urgency"], fallback: "Normal");
-
-    final String description = _safeText(
-      job["description"],
-      fallback: "No description available.",
+    final budget = _formatBudget(job['budget']);
+    final urgency = _safeText(job['urgency'], fallback: 'Normal');
+    final description = _safeText(
+      job['description'],
+      fallback: 'No description available.',
     );
-
-    final String jobStatus = _safeText(job["status"], fallback: status);
+    final jobStatus = _safeText(job['status'], fallback: _status);
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(23),
+      borderRadius: BorderRadius.circular(24),
       child: InkWell(
-        borderRadius: BorderRadius.circular(23),
+        borderRadius: BorderRadius.circular(24),
         onTap: () {
           Navigator.push(
             context,
@@ -360,7 +576,7 @@ class JobsByStatusScreen extends StatelessWidget {
                 title: jobTitle,
                 category: category,
                 location: location,
-                distance: "Nearby",
+                distance: 'Nearby',
                 budget: budget,
                 urgency: urgency,
               ),
@@ -371,14 +587,16 @@ class JobsByStatusScreen extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(23),
-            border: Border.all(color: _border),
+            color: _surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: _isAvailableJobs ? _primary.withOpacity(.15) : _border,
+            ),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x070F172A),
-                blurRadius: 15,
-                offset: Offset(0, 7),
+                color: Color(0x080F172A),
+                blurRadius: 17,
+                offset: Offset(0, 8),
               ),
             ],
           ),
@@ -389,20 +607,20 @@ class JobsByStatusScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    height: 50,
-                    width: 50,
+                    height: 52,
+                    width: 52,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [_primary, _secondary],
                       ),
-                      borderRadius: BorderRadius.circular(17),
+                      borderRadius: BorderRadius.circular(18),
                     ),
-                    child: const Icon(
-                      Icons.work_outline_rounded,
+                    child: Icon(
+                      _categoryIcon(_normalizeCategory(category)),
                       color: Colors.white,
-                      size: 23,
+                      size: 24,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -427,16 +645,22 @@ class JobsByStatusScreen extends StatelessWidget {
                           runSpacing: 6,
                           children: [
                             _buildTag(
-                              icon: Icons.category_outlined,
+                              icon: _categoryIcon(_normalizeCategory(category)),
                               label: category,
                               color: _primary,
                             ),
                             _buildTag(
                               icon: Icons.bolt_rounded,
                               label: urgency,
-                              color: const Color(0xFFF59E0B),
+                              color: _warning,
                             ),
-                            if (!isAvailableJobs)
+                            if (_isAvailableJobs)
+                              _buildTag(
+                                icon: Icons.auto_awesome_rounded,
+                                label: 'Skill match',
+                                color: const Color(0xFF2563EB),
+                              ),
+                            if (!_isAvailableJobs)
                               _buildTag(
                                 icon: _statusIcon(jobStatus),
                                 label: _statusLabel(jobStatus),
@@ -451,7 +675,7 @@ class JobsByStatusScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
-                      vertical: 7,
+                      vertical: 8,
                     ),
                     decoration: BoxDecoration(
                       color: _primary.withOpacity(.08),
@@ -505,10 +729,10 @@ class JobsByStatusScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Container(
-                    height: 34,
-                    width: 34,
+                    height: 36,
+                    width: 36,
                     decoration: BoxDecoration(
-                      color: _primary.withOpacity(.08),
+                      color: _primary.withOpacity(.09),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -559,15 +783,15 @@ class JobsByStatusScreen extends StatelessWidget {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-      itemCount: 5,
+      itemCount: 4,
       itemBuilder: (context, index) {
         return Container(
-          height: 175,
+          height: 178,
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(23),
+            color: _surface,
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: _border),
           ),
           child: const Column(
@@ -575,26 +799,26 @@ class JobsByStatusScreen extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _StatusSkeleton(width: 50, height: 50, radius: 17),
+                  _JobSkeleton(width: 52, height: 52, radius: 18),
                   SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _StatusSkeleton(width: 185, height: 12, radius: 8),
+                        _JobSkeleton(width: 185, height: 12, radius: 8),
                         SizedBox(height: 9),
-                        _StatusSkeleton(width: 120, height: 9, radius: 8),
+                        _JobSkeleton(width: 125, height: 9, radius: 8),
                       ],
                     ),
                   ),
                 ],
               ),
               SizedBox(height: 18),
-              _StatusSkeleton(width: double.infinity, height: 9, radius: 8),
+              _JobSkeleton(width: double.infinity, height: 9, radius: 8),
               SizedBox(height: 9),
-              _StatusSkeleton(width: 220, height: 9, radius: 8),
+              _JobSkeleton(width: 220, height: 9, radius: 8),
               SizedBox(height: 18),
-              _StatusSkeleton(width: double.infinity, height: 38, radius: 13),
+              _JobSkeleton(width: double.infinity, height: 38, radius: 13),
             ],
           ),
         );
@@ -602,38 +826,47 @@ class JobsByStatusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState({required bool isAvailableJobs}) {
+  Widget _buildEmptyState({required _WorkerJobProfile worker}) {
     return Center(
       child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(28),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(24, 32, 24, 30),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(26),
+            color: _surface,
+            borderRadius: BorderRadius.circular(27),
             border: Border.all(color: _border),
           ),
           child: Column(
             children: [
               Container(
-                height: 82,
-                width: 82,
+                height: 84,
+                width: 84,
                 decoration: BoxDecoration(
-                  color: _primary.withOpacity(.09),
-                  borderRadius: BorderRadius.circular(25),
+                  gradient: LinearGradient(
+                    colors: [
+                      _primary.withOpacity(.14),
+                      _secondary.withOpacity(.09),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(26),
                 ),
                 child: Icon(
-                  isAvailableJobs
-                      ? Icons.search_off_rounded
+                  _isAvailableJobs
+                      ? _categoryIcon(worker.normalizedSkill)
                       : Icons.assignment_late_outlined,
                   color: _primary,
-                  size: 38,
+                  size: 39,
                 ),
               ),
               const SizedBox(height: 18),
               Text(
-                isAvailableJobs ? "No available jobs" : "No active jobs",
+                _isAvailableJobs
+                    ? 'No ${worker.skill} jobs available'
+                    : 'No jobs found',
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: _textPrimary,
                   fontSize: 18,
@@ -642,9 +875,9 @@ class JobsByStatusScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                isAvailableJobs
-                    ? "New customer job requests will appear here."
-                    : "Your accepted and ongoing jobs will appear here.",
+                _isAvailableJobs
+                    ? 'New customer requests matching your registered skill will appear here automatically.'
+                    : 'Your assigned jobs will appear here when available.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: _textSecondary,
@@ -653,6 +886,27 @@ class JobsByStatusScreen extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              if (_isAvailableJobs) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _primary.withOpacity(.07),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    'Your current skill: ${worker.skill}',
+                    style: const TextStyle(
+                      color: _primary,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -668,7 +922,7 @@ class JobsByStatusScreen extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _surface,
             borderRadius: BorderRadius.circular(25),
             border: Border.all(color: _border),
           ),
@@ -679,18 +933,18 @@ class JobsByStatusScreen extends StatelessWidget {
                 height: 70,
                 width: 70,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withOpacity(.09),
+                  color: _danger.withOpacity(.09),
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: const Icon(
                   Icons.cloud_off_rounded,
-                  color: Color(0xFFEF4444),
+                  color: _danger,
                   size: 33,
                 ),
               ),
               const SizedBox(height: 16),
               const Text(
-                "Unable to load jobs",
+                'Unable to load jobs',
                 style: TextStyle(
                   color: _textPrimary,
                   fontSize: 17,
@@ -716,10 +970,21 @@ class JobsByStatusScreen extends StatelessWidget {
     );
   }
 
-  String _safeText(dynamic value, {required String fallback}) {
-    final text = value?.toString().trim() ?? "";
+  String _formatBudget(dynamic value) {
+    final text = _safeText(value, fallback: 'Budget not set');
 
-    if (text.isEmpty || text.toLowerCase() == "null") {
+    if (text == 'Budget not set') return text;
+
+    final number = num.tryParse(text.replaceAll(RegExp(r'[^0-9.]'), ''));
+
+    if (number == null) return text;
+    return 'Rs. ${number.toStringAsFixed(number % 1 == 0 ? 0 : 2)}';
+  }
+
+  String _safeText(dynamic value, {required String fallback}) {
+    final text = value?.toString().trim() ?? '';
+
+    if (text.isEmpty || text.toLowerCase() == 'null') {
       return fallback;
     }
 
@@ -728,25 +993,29 @@ class JobsByStatusScreen extends StatelessWidget {
 
   String _statusLabel(String value) {
     switch (value) {
-      case "accepted":
-        return "Accepted";
-      case "on_the_way":
-        return "On the way";
-      case "in_progress":
-        return "In progress";
+      case 'accepted':
+        return 'Accepted';
+      case 'on_the_way':
+        return 'On the way';
+      case 'in_progress':
+        return 'In progress';
+      case 'completed':
+        return 'Completed';
       default:
-        return value.replaceAll("_", " ");
+        return value.replaceAll('_', ' ');
     }
   }
 
   IconData _statusIcon(String value) {
     switch (value) {
-      case "accepted":
+      case 'accepted':
         return Icons.check_circle_outline_rounded;
-      case "on_the_way":
+      case 'on_the_way':
         return Icons.directions_run_rounded;
-      case "in_progress":
+      case 'in_progress':
         return Icons.construction_rounded;
+      case 'completed':
+        return Icons.task_alt_rounded;
       default:
         return Icons.info_outline_rounded;
     }
@@ -754,24 +1023,76 @@ class JobsByStatusScreen extends StatelessWidget {
 
   Color _statusColor(String value) {
     switch (value) {
-      case "accepted":
+      case 'accepted':
         return const Color(0xFF2563EB);
-      case "on_the_way":
-        return const Color(0xFFF59E0B);
-      case "in_progress":
+      case 'on_the_way':
+        return _warning;
+      case 'in_progress':
         return const Color(0xFF8B5CF6);
+      case 'completed':
+        return _primary;
       default:
         return _textSecondary;
     }
   }
+
+  IconData _categoryIcon(String category) {
+    final normalized = _normalizeCategory(category);
+
+    if (normalized.contains('electrician')) {
+      return Icons.electrical_services_rounded;
+    }
+
+    if (normalized.contains('ac technician')) {
+      return Icons.ac_unit_rounded;
+    }
+
+    if (normalized.contains('plumber')) {
+      return Icons.plumbing_rounded;
+    }
+
+    if (normalized.contains('painter')) {
+      return Icons.format_paint_rounded;
+    }
+
+    if (normalized.contains('carpenter')) {
+      return Icons.carpenter_rounded;
+    }
+
+    if (normalized.contains('cleaner')) {
+      return Icons.cleaning_services_rounded;
+    }
+
+    if (normalized.contains('appliance')) {
+      return Icons.home_repair_service_rounded;
+    }
+
+    if (normalized.contains('mobile')) {
+      return Icons.phone_android_rounded;
+    }
+
+    return Icons.handyman_rounded;
+  }
 }
 
-class _StatusSkeleton extends StatelessWidget {
+class _WorkerJobProfile {
+  final String uid;
+  final String skill;
+  final String normalizedSkill;
+
+  const _WorkerJobProfile({
+    required this.uid,
+    required this.skill,
+    required this.normalizedSkill,
+  });
+}
+
+class _JobSkeleton extends StatelessWidget {
   final double width;
   final double height;
   final double radius;
 
-  const _StatusSkeleton({
+  const _JobSkeleton({
     required this.width,
     required this.height,
     required this.radius,

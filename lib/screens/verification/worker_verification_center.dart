@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
 
 import 'cnic_verification_screen.dart';
 import 'live_selfie_screen.dart';
@@ -49,7 +50,7 @@ class _WorkerVerificationCenterScreenState
         selfie == null ||
         selfie.isEmpty) {
       _showMessage(
-        'CNIC aur live selfie complete karke phir submit karein.',
+        'Complete your CNIC and live selfie before submitting.',
         isError: true,
       );
       return;
@@ -70,32 +71,23 @@ class _WorkerVerificationCenterScreenState
 
       final userRef = _firestore.collection('users').doc(user.uid);
 
-      batch.set(
-        verificationRef,
-        {
-          'workerId': user.uid,
-          'role': 'worker',
-          'email': user.email,
-          'phoneNumber': user.phoneNumber,
-          'identityStatus': 'pending',
-          'backgroundStatus':
-              data['backgroundStatus'] ?? 'not_submitted',
-          'submittedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(verificationRef, {
+        'workerId': user.uid,
+        'role': 'worker',
+        'email': user.email,
+        'phoneNumber': user.phoneNumber,
+        'identityStatus': 'pending',
+        'backgroundStatus': data['backgroundStatus'] ?? 'not_submitted',
+        'submittedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-      batch.set(
-        userRef,
-        {
-          'identityVerificationStatus': 'pending',
-          'verificationLevel': 'unverified',
-          'canAcceptJobs': false,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(userRef, {
+        'identityVerificationStatus': 'pending',
+        'verificationLevel': 'unverified',
+        'canAcceptJobs': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       await batch.commit();
 
@@ -106,14 +98,14 @@ class _WorkerVerificationCenterScreenState
       if (!mounted) return;
 
       _showMessage(
-        error.message ?? 'Verification submit nahi ho saki.',
+        error.message ?? 'Verification could not be submitted.',
         isError: true,
       );
     } catch (error) {
       if (!mounted) return;
 
       _showMessage(
-        'Unexpected error aya hai. Dobara try karein.',
+        'An unexpected error occurred. Please try again.',
         isError: true,
       );
       debugPrint('Verification submit error: $error');
@@ -174,7 +166,7 @@ class _WorkerVerificationCenterScreenState
                 ),
                 const SizedBox(height: 18),
                 const Text(
-                  'Submit for admin review?',
+                  'Submit for identity review?',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: _textPrimary,
@@ -185,7 +177,7 @@ class _WorkerVerificationCenterScreenState
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Once submitted, SkillNova admin will review your CNIC and live selfie before enabling job acceptance.',
+                  'Once submitted, your CNIC and live selfie will be reviewed by the authorized verification team before job access is enabled.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: _textSecondary,
@@ -295,7 +287,7 @@ class _WorkerVerificationCenterScreenState
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Your identity documents are now under admin review. You will be able to accept jobs after approval.',
+                  'Your identity documents are now under secure review. You will be able to accept jobs after approval.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: _textSecondary,
@@ -331,7 +323,10 @@ class _WorkerVerificationCenterScreenState
   }
 
   void _goToHome() {
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => WorkerHomeScreen()),
+    );
   }
 
   void _showMessage(String text, {bool isError = false}) {
@@ -346,10 +341,7 @@ class _WorkerVerificationCenterScreenState
           elevation: 0,
           margin: const EdgeInsets.all(16),
           content: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 15,
-              vertical: 14,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
             decoration: BoxDecoration(
               color: isError ? _danger : _success,
               borderRadius: BorderRadius.circular(17),
@@ -396,11 +388,7 @@ class _WorkerVerificationCenterScreenState
     if (user == null) {
       return Scaffold(
         backgroundColor: _background,
-        body: SafeArea(
-          child: Center(
-            child: _buildSessionExpired(),
-          ),
-        ),
+        body: SafeArea(child: Center(child: _buildSessionExpired())),
       );
     }
 
@@ -411,10 +399,7 @@ class _WorkerVerificationCenterScreenState
           Positioned(
             top: -150,
             right: -110,
-            child: _ambientCircle(
-              size: 320,
-              color: _primary.withOpacity(0.09),
-            ),
+            child: _ambientCircle(size: 320, color: _primary.withOpacity(0.09)),
           ),
           Positioned(
             bottom: -170,
@@ -429,15 +414,13 @@ class _WorkerVerificationCenterScreenState
               children: [
                 _buildTopBar(),
                 Expanded(
-                  child:
-                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                     stream: _firestore
                         .collection('verification_requests')
                         .doc(user.uid)
                         .snapshots(),
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState ==
-                              ConnectionState.waiting &&
+                      if (snapshot.connectionState == ConnectionState.waiting &&
                           !snapshot.hasData) {
                         return _buildLoadingState();
                       }
@@ -446,14 +429,12 @@ class _WorkerVerificationCenterScreenState
                         return _buildErrorState(snapshot.error.toString());
                       }
 
-                      final data =
-                          snapshot.data?.data() ?? <String, dynamic>{};
+                      final data = snapshot.data?.data() ?? <String, dynamic>{};
 
-                      final status = _normalizeStatus(
-                        data['identityStatus'],
-                      );
+                      final status = _normalizeStatus(data['identityStatus']);
 
-                      final cnicDone = _hasText(data['cnicFrontPath']) &&
+                      final cnicDone =
+                          _hasText(data['cnicFrontPath']) &&
                           _hasText(data['cnicBackPath']);
 
                       final selfieDone = _hasText(data['liveSelfiePath']);
@@ -469,8 +450,9 @@ class _WorkerVerificationCenterScreenState
                         selfieDone,
                       ].where((item) => item).length;
 
-                      final progress =
-                          status == 'approved' ? 1.0 : completedItems / 4;
+                      final progress = status == 'approved'
+                          ? 1.0
+                          : completedItems / 4;
 
                       return RefreshIndicator(
                         color: _primary,
@@ -485,8 +467,7 @@ class _WorkerVerificationCenterScreenState
                           physics: const AlwaysScrollableScrollPhysics(
                             parent: BouncingScrollPhysics(),
                           ),
-                          padding:
-                              const EdgeInsets.fromLTRB(20, 10, 20, 34),
+                          padding: const EdgeInsets.fromLTRB(20, 10, 20, 34),
                           children: [
                             _buildHero(
                               status: status,
@@ -503,9 +484,9 @@ class _WorkerVerificationCenterScreenState
                             ),
                             const SizedBox(height: 18),
                             _buildSectionHeader(
-                              title: 'Verification Steps',
+                              title: 'Identity Checkpoints',
                               subtitle:
-                                  'Complete every identity requirement below',
+                                  'Complete each requirement below to protect your account',
                             ),
                             const SizedBox(height: 12),
                             _buildStepCard(
@@ -524,7 +505,8 @@ class _WorkerVerificationCenterScreenState
                             _buildStepCard(
                               step: 2,
                               title: 'Phone Verification',
-                              subtitle: user.phoneNumber ??
+                              subtitle:
+                                  user.phoneNumber ??
                                   'Phone number not available',
                               helper: phoneDone
                                   ? 'Phone number verified'
@@ -542,7 +524,7 @@ class _WorkerVerificationCenterScreenState
                                   ? 'Both CNIC sides uploaded securely'
                                   : 'Capture clear front and back images',
                               helper: cnicDone
-                                  ? 'Ready for admin review'
+                                  ? 'Ready for secure review'
                                   : 'Original CNIC is required',
                               icon: Icons.badge_outlined,
                               complete: cnicDone,
@@ -566,10 +548,9 @@ class _WorkerVerificationCenterScreenState
                                   ? 'Fresh camera selfie uploaded'
                                   : 'Capture a fresh front-camera selfie',
                               helper: selfieDone
-                                  ? 'Ready for admin review'
+                                  ? 'Ready for secure review'
                                   : 'Face must match your CNIC photo',
-                              icon:
-                                  Icons.face_retouching_natural_rounded,
+                              icon: Icons.face_retouching_natural_rounded,
                               complete: selfieDone,
                               locked: status == 'approved',
                               onTap: status == 'approved'
@@ -648,7 +629,7 @@ class _WorkerVerificationCenterScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Verification Center',
+                  'Identity Verification',
                   style: TextStyle(
                     color: _textPrimary,
                     fontSize: 21,
@@ -658,7 +639,7 @@ class _WorkerVerificationCenterScreenState
                 ),
                 SizedBox(height: 3),
                 Text(
-                  'Secure your worker profile',
+                  'Protect and verify your worker profile',
                   style: TextStyle(
                     color: _textSecondary,
                     fontSize: 10.5,
@@ -672,13 +653,11 @@ class _WorkerVerificationCenterScreenState
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_primary, _secondary],
-              ),
+              gradient: const LinearGradient(colors: [_primary, _secondary]),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
-              Icons.admin_panel_settings_rounded,
+              Icons.verified_user_rounded,
               color: Colors.white,
               size: 23,
             ),
@@ -703,11 +682,7 @@ class _WorkerVerificationCenterScreenState
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: approved
-              ? const [
-                  Color(0xFF15803D),
-                  Color(0xFF16A34A),
-                  Color(0xFF14B8A6),
-                ]
+              ? const [Color(0xFF15803D), Color(0xFF16A34A), Color(0xFF14B8A6)]
               : const [_primaryDark, _primary, _secondary],
         ),
         borderRadius: BorderRadius.circular(30),
@@ -763,7 +738,7 @@ class _WorkerVerificationCenterScreenState
                       child: Text(
                         approved
                             ? 'IDENTITY VERIFIED'
-                            : 'WORKER TRUST & SAFETY',
+                            : 'WORKER IDENTITY & SAFETY',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 8.4,
@@ -776,7 +751,7 @@ class _WorkerVerificationCenterScreenState
                     Text(
                       approved
                           ? 'Your profile is verified'
-                          : 'Build a trusted worker profile',
+                          : 'Create a verified worker identity',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 25,
@@ -789,7 +764,7 @@ class _WorkerVerificationCenterScreenState
                     Text(
                       approved
                           ? 'You can now accept jobs and connect with customers.'
-                          : 'Complete identity checks to unlock job acceptance.',
+                          : 'Complete the required identity checks to unlock job access.',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.84),
                         fontSize: 11.5,
@@ -903,11 +878,7 @@ class _WorkerVerificationCenterScreenState
               color: design.color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(
-              design.icon,
-              color: design.color,
-              size: 28,
-            ),
+            child: Icon(design.icon, color: design.color, size: 28),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -936,11 +907,7 @@ class _WorkerVerificationCenterScreenState
             ),
           ),
           if (status == 'approved')
-            const Icon(
-              Icons.verified_rounded,
-              color: _success,
-              size: 25,
-            ),
+            const Icon(Icons.verified_rounded, color: _success, size: 25),
         ],
       ),
     );
@@ -997,8 +964,7 @@ class _WorkerVerificationCenterScreenState
               minHeight: 9,
               value: progress,
               backgroundColor: _primary.withOpacity(0.09),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(_primary),
+              valueColor: const AlwaysStoppedAnimation<Color>(_primary),
             ),
           ),
           const SizedBox(height: 11),
@@ -1075,9 +1041,7 @@ class _WorkerVerificationCenterScreenState
             color: _surface,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: complete
-                  ? _success.withOpacity(0.22)
-                  : _border,
+              color: complete ? _success.withOpacity(0.22) : _border,
             ),
             boxShadow: const [
               BoxShadow(
@@ -1097,13 +1061,9 @@ class _WorkerVerificationCenterScreenState
                     height: 54,
                     decoration: BoxDecoration(
                       gradient: complete
-                          ? const LinearGradient(
-                              colors: [_success, _secondary],
-                            )
+                          ? const LinearGradient(colors: [_success, _secondary])
                           : null,
-                      color: complete
-                          ? null
-                          : _primary.withOpacity(0.09),
+                      color: complete ? null : _primary.withOpacity(0.09),
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Icon(
@@ -1122,10 +1082,7 @@ class _WorkerVerificationCenterScreenState
                       decoration: BoxDecoration(
                         color: complete ? _success : _textPrimary,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _surface,
-                          width: 2,
-                        ),
+                        border: Border.all(color: _surface, width: 2),
                       ),
                       child: Text(
                         '$step',
@@ -1170,8 +1127,7 @@ class _WorkerVerificationCenterScreenState
                           child: Text(
                             complete ? 'DONE' : 'PENDING',
                             style: TextStyle(
-                              color:
-                                  complete ? _success : _warning,
+                              color: complete ? _success : _warning,
                               fontSize: 7.5,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 0.35,
@@ -1207,10 +1163,10 @@ class _WorkerVerificationCenterScreenState
                 locked
                     ? Icons.lock_outline_rounded
                     : actionable
-                        ? Icons.chevron_right_rounded
-                        : complete
-                            ? Icons.check_circle_rounded
-                            : Icons.info_outline_rounded,
+                    ? Icons.chevron_right_rounded
+                    : complete
+                    ? Icons.check_circle_rounded
+                    : Icons.info_outline_rounded,
                 color: complete ? _success : _textSecondary,
                 size: 22,
               ),
@@ -1225,23 +1181,30 @@ class _WorkerVerificationCenterScreenState
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_info.withOpacity(0.10), _primary.withOpacity(0.06)],
+        ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
+        border: Border.all(color: _info.withOpacity(0.18)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x070F172A),
+            blurRadius: 18,
+            offset: Offset(0, 9),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(
-                Icons.lock_person_outlined,
-                color: _info,
-                size: 22,
-              ),
+              Icon(Icons.lock_person_outlined, color: _info, size: 22),
               SizedBox(width: 9),
               Text(
-                'Privacy & Security',
+                'Privacy, Security & Data Protection',
                 style: TextStyle(
                   color: Color(0xFF1E3A8A),
                   fontSize: 13.5,
@@ -1252,20 +1215,20 @@ class _WorkerVerificationCenterScreenState
           ),
           const SizedBox(height: 14),
           _securityRow(
-            Icons.cloud_done_outlined,
-            'Documents stored in private Firebase Storage',
+            Icons.enhanced_encryption_outlined,
+            'Identity documents are protected during storage and transfer',
           ),
           _securityRow(
             Icons.visibility_off_outlined,
-            'CNIC and selfie are never shown to customers',
+            'Your CNIC and selfie are never visible to customers or workers',
           ),
           _securityRow(
-            Icons.link_off_rounded,
-            'Public download URLs are not stored',
+            Icons.lock_person_outlined,
+            'Access is restricted to authorized verification personnel',
           ),
           _securityRow(
-            Icons.admin_panel_settings_outlined,
-            'Only authorized admin review is allowed',
+            Icons.policy_outlined,
+            'Documents are used only for identity verification and fraud prevention',
             last: true,
           ),
         ],
@@ -1273,11 +1236,7 @@ class _WorkerVerificationCenterScreenState
     );
   }
 
-  Widget _securityRow(
-    IconData icon,
-    String text, {
-    bool last = false,
-  }) {
+  Widget _securityRow(IconData icon, String text, {bool last = false}) {
     return Padding(
       padding: EdgeInsets.only(bottom: last ? 0 : 10),
       child: Row(
@@ -1311,11 +1270,7 @@ class _WorkerVerificationCenterScreenState
         ),
         child: const Row(
           children: [
-            Icon(
-              Icons.verified_rounded,
-              color: _success,
-              size: 25,
-            ),
+            Icon(Icons.verified_rounded, color: _success, size: 25),
             SizedBox(width: 11),
             Expanded(
               child: Text(
@@ -1341,18 +1296,14 @@ class _WorkerVerificationCenterScreenState
       ),
       child: const Row(
         children: [
-          Icon(
-            Icons.schedule_rounded,
-            color: Color(0xFFD97706),
-            size: 24,
-          ),
+          Icon(Icons.schedule_rounded, color: Color(0xFFD97706), size: 24),
           SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Admin Review',
+                  'Secure Review',
                   style: TextStyle(
                     color: Color(0xFF92400E),
                     fontSize: 11.5,
@@ -1361,7 +1312,7 @@ class _WorkerVerificationCenterScreenState
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Review time depends on admin availability. Keep your documents clear to avoid delays.',
+                  'Review time may vary. Clear and readable documents help prevent unnecessary delays.',
                   style: TextStyle(
                     color: Color(0xFF92400E),
                     fontSize: 9.6,
@@ -1390,9 +1341,7 @@ class _WorkerVerificationCenterScreenState
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_success, _secondary],
-              ),
+              gradient: const LinearGradient(colors: [_success, _secondary]),
               borderRadius: BorderRadius.circular(26),
               boxShadow: [
                 BoxShadow(
@@ -1404,11 +1353,7 @@ class _WorkerVerificationCenterScreenState
             ),
             child: const Column(
               children: [
-                Icon(
-                  Icons.celebration_rounded,
-                  color: Colors.white,
-                  size: 38,
-                ),
+                Icon(Icons.celebration_rounded, color: Colors.white, size: 38),
                 SizedBox(height: 10),
                 Text(
                   'Identity Verification Approved',
@@ -1445,15 +1390,12 @@ class _WorkerVerificationCenterScreenState
                   borderRadius: BorderRadius.circular(19),
                 ),
               ),
-              icon: const Icon(
-                Icons.home_rounded,
-                size: 20,
-              ),
-              label: const Text(
-                'Go to Worker Home',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w900,
+              icon: const Icon(Icons.home_rounded, size: 20),
+              label: GestureDetector(
+                onTap: _goToHome,
+                child: const Text(
+                  'Go to Worker Home',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900),
                 ),
               ),
             ),
@@ -1476,10 +1418,7 @@ class _WorkerVerificationCenterScreenState
             SizedBox(
               width: 28,
               height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                color: _warning,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 3, color: _warning),
             ),
             SizedBox(width: 13),
             Expanded(
@@ -1487,7 +1426,7 @@ class _WorkerVerificationCenterScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Admin review in progress',
+                    'Identity review in progress',
                     style: TextStyle(
                       color: Color(0xFF92400E),
                       fontSize: 12.5,
@@ -1496,7 +1435,7 @@ class _WorkerVerificationCenterScreenState
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Pull down to refresh and check approval status.',
+                    'Pull down to refresh and check the latest review status.',
                     style: TextStyle(
                       color: Color(0xFF92400E),
                       fontSize: 9.8,
@@ -1519,12 +1458,9 @@ class _WorkerVerificationCenterScreenState
           width: double.infinity,
           height: 58,
           child: FilledButton.icon(
-            onPressed:
-                ready ? () => _submitForReview(data) : null,
+            onPressed: ready ? () => _submitForReview(data) : null,
             style: FilledButton.styleFrom(
-              backgroundColor: status == 'rejected'
-                  ? _danger
-                  : _primary,
+              backgroundColor: status == 'rejected' ? _danger : _primary,
               disabledBackgroundColor: const Color(0xFFD8E2E8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(19),
@@ -1540,8 +1476,8 @@ class _WorkerVerificationCenterScreenState
               status == 'rejected'
                   ? 'Resubmit Updated Documents'
                   : ready
-                      ? 'Submit for Admin Review'
-                      : 'Complete CNIC & Selfie First',
+                  ? 'Submit for Secure Review'
+                  : 'Complete CNIC & Selfie First',
               style: const TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w900,
@@ -1552,8 +1488,8 @@ class _WorkerVerificationCenterScreenState
         const SizedBox(height: 10),
         Text(
           ready
-              ? 'Your documents are ready for secure submission.'
-              : 'Complete the remaining identity steps to continue.',
+              ? 'Your identity documents are ready for protected submission.'
+              : 'Complete the remaining identity requirements to continue.',
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: _textSecondary,
@@ -1587,13 +1523,10 @@ class _WorkerVerificationCenterScreenState
           child: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(
-                strokeWidth: 4,
-                color: _primary,
-              ),
+              CircularProgressIndicator(strokeWidth: 4, color: _primary),
               SizedBox(height: 18),
               Text(
-                'Submitting securely...',
+                'Submitting your verification...',
                 style: TextStyle(
                   color: _textPrimary,
                   fontSize: 17,
@@ -1602,7 +1535,7 @@ class _WorkerVerificationCenterScreenState
               ),
               SizedBox(height: 7),
               Text(
-                'Please keep the app open while your verification request is being submitted.',
+                'Keep the app open while your protected verification request is submitted.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _textSecondary,
@@ -1620,10 +1553,7 @@ class _WorkerVerificationCenterScreenState
 
   Widget _buildLoadingState() {
     return const Center(
-      child: CircularProgressIndicator(
-        color: _primary,
-        strokeWidth: 3,
-      ),
+      child: CircularProgressIndicator(color: _primary, strokeWidth: 3),
     );
   }
 
@@ -1641,11 +1571,7 @@ class _WorkerVerificationCenterScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.cloud_off_rounded,
-                color: _danger,
-                size: 42,
-              ),
+              const Icon(Icons.cloud_off_rounded, color: _danger, size: 42),
               const SizedBox(height: 14),
               const Text(
                 'Unable to load verification',
@@ -1686,11 +1612,7 @@ class _WorkerVerificationCenterScreenState
       child: const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.lock_clock_outlined,
-            color: _danger,
-            size: 44,
-          ),
+          Icon(Icons.lock_clock_outlined, color: _danger, size: 44),
           SizedBox(height: 14),
           Text(
             'Session Expired',
@@ -1704,11 +1626,7 @@ class _WorkerVerificationCenterScreenState
           Text(
             'Please log in again to continue verification.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _textSecondary,
-              fontSize: 11,
-              height: 1.45,
-            ),
+            style: TextStyle(color: _textSecondary, fontSize: 11, height: 1.45),
           ),
         ],
       ),
@@ -1731,7 +1649,7 @@ class _WorkerVerificationCenterScreenState
           icon: Icons.hourglass_top_rounded,
           title: 'Review in Progress',
           message:
-              'Your documents are under admin review. Job acceptance remains locked.',
+              'Your documents are under secure review. Job access remains locked.',
         );
       case 'rejected':
         return const _VerificationStatusDesign(
@@ -1753,12 +1671,9 @@ class _WorkerVerificationCenterScreenState
   }
 
   String _normalizeStatus(dynamic value) {
-    final status =
-        value?.toString().toLowerCase().trim() ?? 'not_submitted';
+    final status = value?.toString().toLowerCase().trim() ?? 'not_submitted';
 
-    if (status == 'approved' ||
-        status == 'pending' ||
-        status == 'rejected') {
+    if (status == 'approved' || status == 'pending' || status == 'rejected') {
       return status;
     }
 
@@ -1769,18 +1684,12 @@ class _WorkerVerificationCenterScreenState
     return value?.toString().trim().isNotEmpty == true;
   }
 
-  Widget _ambientCircle({
-    required double size,
-    required Color color,
-  }) {
+  Widget _ambientCircle({required double size, required Color color}) {
     return IgnorePointer(
       child: Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }

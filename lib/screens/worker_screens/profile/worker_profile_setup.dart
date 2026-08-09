@@ -31,6 +31,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
   static const Color _danger = Color(0xFFDC2626);
   static const Color _warning = Color(0xFFF59E0B);
 
+
   final _formKey = GlobalKey<FormState>();
 
   final nameController = TextEditingController();
@@ -202,6 +203,16 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
       return;
     }
 
+    if (_selectedProfileImage == null &&
+        (_existingProfileImageUrl == null ||
+            _existingProfileImageUrl!.trim().isEmpty)) {
+      _showMessage(
+        'Please add a clear worker profile photo from camera or gallery.',
+        isError: true,
+      );
+      return;
+    }
+
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
@@ -284,91 +295,198 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (sheetContext) {
+        final hasPhoto = _selectedProfileImage != null ||
+            (_existingProfileImageUrl?.isNotEmpty ?? false);
+
         return SafeArea(
           child: Container(
             margin: const EdgeInsets.all(14),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
             decoration: BoxDecoration(
               color: _surface,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x260F172A),
+                  blurRadius: 34,
+                  offset: Offset(0, 16),
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 42,
-                  height: 4,
+                  width: 44,
+                  height: 5,
                   decoration: BoxDecoration(
                     color: _border,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                const SizedBox(height: 17),
-                const Text(
-                  'Add profile photo',
-                  style: TextStyle(
-                    color: _textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
+                const SizedBox(height: 18),
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [_primary, _secondary],
+                    ),
+                    borderRadius: BorderRadius.circular(21),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _primary.withOpacity(0.22),
+                        blurRadius: 20,
+                        offset: const Offset(0, 9),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.add_a_photo_rounded,
+                    color: Colors.white,
+                    size: 29,
                   ),
                 ),
                 const SizedBox(height: 14),
-                ListTile(
-                  leading: const Icon(
-                    Icons.photo_library_outlined,
-                    color: _primary,
+                const Text(
+                  'Add a professional photo',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.25,
                   ),
-                  title: const Text(
-                    'Choose from gallery',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _pickProfileImage(ImageSource.gallery);
-                  },
                 ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.camera_alt_outlined,
-                    color: _primary,
+                const SizedBox(height: 6),
+                const Text(
+                  'Use a clear front-facing photo so customers can recognize and trust your profile.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _textSecondary,
+                    fontSize: 10.5,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
                   ),
-                  title: const Text(
-                    'Take a photo',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _pickProfileImage(ImageSource.camera);
-                  },
                 ),
-                if (_selectedProfileImage != null ||
-                    _existingProfileImageUrl != null)
-                  ListTile(
-                    leading: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: _danger,
-                    ),
-                    title: const Text(
-                      'Remove photo',
-                      style: TextStyle(
-                        color: _danger,
-                        fontWeight: FontWeight.w800,
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _photoSourceOption(
+                        icon: Icons.camera_alt_rounded,
+                        title: 'Camera',
+                        subtitle: 'Take a new photo',
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+                          _pickProfileImage(ImageSource.camera);
+                        },
                       ),
                     ),
-                    onTap: () {
-                      Navigator.pop(sheetContext);
-                      setState(() {
-                        _selectedProfileImage = null;
-                        _existingProfileImageUrl = null;
-                      });
-                    },
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _photoSourceOption(
+                        icon: Icons.photo_library_rounded,
+                        title: 'Gallery',
+                        subtitle: 'Choose existing photo',
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+                          _pickProfileImage(ImageSource.gallery);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                if (hasPhoto) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        setState(() {
+                          _selectedProfileImage = null;
+                          _existingProfileImageUrl = null;
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _danger,
+                        side: BorderSide(color: _danger.withOpacity(0.24)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      label: const Text(
+                        'Remove current photo',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
                   ),
+                ],
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _photoSourceOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(19),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(19),
+            border: Border.all(color: _border),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: _primary.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(icon, color: _primary, size: 23),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: _textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _textSecondary,
+                  fontSize: 8.7,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -931,32 +1049,114 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
   }
 
   Widget _profilePhoto() {
-    return Center(
+    final hasPhoto = _selectedProfileImage != null ||
+        (_existingProfileImageUrl?.isNotEmpty ?? false);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(
+          color: hasPhoto ? _primary.withOpacity(0.22) : _border,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x070F172A),
+            blurRadius: 18,
+            offset: Offset(0, 9),
+          ),
+        ],
+      ),
       child: Column(
         children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: _primary.withOpacity(0.09),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.badge_outlined,
+                  color: _primary,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 11),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Worker profile photo',
+                      style: TextStyle(
+                        color: _textPrimary,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'A clear photo improves customer trust',
+                      style: TextStyle(
+                        color: _textSecondary,
+                        fontSize: 9.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: hasPhoto
+                      ? _primary.withOpacity(0.10)
+                      : _warning.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  hasPhoto ? 'READY' : 'REQUIRED',
+                  style: TextStyle(
+                    color: hasPhoto ? _primary : _warning,
+                    fontSize: 7.7,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
           GestureDetector(
             onTap: _showProfileImageSourceSheet,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  height: 108,
-                  width: 108,
+                  height: 122,
+                  width: 122,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                       colors: [_primary, _secondary],
                     ),
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: _primary.withOpacity(0.20),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
+                        color: _primary.withOpacity(0.22),
+                        blurRadius: 24,
+                        offset: const Offset(0, 12),
                       ),
                     ],
                   ),
                   child: Container(
-                    margin: const EdgeInsets.all(4),
+                    margin: const EdgeInsets.all(5),
                     clipBehavior: Clip.antiAlias,
                     decoration: const BoxDecoration(
                       color: _surface,
@@ -967,46 +1167,95 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
                 ),
                 Positioned(
                   right: -2,
-                  bottom: 5,
+                  bottom: 8,
                   child: Container(
-                    height: 38,
-                    width: 38,
+                    height: 42,
+                    width: 42,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [_primary, _secondary],
                       ),
                       shape: BoxShape.circle,
                       border: Border.all(color: _surface, width: 3),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x220F172A),
+                          blurRadius: 12,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
                     ),
                     child: const Icon(
                       Icons.camera_alt_rounded,
                       color: Colors.white,
-                      size: 18,
+                      size: 19,
                     ),
                   ),
                 ),
+                if (hasPhoto)
+                  Positioned(
+                    left: -2,
+                    bottom: 8,
+                    child: Container(
+                      height: 35,
+                      width: 35,
+                      decoration: BoxDecoration(
+                        color: _primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _surface, width: 3),
+                      ),
+                      child: const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 17,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          const SizedBox(height: 11),
+          const SizedBox(height: 14),
           Text(
-            _selectedProfileImage != null ||
-                    (_existingProfileImageUrl?.isNotEmpty ?? false)
-                ? 'Profile photo selected'
-                : 'Add profile photo',
+            hasPhoto ? 'Photo ready to upload' : 'Add your profile photo',
             style: const TextStyle(
               color: _textPrimary,
-              fontSize: 11.3,
+              fontSize: 11.7,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           const Text(
-            'Tap photo to choose from gallery or camera',
+            'Tap the photo to use Camera or Gallery',
             style: TextStyle(
               color: _textSecondary,
               fontSize: 9.2,
               fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: OutlinedButton.icon(
+              onPressed: _showProfileImageSourceSheet,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _primary,
+                side: BorderSide(color: _primary.withOpacity(0.24)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              icon: Icon(
+                hasPhoto ? Icons.edit_rounded : Icons.add_a_photo_rounded,
+                size: 18,
+              ),
+              label: Text(
+                hasPhoto ? 'Change profile photo' : 'Choose profile photo',
+                style: const TextStyle(
+                  fontSize: 10.7,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ),
         ],
