@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -351,7 +352,10 @@ class _AuthScreenState extends State<AuthScreen>
     final name = _nameController.text.trim();
 
     await user.updateDisplayName(name);
-    await user.sendEmailVerification();
+
+    // Force-refresh the freshly-created Firebase ID token so callable
+    // authentication is available immediately after sign-up.
+    await user.getIdToken(true);
 
     await _firestore.collection('users').doc(user.uid).set({
       'uid': user.uid,
@@ -376,6 +380,38 @@ class _AuthScreenState extends State<AuthScreen>
     });
 
     await saveFcmToken();
+
+    try {
+      await FirebaseFunctions.instanceFor(
+        region: 'us-central1',
+      ).httpsCallable('sendCustomVerificationEmail').call(<String, dynamic>{
+        'uid': user.uid,
+        'email': (user.email ?? _emailController.text.trim())
+            .trim()
+            .toLowerCase(),
+      });
+    } on FirebaseFunctionsException catch (error) {
+      debugPrint(
+        'Custom verification email error: '
+        '${error.code} - ${error.message}',
+      );
+
+      if (error.code != 'already-exists') {
+        _message(
+          error.message ??
+              'Account created, but verification email could not be sent. '
+                  'Please use resend on the verification screen.',
+          error: true,
+        );
+      }
+    } catch (error) {
+      debugPrint('Custom verification email error: $error');
+      _message(
+        'Account created, but verification email could not be sent. '
+        'Please use resend on the verification screen.',
+        error: true,
+      );
+    }
 
     if (!mounted) return;
 
@@ -490,13 +526,29 @@ class _AuthScreenState extends State<AuthScreen>
     }
 
     try {
-      await _auth.sendPasswordResetEmail(email: email);
+      await FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('sendCustomPasswordResetEmail')
+          .call(<String, dynamic>{'email': email});
 
       if (!mounted) return;
 
       await _showPasswordResetDialog(email);
+    } on FirebaseFunctionsException catch (error) {
+      _message(
+        error.message ??
+            'Password reset email could not be sent right now. '
+                'Please try again.',
+        error: true,
+      );
     } on FirebaseAuthException catch (error) {
       _message(_authMessage(error.code), error: true);
+    } catch (error) {
+      debugPrint('Password reset callable error: $error');
+      _message(
+        'Password reset email could not be sent right now. '
+        'Please try again.',
+        error: true,
+      );
     }
   }
 
