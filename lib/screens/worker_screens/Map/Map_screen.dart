@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
@@ -25,6 +26,17 @@ class _MapSreenState extends State<MapSreen> {
 
   GoogleMapController? mapController;
   bool _mapExpanded = false;
+  bool _isMapView = false;
+  bool _isLocating = false;
+  Position? _workerPosition;
+  String? _selectedJobId;
+  Map<String, dynamic>? _selectedJobData;
+
+  @override
+  void initState() {
+    super.initState();
+    _ensureWorkerLocation();
+  }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getRequestsStream(
     String workerSkill,
@@ -53,6 +65,10 @@ class _MapSreenState extends State<MapSreen> {
           onTap: () => _openJobDetail(doc.id, data),
         ),
         onTap: () {
+          setState(() {
+            _selectedJobId = doc.id;
+            _selectedJobData = data;
+          });
           mapController?.animateCamera(
             CameraUpdate.newCameraPosition(
               CameraPosition(target: LatLng(lat, lng), zoom: 15),
@@ -148,17 +164,27 @@ class _MapSreenState extends State<MapSreen> {
                               count: docs.length,
                               workerSkill: workerSkill,
                             ),
+                            const SizedBox(height: 16),
+                            _viewModeToggle(),
                             const SizedBox(height: 18),
-                            _googleMap(docs),
-                            const SizedBox(height: 24),
-                            _sectionHeader(docs.length),
-                            const SizedBox(height: 14),
-                            if (docs.isEmpty)
-                              _emptyState(workerSkill)
-                            else
-                              ...docs.map(
-                                (doc) => _requestCard(doc.id, doc.data()),
-                              ),
+                            if (_isMapView) ...[
+                              _googleMap(docs),
+                              const SizedBox(height: 14),
+                              if (_selectedJobId != null &&
+                                  _selectedJobData != null)
+                                _requestCard(_selectedJobId!, _selectedJobData!)
+                              else
+                                _mapDiscoveryHint(docs.length),
+                            ] else ...[
+                              _sectionHeader(docs.length),
+                              const SizedBox(height: 14),
+                              if (docs.isEmpty)
+                                _emptyState(workerSkill)
+                              else
+                                ...docs.map(
+                                  (doc) => _requestCard(doc.id, doc.data()),
+                                ),
+                            ],
                           ]),
                         ),
                       ),
@@ -232,8 +258,183 @@ class _MapSreenState extends State<MapSreen> {
     );
   }
 
+  Widget _viewModeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF0F5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _viewModeButton(
+              label: 'List',
+              icon: Icons.view_agenda_outlined,
+              selected: !_isMapView,
+              onTap: () {
+                if (!_isMapView) return;
+                setState(() {
+                  _isMapView = false;
+                  _selectedJobId = null;
+                  _selectedJobData = null;
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: _viewModeButton(
+              label: 'Map',
+              icon: Icons.map_outlined,
+              selected: _isMapView,
+              onTap: () {
+                if (_isMapView) return;
+                setState(() => _isMapView = true);
+                _ensureWorkerLocation();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _viewModeButton({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(13),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 44,
+          decoration: BoxDecoration(
+            color: selected ? _surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(13),
+            boxShadow: selected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x100F172A),
+                      blurRadius: 12,
+                      offset: Offset(0, 5),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: selected ? _primary : _textSecondary),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? _textPrimary : _textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _mapDiscoveryHint(int count) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 38,
+            width: 38,
+            decoration: const BoxDecoration(
+              color: Color(0xFFEAF8EF),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.touch_app_rounded,
+              color: _primary,
+              size: 19,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text(
+              count == 0
+                  ? 'New nearby jobs will appear on this map automatically.'
+                  : 'Tap a job marker to preview budget, location and request details.',
+              style: const TextStyle(
+                color: _textSecondary,
+                fontSize: 11.5,
+                height: 1.4,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _ensureWorkerLocation() async {
+    if (_isLocating) return;
+
+    setState(() => _isLocating = true);
+    try {
+      final servicesEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!servicesEnabled) return;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      if (!mounted) return;
+      setState(() => _workerPosition = position);
+
+      await mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(position.latitude, position.longitude),
+            zoom: 14.2,
+          ),
+        ),
+      );
+    } catch (_) {
+      // Nearby jobs remain available even when location permission is denied.
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
+  }
+
   Widget _googleMap(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
-    final mapHeight = _mapExpanded ? 410.0 : 250.0;
+    final mapHeight = _mapExpanded ? 640.0 : (_isMapView ? 540.0 : 250.0);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 280),
@@ -262,7 +463,7 @@ class _MapSreenState extends State<MapSreen> {
                 zoom: 13,
               ),
               markers: _buildMarkers(docs),
-              myLocationEnabled: true,
+              myLocationEnabled: _workerPosition != null,
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               compassEnabled: false,
@@ -321,13 +522,7 @@ class _MapSreenState extends State<MapSreen> {
                 const SizedBox(height: 10),
                 _mapActionButton(
                   icon: Icons.my_location_rounded,
-                  onTap: () {
-                    mapController?.animateCamera(
-                      CameraUpdate.newCameraPosition(
-                        const CameraPosition(target: pabbiCenter, zoom: 14),
-                      ),
-                    );
-                  },
+                  onTap: _ensureWorkerLocation,
                 ),
               ],
             ),

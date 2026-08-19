@@ -15,6 +15,7 @@ const logger = require("firebase-functions/logger");
 initializeApp();
 
 const smtpAppPassword = defineSecret("SMTP_APP_PASSWORD");
+const googleRoutesApiKey = defineSecret("GOOGLE_ROUTES_API_KEY");
 
 
 /**
@@ -473,7 +474,7 @@ exports.sendChatNotification = onDocumentCreated(
       const senderName =
         senderData.name ||
         senderData.fullName ||
-        "SkillLink User";
+        "SkillNova User";
 
       let notificationMessage = messageText;
 
@@ -1025,6 +1026,705 @@ exports.sendReviewNotification = onDocumentCreated(
             "Error sending review notification.",
             error,
         );
+      }
+    },
+);
+/**
+ * ---------------------------------------------------------------------------
+ * SkillNova live job tracking + Google Routes
+ * ---------------------------------------------------------------------------
+ * Data flow:
+ * Flutter GPS -> updateLiveLocation -> live_tracking/{requestId}
+ * Firestore realtime listener -> customer/worker tracking UI
+ * computeJobRoute -> Google Routes API -> route/ETA/distance/polyline
+ *
+ * Important:
+ * - GOOGLE_ROUTES_API_KEY is stored in Firebase Secret Manager.
+ * - The mobile app never receives the Routes API key.
+ * - Only the assigned customer and worker may access a job's tracking data.
+ * - A route refresh is rate-limited server-side to reduce unnecessary API cost.
+ */
+
+const LIVE_TRACKING_COLLECTION = "live_tracking";
+const TRACKABLE_JOB_STATUSES = new Set([
+  "accepted",
+  "on_the_way",
+  "on the way",
+  "ontheway",
+  "started",
+  "in_progress",
+  "in progress",
+]);
+const FINISHED_JOB_STATUSES = new Set([
+  "completed",
+  "cancelled",
+  "canceled",
+  "rejected",
+]);
+const MIN_ROUTE_REFRESH_MS = 15000;
+
+
+/**
+ * Normalizes request status values used by different SkillNova screens.
+ *
+ * @param {*} value Raw status value.
+ * @return {string} Normalized status.
+ */
+function normalizeJobStatus(value) {
+  const status = String(value || "").trim().toLowerCase();
+
+  if (
+    status === "on_the_way" ||
+    status === "on the way" ||
+    status === "ontheway"
+  ) {
+    return "on_the_way";
+  }
+
+  if (
+    status === "started" ||
+    status === "in_progress" ||
+    status === "in progress"
+  ) {
+    return "started";
+  }
+
+  if (status === "canceled") {
+    return "cancelled";
+  }
+
+  return status;
+}
+
+
+/**
+ * Validates a latitude.
+ *
+ * @param {*} value Latitude candidate.
+ * @return {boolean} True when valid.
+ */
+function isValidLatitude(value) {
+  return Number.isFinite(Number(value)) &&
+    Number(value) >= -90 &&
+    Number(value) <= 90;
+}
+
+
+/**
+ * Validates a longitude.
+ *
+ * @param {*} value Longitude candidate.
+ * @return {boolean} True when valid.
+ */
+function isValidLongitude(value) {
+  return Number.isFinite(Number(value)) &&
+    Number(value) >= -180 &&
+    Number(value) <= 180;
+}
+
+
+/**
+ * Converts an optional numeric value to a finite number or null.
+ *
+ * @param {*} value Candidate value.
+ * @return {?number} Finite number or null.
+ */
+function optionalFiniteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+
+/**
+ * Returns a safe millisecond timestamp from a Firestore/date-like value.
+ *
+ * @param {*} value Timestamp/date-like value.
+ * @return {number} Milliseconds since epoch, or zero.
+ */
+function timestampToMillis(value) {
+  if (!value) return 0;
+
+  if (typeof value.toMillis === "function") {
+    return value.toMillis();
+  }
+
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+
+/**
+ * Reads a SkillNova job and verifies the caller is its assigned participant.
+ *
+ * @param {string} requestId SkillNova request document ID.
+ * @param {string} uid Authenticated Firebase UID.
+ * @return {Promise<Object>} Job context.
+ */
+async function getAuthorizedTrackingJob(requestId, uid) {
+  if (!requestId) {
+    throw new HttpsError(
+        "invalid-argument",
+        "A valid job request ID is required.",
+    );
+  }
+
+  const firestore = getFirestore();
+  const requestRef = firestore.collection("requests").doc(requestId);
+  const requestSnapshot = await requestRef.get();
+
+  if (!requestSnapshot.exists) {
+    throw new HttpsError(
+        "not-found",
+        "This SkillNova job could not be found.",
+    );
+  }
+
+  const requestData = requestSnapshot.data() || {};
+  const customerId = String(requestData.customerId || "").trim();
+  const workerId = String(requestData.workerId || "").trim();
+
+  if (!customerId) {
+    throw new HttpsError(
+        "failed-precondition",
+        "This job does not have a customer assigned.",
+    );
+  }
+
+  if (uid !== customerId && uid !== workerId) {
+    throw new HttpsError(
+        "permission-denied",
+        "You are not allowed to access this job's live tracking.",
+    );
+  }
+
+  return {
+    firestore,
+    requestRef,
+    requestData,
+    customerId,
+    workerId,
+    callerRole: uid === workerId ? "worker" : "customer",
+    status: normalizeJobStatus(requestData.status),
+  };
+}
+
+
+/**
+ * Creates/updates the server-side live tracking document for a job.
+ *
+ * Flutter should call this while a participant is actively sharing location.
+ */
+exports.updateLiveLocation = onCall(
+    {
+      region: "us-central1",
+      timeoutSeconds: 30,
+      memory: "256MiB",
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError(
+            "unauthenticated",
+            "You must be signed in to share live location.",
+        );
+      }
+
+      const data = request.data || {};
+      const requestId = String(data.requestId || "").trim();
+      const latitude = Number(data.latitude);
+      const longitude = Number(data.longitude);
+
+      if (
+        !isValidLatitude(latitude) ||
+        !isValidLongitude(longitude)
+      ) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Valid latitude and longitude are required.",
+        );
+      }
+
+      const job = await getAuthorizedTrackingJob(
+          requestId,
+          request.auth.uid,
+      );
+
+      if (!TRACKABLE_JOB_STATUSES.has(job.status)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Live tracking is available only for an active assigned job.",
+        );
+      }
+
+      if (job.callerRole === "worker" && !job.workerId) {
+        throw new HttpsError(
+            "failed-precondition",
+            "No worker is assigned to this job.",
+        );
+      }
+
+      const now = new Date();
+      const heading = optionalFiniteNumber(data.heading);
+      const speed = optionalFiniteNumber(data.speed);
+      const accuracy = optionalFiniteNumber(data.accuracy);
+
+      const locationPayload = {
+        latitude,
+        longitude,
+        heading,
+        speed,
+        accuracy,
+        updatedAt: now,
+      };
+
+      const trackingRef = job.firestore
+          .collection(LIVE_TRACKING_COLLECTION)
+          .doc(requestId);
+
+      const update = {
+        requestId,
+        customerId: job.customerId,
+        workerId: job.workerId,
+        status: job.status,
+        isActive: true,
+        updatedAt: now,
+      };
+
+      if (job.callerRole === "worker") {
+        update.workerLocation = locationPayload;
+        update.workerLocationUpdatedAt = now;
+      } else {
+        update.customerLocation = locationPayload;
+        update.customerLocationUpdatedAt = now;
+      }
+
+      await trackingRef.set(update, {merge: true});
+
+      return {
+        success: true,
+        requestId,
+        role: job.callerRole,
+        isActive: true,
+        location: {
+          latitude,
+          longitude,
+          heading,
+          speed,
+          accuracy,
+        },
+        updatedAt: now.toISOString(),
+      };
+    },
+);
+
+
+/**
+ * Calculates the assigned worker -> customer road route for a SkillNova job.
+ *
+ * Route data is stored in live_tracking/{requestId} so both apps can receive
+ * the same ETA, distance and polyline through a Firestore realtime listener.
+ */
+exports.computeJobRoute = onCall(
+    {
+      secrets: [googleRoutesApiKey],
+      region: "us-central1",
+      timeoutSeconds: 30,
+      memory: "256MiB",
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError(
+            "unauthenticated",
+            "You must be signed in to calculate a job route.",
+        );
+      }
+
+      const requestId = String(
+          request.data && request.data.requestId ?
+            request.data.requestId :
+            "",
+      ).trim();
+
+      const forceRefresh =
+        request.data && request.data.forceRefresh === true;
+
+      const job = await getAuthorizedTrackingJob(
+          requestId,
+          request.auth.uid,
+      );
+
+      if (!TRACKABLE_JOB_STATUSES.has(job.status)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Route tracking is not active for this job.",
+        );
+      }
+
+      if (!job.workerId) {
+        throw new HttpsError(
+            "failed-precondition",
+            "A worker must accept the job before routing can start.",
+        );
+      }
+
+      const trackingRef = job.firestore
+          .collection(LIVE_TRACKING_COLLECTION)
+          .doc(requestId);
+
+      const trackingSnapshot = await trackingRef.get();
+      const trackingData = trackingSnapshot.exists ?
+        trackingSnapshot.data() || {} :
+        {};
+
+      const workerLocation = trackingData.workerLocation || {};
+      const customerLocation = trackingData.customerLocation || {};
+
+      if (
+        !isValidLatitude(workerLocation.latitude) ||
+        !isValidLongitude(workerLocation.longitude)
+      ) {
+        throw new HttpsError(
+            "failed-precondition",
+            "The worker's live location is not available yet.",
+        );
+      }
+
+      if (
+        !isValidLatitude(customerLocation.latitude) ||
+        !isValidLongitude(customerLocation.longitude)
+      ) {
+        throw new HttpsError(
+            "failed-precondition",
+            "The customer's live location is not available yet.",
+        );
+      }
+
+      const previousRoute = trackingData.route || {};
+      const previousCalculatedAt =
+        timestampToMillis(previousRoute.calculatedAt);
+      const nowMs = Date.now();
+
+      if (
+        !forceRefresh &&
+        previousRoute.encodedPolyline &&
+        previousCalculatedAt > 0 &&
+        nowMs - previousCalculatedAt < MIN_ROUTE_REFRESH_MS
+      ) {
+        return {
+          success: true,
+          cached: true,
+          requestId,
+          route: previousRoute,
+        };
+      }
+
+      try {
+        const routesResponse = await fetch(
+            "https://routes.googleapis.com/directions/v2:computeRoutes",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": googleRoutesApiKey.value(),
+                "X-Goog-FieldMask":
+                  "routes.distanceMeters," +
+                  "routes.duration," +
+                  "routes.staticDuration," +
+                  "routes.polyline.encodedPolyline",
+              },
+              body: JSON.stringify({
+                origin: {
+                  location: {
+                    latLng: {
+                      latitude: Number(workerLocation.latitude),
+                      longitude: Number(workerLocation.longitude),
+                    },
+                  },
+                },
+                destination: {
+                  location: {
+                    latLng: {
+                      latitude: Number(customerLocation.latitude),
+                      longitude: Number(customerLocation.longitude),
+                    },
+                  },
+                },
+                travelMode: "DRIVE",
+                routingPreference: "TRAFFIC_AWARE",
+                computeAlternativeRoutes: false,
+                languageCode: "en-US",
+                units: "METRIC",
+              }),
+            },
+        );
+
+        const routesResult = await routesResponse.json();
+
+        if (!routesResponse.ok) {
+          logger.error("Google Routes API request failed.", {
+            requestId,
+            status: routesResponse.status,
+            error: routesResult,
+          });
+
+          throw new HttpsError(
+              "internal",
+              "SkillNova could not calculate the live route right now.",
+          );
+        }
+
+        const routes = Array.isArray(routesResult.routes) ?
+          routesResult.routes :
+          [];
+
+        if (routes.length === 0) {
+          throw new HttpsError(
+              "not-found",
+              "No drivable route was found between the worker and customer.",
+          );
+        }
+
+        const route = routes[0] || {};
+        const distanceMeters = Number(route.distanceMeters || 0);
+
+        const durationString = String(route.duration || "0s");
+        const durationSeconds =
+          Number.parseFloat(durationString.replace("s", "")) || 0;
+
+        const staticDurationString =
+          String(route.staticDuration || route.duration || "0s");
+        const staticDurationSeconds =
+          Number.parseFloat(staticDurationString.replace("s", "")) || 0;
+
+        const calculatedAt = new Date();
+
+        const routePayload = {
+          distanceMeters,
+          distanceKm: Number((distanceMeters / 1000).toFixed(2)),
+          durationSeconds: Math.round(durationSeconds),
+          durationMinutes: Math.max(
+              1,
+              Math.ceil(durationSeconds / 60),
+          ),
+          staticDurationSeconds: Math.round(staticDurationSeconds),
+          encodedPolyline:
+            route.polyline && route.polyline.encodedPolyline ?
+              route.polyline.encodedPolyline :
+              "",
+          trafficAware: true,
+          calculatedAt,
+          origin: {
+            latitude: Number(workerLocation.latitude),
+            longitude: Number(workerLocation.longitude),
+          },
+          destination: {
+            latitude: Number(customerLocation.latitude),
+            longitude: Number(customerLocation.longitude),
+          },
+        };
+
+        await trackingRef.set(
+            {
+              requestId,
+              customerId: job.customerId,
+              workerId: job.workerId,
+              status: job.status,
+              isActive: true,
+              route: routePayload,
+              updatedAt: calculatedAt,
+            },
+            {merge: true},
+        );
+
+        return {
+          success: true,
+          cached: false,
+          requestId,
+          route: {
+            ...routePayload,
+            calculatedAt: calculatedAt.toISOString(),
+          },
+        };
+      } catch (error) {
+        if (error instanceof HttpsError) {
+          throw error;
+        }
+
+        logger.error("computeJobRoute failed.", {
+          requestId,
+          uid: request.auth.uid,
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        throw new HttpsError(
+            "internal",
+            "SkillNova could not calculate the live route right now.",
+        );
+      }
+    },
+);
+
+
+/**
+ * Returns a one-time authorized tracking snapshot.
+ *
+ * For the full "live" experience, Flutter should listen directly to
+ * live_tracking/{requestId} after Firestore security rules are configured.
+ */
+exports.getLiveTrackingSnapshot = onCall(
+    {
+      region: "us-central1",
+      timeoutSeconds: 30,
+      memory: "256MiB",
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError(
+            "unauthenticated",
+            "You must be signed in to view live tracking.",
+        );
+      }
+
+      const requestId = String(
+          request.data && request.data.requestId ?
+            request.data.requestId :
+            "",
+      ).trim();
+
+      const job = await getAuthorizedTrackingJob(
+          requestId,
+          request.auth.uid,
+      );
+
+      const trackingSnapshot = await job.firestore
+          .collection(LIVE_TRACKING_COLLECTION)
+          .doc(requestId)
+          .get();
+
+      if (!trackingSnapshot.exists) {
+        return {
+          success: true,
+          exists: false,
+          requestId,
+          isActive: false,
+        };
+      }
+
+      const trackingData = trackingSnapshot.data() || {};
+
+      return {
+        success: true,
+        exists: true,
+        requestId,
+        isActive: trackingData.isActive === true,
+        status: trackingData.status || job.status,
+        customerId: job.customerId,
+        workerId: job.workerId,
+        customerLocation: trackingData.customerLocation || null,
+        workerLocation: trackingData.workerLocation || null,
+        route: trackingData.route || null,
+        updatedAt: trackingData.updatedAt || null,
+      };
+    },
+);
+
+
+/**
+ * Keeps the live_tracking document lifecycle aligned with the job status.
+ *
+ * accepted/on_the_way/started -> activate tracking
+ * completed/cancelled/rejected -> stop tracking and preserve last location
+ */
+exports.syncLiveTrackingWithJobStatus = onDocumentUpdated(
+    "requests/{requestId}",
+    async (event) => {
+      const beforeSnapshot = event.data.before;
+      const afterSnapshot = event.data.after;
+
+      if (!beforeSnapshot.exists || !afterSnapshot.exists) {
+        return;
+      }
+
+      const beforeData = beforeSnapshot.data() || {};
+      const afterData = afterSnapshot.data() || {};
+
+      const previousStatus = normalizeJobStatus(beforeData.status);
+      const currentStatus = normalizeJobStatus(afterData.status);
+
+      const previousWorkerId = String(beforeData.workerId || "").trim();
+      const currentWorkerId = String(afterData.workerId || "").trim();
+
+      if (
+        previousStatus === currentStatus &&
+        previousWorkerId === currentWorkerId
+      ) {
+        return;
+      }
+
+      const customerId = String(afterData.customerId || "").trim();
+      const workerId = String(afterData.workerId || "").trim();
+
+      if (!customerId) {
+        return;
+      }
+
+      const requestId = event.params.requestId;
+      const firestore = getFirestore();
+      const trackingRef = firestore
+          .collection(LIVE_TRACKING_COLLECTION)
+          .doc(requestId);
+
+      const now = new Date();
+
+      if (TRACKABLE_JOB_STATUSES.has(currentStatus) && workerId) {
+        await trackingRef.set(
+            {
+              requestId,
+              customerId,
+              workerId,
+              status: currentStatus,
+              isActive: true,
+              startedAt: now,
+              endedAt: null,
+              updatedAt: now,
+            },
+            {merge: true},
+        );
+
+        logger.info("SkillNova live tracking activated.", {
+          requestId,
+          customerId,
+          workerId,
+          status: currentStatus,
+        });
+
+        return;
+      }
+
+      if (FINISHED_JOB_STATUSES.has(currentStatus)) {
+        const existingSnapshot = await trackingRef.get();
+
+        if (!existingSnapshot.exists) {
+          return;
+        }
+
+        await trackingRef.set(
+            {
+              status: currentStatus,
+              isActive: false,
+              endedAt: now,
+              updatedAt: now,
+            },
+            {merge: true},
+        );
+
+        logger.info("SkillNova live tracking stopped.", {
+          requestId,
+          status: currentStatus,
+        });
       }
     },
 );

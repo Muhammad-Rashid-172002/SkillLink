@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/models/service_data.dart';
 import 'package:skill_link/screens/customer_screens/Request/Request.dart'
     hide ServiceOption;
@@ -28,6 +30,14 @@ class _ExploreState extends State<Explore> {
 
   final TextEditingController _searchController = TextEditingController();
 
+  static const LatLng _defaultMapCenter = LatLng(34.0097, 71.9970);
+  GoogleMapController? _mapController;
+  Position? _customerPosition;
+  bool _isMapView = false;
+  bool _isLocating = false;
+  String? _selectedMapWorkerId;
+  Map<String, dynamic>? _selectedMapWorker;
+
   String _searchQuery = '';
   String _selectedCategory = 'All';
   String _selectedSort = 'Top Rated';
@@ -52,6 +62,7 @@ class _ExploreState extends State<Explore> {
   @override
   void dispose() {
     _searchController.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 
@@ -95,6 +106,8 @@ class _ExploreState extends State<Explore> {
                         _heroCard(),
                         const SizedBox(height: 20),
                         _searchAndFilter(),
+                        const SizedBox(height: 14),
+                        _viewModeToggle(),
                         const SizedBox(height: 24),
                         _sectionTitle(
                           title: 'Browse services',
@@ -525,6 +538,670 @@ class _ExploreState extends State<Explore> {
     );
   }
 
+  Widget _viewModeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF3F8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _viewModeButton(
+              label: 'List',
+              icon: Icons.view_agenda_outlined,
+              selected: !_isMapView,
+              onTap: () {
+                if (!_isMapView) return;
+                setState(() {
+                  _isMapView = false;
+                  _selectedMapWorkerId = null;
+                  _selectedMapWorker = null;
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: _viewModeButton(
+              label: 'Map',
+              icon: Icons.map_outlined,
+              selected: _isMapView,
+              onTap: () {
+                if (_isMapView) return;
+                setState(() => _isMapView = true);
+                _ensureCustomerLocation();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _viewModeButton({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(13),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 44,
+          decoration: BoxDecoration(
+            color: selected ? _surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(13),
+            boxShadow: selected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x100F172A),
+                      blurRadius: 12,
+                      offset: Offset(0, 5),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: selected ? _primary : _textSecondary),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? _textPrimary : _textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _workersMap(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> workers,
+  ) {
+    final workersWithLocation = workers.where((doc) {
+      return _workerLatLng(doc.data()) != null;
+    }).toList();
+
+    final markers = workersWithLocation.map((doc) {
+      final worker = doc.data();
+      final position = _workerLatLng(worker)!;
+      final name = _fallbackValue(worker['name'], 'Professional');
+      final skill = _fallbackValue(worker['skill'], 'Service');
+      final rating = _doubleValue(worker['rating']);
+
+      return Marker(
+        markerId: MarkerId('worker_${doc.id}'),
+        position: position,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        infoWindow: InfoWindow(
+          title: name,
+          snippet: '$skill • ${rating.toStringAsFixed(1)} ★',
+        ),
+        onTap: () {
+          setState(() {
+            _selectedMapWorkerId = doc.id;
+            _selectedMapWorker = worker;
+          });
+          _mapController?.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(target: position, zoom: 15.2),
+            ),
+          );
+        },
+      );
+    }).toSet();
+
+    final initialTarget = _customerPosition == null
+        ? (workersWithLocation.isNotEmpty
+              ? _workerLatLng(workersWithLocation.first.data())!
+              : _defaultMapCenter)
+        : LatLng(_customerPosition!.latitude, _customerPosition!.longitude);
+
+    return Column(
+      children: [
+        Container(
+          height: 545,
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: _border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x100F172A),
+                blurRadius: 25,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: initialTarget,
+                    zoom: 13.3,
+                  ),
+                  markers: markers,
+                  myLocationEnabled: _customerPosition != null,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  compassEnabled: false,
+                  onMapCreated: (controller) {
+                    _mapController = controller;
+                    _fitWorkerMarkers(workersWithLocation);
+                  },
+                  onTap: (_) {
+                    if (_selectedMapWorkerId != null) {
+                      setState(() {
+                        _selectedMapWorkerId = null;
+                        _selectedMapWorker = null;
+                      });
+                    }
+                  },
+                ),
+              ),
+              Positioned(
+                top: 14,
+                left: 14,
+                child: _mapStatusChip(
+                  icon: Icons.people_alt_outlined,
+                  text: '${workersWithLocation.length} on map',
+                ),
+              ),
+              Positioned(
+                top: 14,
+                right: 14,
+                child: _mapRoundButton(
+                  icon: _isLocating
+                      ? Icons.hourglass_top_rounded
+                      : Icons.my_location_rounded,
+                  onTap: _ensureCustomerLocation,
+                ),
+              ),
+              if (workersWithLocation.isEmpty)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Center(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 30),
+                        padding: const EdgeInsets.fromLTRB(22, 20, 22, 19),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.96),
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x190F172A),
+                              blurRadius: 20,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: const Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.location_off_outlined,
+                              color: _primary,
+                              size: 30,
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'Locations are still syncing',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'Workers with a shared location will appear here automatically.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _textSecondary,
+                                fontSize: 11,
+                                height: 1.45,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        if (_selectedMapWorkerId != null && _selectedMapWorker != null) ...[
+          const SizedBox(height: 14),
+          _mapWorkerCard(
+            workerId: _selectedMapWorkerId!,
+            worker: _selectedMapWorker!,
+          ),
+        ] else ...[
+          const SizedBox(height: 11),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.touch_app_rounded, size: 15, color: _textSecondary),
+              SizedBox(width: 6),
+              Text(
+                'Tap a worker marker to preview the professional',
+                style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _mapStatusChip({required IconData icon, required String text}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.96),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x160F172A),
+            blurRadius: 14,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: _primary, size: 17),
+          const SizedBox(width: 7),
+          Text(
+            text,
+            style: const TextStyle(
+              color: _textPrimary,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mapRoundButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          height: 43,
+          width: 43,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.97),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x160F172A),
+                blurRadius: 14,
+                offset: Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Icon(icon, color: _primary, size: 20),
+        ),
+      ),
+    );
+  }
+
+  Widget _mapWorkerCard({
+    required String workerId,
+    required Map<String, dynamic> worker,
+  }) {
+    final name = _fallbackValue(worker['name'], 'Skilled Professional');
+    final skill = _fallbackValue(worker['skill'], 'Professional Service');
+    final city = _fallbackValue(worker['city'], 'Nearby');
+    final rating = _doubleValue(worker['rating']);
+    final available =
+        worker['canAcceptJobs'] == true ||
+        _boolValue(
+          worker['isAvailable'] ?? worker['available'] ?? worker['isOnline'],
+          defaultValue: true,
+        );
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 52,
+                width: 52,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [_primary, _secondary],
+                  ),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _initials(name),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _textPrimary,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$skill • $city',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _textSecondary,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7E6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star_rounded, size: 15, color: _warning),
+                    const SizedBox(width: 4),
+                    Text(
+                      rating.toStringAsFixed(1),
+                      style: const TextStyle(
+                        color: _textPrimary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            WorkerPublicProfileScreen(workerId: workerId),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _textPrimary,
+                    side: const BorderSide(color: _border),
+                    minimumSize: const Size(0, 44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                  ),
+                  child: const Text(
+                    'View profile',
+                    style: TextStyle(
+                      fontSize: 10.8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: available
+                      ? () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  Request(selectedWorkerId: workerId),
+                            ),
+                          );
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                  ),
+                  child: Text(
+                    available ? 'Request service' : 'Unavailable',
+                    style: const TextStyle(
+                      fontSize: 10.8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  LatLng? _workerLatLng(Map<String, dynamic> worker) {
+    // Explore must never expose an active worker's private/live GPS by default.
+    // Prefer a deliberately public/service-area location saved in the profile.
+    final publicPairs = [
+      [worker['publicLat'], worker['publicLng']],
+      [worker['serviceAreaLat'], worker['serviceAreaLng']],
+      [worker['baseLatitude'], worker['baseLongitude']],
+    ];
+
+    for (final pair in publicPairs) {
+      final latValue = pair[0];
+      final lngValue = pair[1];
+      if (latValue is num && lngValue is num) {
+        final lat = latValue.toDouble();
+        final lng = lngValue.toDouble();
+        if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          return LatLng(lat, lng);
+        }
+      }
+    }
+
+    for (final key in [
+      'publicLocation',
+      'serviceAreaLocation',
+      'baseLocation',
+    ]) {
+      final value = worker[key];
+      if (value is GeoPoint) {
+        return LatLng(value.latitude, value.longitude);
+      }
+      if (value is Map) {
+        final lat = value['lat'] ?? value['latitude'];
+        final lng = value['lng'] ?? value['longitude'];
+        if (lat is num && lng is num) {
+          return LatLng(lat.toDouble(), lng.toDouble());
+        }
+      }
+    }
+
+    // Backward-compatible fallback only when the worker explicitly opted in.
+    if (worker['shareLocationOnExplore'] == true) {
+      final directLat = worker['lat'] ?? worker['latitude'];
+      final directLng = worker['lng'] ?? worker['longitude'];
+      if (directLat is num && directLng is num) {
+        return LatLng(directLat.toDouble(), directLng.toDouble());
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _ensureCustomerLocation() async {
+    if (_isLocating) return;
+
+    setState(() => _isLocating = true);
+    try {
+      final servicesEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!servicesEnabled) return;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      if (!mounted) return;
+      setState(() => _customerPosition = position);
+
+      await _mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(position.latitude, position.longitude),
+            zoom: 14.2,
+          ),
+        ),
+      );
+    } catch (_) {
+      // Location is an enhancement for discovery; Explore remains usable.
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
+  }
+
+  Future<void> _fitWorkerMarkers(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> workers,
+  ) async {
+    if (_mapController == null || workers.isEmpty) return;
+
+    final points = workers
+        .map((doc) => _workerLatLng(doc.data()))
+        .whereType<LatLng>()
+        .toList();
+
+    if (_customerPosition != null) {
+      points.add(
+        LatLng(_customerPosition!.latitude, _customerPosition!.longitude),
+      );
+    }
+
+    if (points.isEmpty) return;
+    if (points.length == 1) {
+      await _mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: points.first, zoom: 14.2),
+        ),
+      );
+      return;
+    }
+
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+
+    for (final point in points.skip(1)) {
+      if (point.latitude < minLat) minLat = point.latitude;
+      if (point.latitude > maxLat) maxLat = point.latitude;
+      if (point.longitude < minLng) minLng = point.longitude;
+      if (point.longitude > maxLng) maxLng = point.longitude;
+    }
+
+    if ((maxLat - minLat).abs() < 0.0001 && (maxLng - minLng).abs() < 0.0001) {
+      await _mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: points.first, zoom: 14.2),
+        ),
+      );
+      return;
+    }
+
+    await _mapController!.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        70,
+      ),
+    );
+  }
+
   Widget _workerSectionHeader() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -597,6 +1274,10 @@ class _ExploreState extends State<Explore> {
                 : 'No $_selectedCategory professional matches your filters.',
             iconColor: _primary,
           );
+        }
+
+        if (_isMapView) {
+          return _workersMap(workers);
         }
 
         return Column(
