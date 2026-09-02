@@ -12,6 +12,7 @@ import 'package:skill_link/screens/customer_screens/Chat/chat_detail_screen.dart
 import 'package:skill_link/screens/splash_screen/splash_screen.dart';
 import 'package:skill_link/screens/worker_screens/Chat/WorkerChatDetailScreen.dart';
 import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
+import 'package:skill_link/services/skillnova_preferences.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -46,6 +47,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp();
+  await skillNovaPreferences.load();
+  SkillNovaThemeController.syncFromPreferences();
   final app = Firebase.app();
 
   debugPrint('Firebase projectId: ${app.options.projectId}');
@@ -196,6 +199,11 @@ class _MyAppState extends State<MyApp> {
       debugPrint('Data: ${message.data}');
 
       final RemoteNotification? notification = message.notification;
+
+      if (!skillNovaPreferences.localNotificationsEnabled) {
+        debugPrint('Foreground alert hidden by this device preference.');
+        return;
+      }
 
       if (notification == null) {
         debugPrint('Foreground message does not contain notification payload.');

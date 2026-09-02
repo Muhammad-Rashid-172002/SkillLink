@@ -6,11 +6,13 @@ import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
 class JobsByStatusScreen extends StatefulWidget {
   final String title;
   final String status;
+  final bool embedded;
 
   const JobsByStatusScreen({
     super.key,
     required this.title,
     required this.status,
+    this.embedded = false,
   });
 
   @override
@@ -302,28 +304,30 @@ class _JobsByStatusScreenState extends State<JobsByStatusScreen> {
   Widget _buildHeader() {
     return Row(
       children: [
-        Material(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(15),
-          child: InkWell(
+        if (!widget.embedded) ...[
+          Material(
+            color: const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(15),
-            onTap: () => Navigator.maybePop(context),
-            child: Container(
-              height: 46,
-              width: 46,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: _border),
-              ),
-              child: const Icon(
-                Icons.arrow_back_rounded,
-                color: _textPrimary,
-                size: 20,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(15),
+              onTap: () => Navigator.maybePop(context),
+              child: Container(
+                height: 46,
+                width: 46,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: _border),
+                ),
+                child: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: _textPrimary,
+                  size: 20,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
+          const SizedBox(width: 12),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

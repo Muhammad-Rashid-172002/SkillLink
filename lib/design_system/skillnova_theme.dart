@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/skillnova_typography.dart';
+import 'package:skill_link/services/skillnova_preferences.dart';
 
 abstract final class SkillNovaTheme {
   static ThemeData get light => _build(Brightness.light);
@@ -141,7 +142,15 @@ abstract final class SkillNovaTheme {
 class SkillNovaThemeController {
   SkillNovaThemeController._();
 
-  static final ValueNotifier<ThemeMode> mode = ValueNotifier(ThemeMode.system);
+  static ValueNotifier<ThemeMode> get mode => _mode;
+  static final ValueNotifier<ThemeMode> _mode = ValueNotifier(ThemeMode.system);
 
-  static void setMode(ThemeMode value) => mode.value = value;
+  static void syncFromPreferences() {
+    _mode.value = skillNovaPreferences.themeMode;
+  }
+
+  static Future<bool> setMode(ThemeMode value) async {
+    _mode.value = value;
+    return skillNovaPreferences.setThemeMode(value);
+  }
 }

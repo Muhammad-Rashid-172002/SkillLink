@@ -38,7 +38,7 @@ class _CustomerNavigationShellState extends State<CustomerNavigationShell> {
       1 => const Explore(),
       2 => const MyRequestsScreen(embedded: true),
       3 => const CustomerChatsScreen(),
-      4 => const CustomerProfileScreen(),
+      4 => CustomerProfileScreen(onSelectTab: _selectTab),
       _ => CustomerHomeScreen(onSelectTab: _selectTab),
     };
   }

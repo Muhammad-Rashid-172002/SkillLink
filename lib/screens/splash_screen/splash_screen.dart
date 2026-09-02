@@ -9,7 +9,7 @@ import 'package:skill_link/screens/customer_screens/navigation/customer_navigati
 import 'package:skill_link/screens/customer_screens/profile/customer_profile_setup_screen.dart';
 import 'package:skill_link/screens/onboarding_screen/OnboardingScreen.dart';
 import 'package:skill_link/screens/verification/worker_verification_center.dart';
-import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
+import 'package:skill_link/screens/worker_screens/navigation/worker_navigation_shell.dart';
 import 'package:skill_link/screens/worker_screens/profile/worker_profile_setup.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -18,6 +18,7 @@ class SplashScreen extends StatefulWidget {
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
+
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   static const Color _navy = Color(0xFF0F172A);
@@ -51,45 +52,23 @@ class _SplashScreenState extends State<SplashScreen>
 
     _fadeAnimation = CurvedAnimation(
       parent: _introController,
-      curve: const Interval(
-        0.0,
-        0.72,
-        curve: Curves.easeOut,
-      ),
+      curve: const Interval(0.0, 0.72, curve: Curves.easeOut),
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.72,
-      end: 1,
-    ).animate(
-      CurvedAnimation(
-        parent: _introController,
-        curve: Curves.easeOutBack,
-      ),
+    _scaleAnimation = Tween<double>(begin: 0.72, end: 1).animate(
+      CurvedAnimation(parent: _introController, curve: Curves.easeOutBack),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.18),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _introController,
-        curve: const Interval(
-          0.25,
-          1,
-          curve: Curves.easeOutCubic,
-        ),
-      ),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.18), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _introController,
+            curve: const Interval(0.25, 1, curve: Curves.easeOutCubic),
+          ),
+        );
 
-    _pulseAnimation = Tween<double>(
-      begin: 0.96,
-      end: 1.04,
-    ).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+    _pulseAnimation = Tween<double>(begin: 0.96, end: 1.04).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
     _introController.forward();
@@ -168,9 +147,9 @@ class _SplashScreenState extends State<SplashScreen>
           .collection('users')
           .doc(refreshedUser.uid)
           .set({
-        'emailVerified': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'emailVerified': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
       final phoneVerified = data['phoneVerified'] == true;
       if (!phoneVerified || refreshedUser.phoneNumber == null) {
@@ -201,7 +180,7 @@ class _SplashScreenState extends State<SplashScreen>
         return;
       }
 
-      _goTo(const WorkerHomeScreen());
+      _goTo(const WorkerNavigationShell());
     } on FirebaseException catch (error) {
       if (!mounted) return;
 
@@ -211,7 +190,9 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.message ?? 'Unable to connect. Please try again.'),
+          content: Text(
+            error.message ?? 'Unable to connect. Please try again.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -228,10 +209,8 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 550),
-        pageBuilder: (_, animation, __) => FadeTransition(
-          opacity: animation,
-          child: screen,
-        ),
+        pageBuilder: (_, animation, __) =>
+            FadeTransition(opacity: animation, child: screen),
       ),
     );
   }
@@ -306,10 +285,7 @@ class _SplashScreenState extends State<SplashScreen>
 
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 28,
-                vertical: 22,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
               child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: Column(
@@ -428,10 +404,7 @@ class _SplashScreenState extends State<SplashScreen>
           child: ClipRRect(
             borderRadius: BorderRadius.circular(38),
             child: BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: 14,
-                sigmaY: 14,
-              ),
+              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
               child: const Center(
                 child: Icon(
                   Icons.handyman_rounded,
@@ -452,10 +425,7 @@ class _SplashScreenState extends State<SplashScreen>
             decoration: BoxDecoration(
               color: _green,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: 3,
-              ),
+              border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
                   color: _green.withOpacity(0.35),
@@ -485,9 +455,7 @@ class _SplashScreenState extends State<SplashScreen>
             child: const LinearProgressIndicator(
               minHeight: 4,
               backgroundColor: Color(0x26FFFFFF),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                Colors.white,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
             ),
           ),
         ),
@@ -508,22 +476,13 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  Widget _blurCircle({
-    required double size,
-    required Color color,
-  }) {
+  Widget _blurCircle({required double size, required Color color}) {
     return ImageFiltered(
-      imageFilter: ImageFilter.blur(
-        sigmaX: 58,
-        sigmaY: 58,
-      ),
+      imageFilter: ImageFilter.blur(sigmaX: 58, sigmaY: 58),
       child: Container(
         height: size,
         width: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }

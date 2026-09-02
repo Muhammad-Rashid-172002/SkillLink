@@ -10,7 +10,7 @@ import 'phone_verification_screen.dart';
 import '../verification/worker_verification_center.dart';
 import 'package:skill_link/screens/customer_screens/navigation/customer_navigation_shell.dart';
 import 'package:skill_link/screens/customer_screens/profile/customer_profile_setup_screen.dart';
-import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
+import 'package:skill_link/screens/worker_screens/navigation/worker_navigation_shell.dart';
 import 'package:skill_link/screens/worker_screens/profile/worker_profile_setup.dart';
 import 'package:skill_link/services/saveFcmToken.dart';
 
@@ -286,7 +286,7 @@ class _AuthScreenState extends State<AuthScreen>
           data['identityVerificationStatus']?.toString() ?? 'not_submitted';
       _replace(
         identity == 'approved'
-            ? const WorkerHomeScreen()
+            ? const WorkerNavigationShell()
             : const WorkerVerificationCenterScreen(),
       );
     } else {
@@ -507,7 +507,7 @@ class _AuthScreenState extends State<AuthScreen>
       if (identity != 'approved') {
         _replace(const WorkerVerificationCenterScreen());
       } else {
-        _replace(const WorkerHomeScreen());
+        _replace(const WorkerNavigationShell());
       }
     } else {
       _replace(const CustomerNavigationShell());

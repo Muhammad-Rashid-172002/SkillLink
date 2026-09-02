@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
+import 'package:skill_link/screens/worker_screens/navigation/worker_navigation_shell.dart';
 
 import 'cnic_verification_screen.dart';
 import 'live_selfie_screen.dart';
@@ -325,7 +325,7 @@ class _WorkerVerificationCenterScreenState
   void _goToHome() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => WorkerHomeScreen()),
+      MaterialPageRoute(builder: (context) => const WorkerNavigationShell()),
     );
   }
 

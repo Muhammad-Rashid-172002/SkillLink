@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/Wallat/payment_method_screen.dart';
 
 class WallatScreen extends StatefulWidget {
@@ -68,7 +67,6 @@ class _WallatScreenState extends State<WallatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _background,
-      bottomNavigationBar: const WorkerBottomBar(selectedIndex: 2),
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
