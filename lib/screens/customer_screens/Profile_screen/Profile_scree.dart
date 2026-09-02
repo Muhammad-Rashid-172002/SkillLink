@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skill_link/screens/Role_selection_screen/role_selection.dart';
-import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/customer_screens/muneTile/My_request.dart';
 import 'package:skill_link/screens/customer_screens/muneTile/edit_profile.dart';
 import 'package:skill_link/screens/customer_screens/muneTile/help_and_support.dart';
@@ -87,7 +86,6 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
     return Scaffold(
       backgroundColor: _background,
-      bottomNavigationBar: const CustomerBottomBar(selectedIndex: 4),
       body: Stack(
         children: [
           Positioned(

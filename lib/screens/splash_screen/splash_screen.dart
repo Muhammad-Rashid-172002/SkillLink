@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/auth_screens/email_verification_screen.dart';
 import 'package:skill_link/screens/auth_screens/phone_verification_screen.dart';
-import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
+import 'package:skill_link/screens/customer_screens/navigation/customer_navigation_shell.dart';
 import 'package:skill_link/screens/customer_screens/profile/customer_profile_setup_screen.dart';
 import 'package:skill_link/screens/onboarding_screen/OnboardingScreen.dart';
 import 'package:skill_link/screens/verification/worker_verification_center.dart';
@@ -18,7 +18,6 @@ class SplashScreen extends StatefulWidget {
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
-
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   static const Color _navy = Color(0xFF0F172A);
@@ -190,7 +189,7 @@ class _SplashScreenState extends State<SplashScreen>
       }
 
       if (role == 'customer') {
-        _goTo(const CustomerHomeScreen());
+        _goTo(const CustomerNavigationShell());
         return;
       }
 

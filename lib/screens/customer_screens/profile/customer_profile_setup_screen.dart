@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
+import 'package:skill_link/screens/customer_screens/navigation/customer_navigation_shell.dart';
 
 class CustomerProfileSetupScreen extends StatefulWidget {
   const CustomerProfileSetupScreen({super.key});
@@ -15,7 +15,6 @@ class CustomerProfileSetupScreen extends StatefulWidget {
   State<CustomerProfileSetupScreen> createState() =>
       _CustomerProfileSetupScreenState();
 }
-
 class _CustomerProfileSetupScreenState
     extends State<CustomerProfileSetupScreen> {
   static const Color _background = Color(0xFFF5F7FB);
@@ -197,7 +196,7 @@ class _CustomerProfileSetupScreenState
           transitionDuration: const Duration(milliseconds: 520),
           pageBuilder: (_, animation, __) => FadeTransition(
             opacity: animation,
-            child: const CustomerHomeScreen(),
+            child: const CustomerNavigationShell(),
           ),
         ),
       );

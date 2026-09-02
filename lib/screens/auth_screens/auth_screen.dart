@@ -8,7 +8,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'email_verification_screen.dart';
 import 'phone_verification_screen.dart';
 import '../verification/worker_verification_center.dart';
-import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
+import 'package:skill_link/screens/customer_screens/navigation/customer_navigation_shell.dart';
 import 'package:skill_link/screens/customer_screens/profile/customer_profile_setup_screen.dart';
 import 'package:skill_link/screens/worker_screens/home_screen/worker_dashbaord.dart';
 import 'package:skill_link/screens/worker_screens/profile/worker_profile_setup.dart';
@@ -290,7 +290,7 @@ class _AuthScreenState extends State<AuthScreen>
             : const WorkerVerificationCenterScreen(),
       );
     } else {
-      _replace(const CustomerHomeScreen());
+      _replace(const CustomerNavigationShell());
     }
   }
 
@@ -510,7 +510,7 @@ class _AuthScreenState extends State<AuthScreen>
         _replace(const WorkerHomeScreen());
       }
     } else {
-      _replace(const CustomerHomeScreen());
+      _replace(const CustomerNavigationShell());
     }
   }
 

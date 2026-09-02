@@ -1,62 +1,58 @@
-import 'dart:ui';
+import 'dart:math' as math;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:skill_link/design_system/skillnova_tokens.dart';
+import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
+import 'package:skill_link/design_system/widgets/skillnova_inputs.dart';
 import 'package:skill_link/models/service_data.dart';
+import 'package:skill_link/screens/customer_screens/Explore/explore_filter_sheets.dart';
+import 'package:skill_link/screens/customer_screens/Explore/explore_models.dart';
+import 'package:skill_link/screens/customer_screens/Explore/explore_repository.dart';
 import 'package:skill_link/screens/customer_screens/Request/Request.dart'
     hide ServiceOption;
-import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
 
 class Explore extends StatefulWidget {
-  const Explore({super.key});
+  const Explore({super.key, this.dataSource, this.locationService});
+
+  final ExploreDataSource? dataSource;
+  final ExploreLocationService? locationService;
 
   @override
   State<Explore> createState() => _ExploreState();
 }
 
 class _ExploreState extends State<Explore> {
-  static const Color _background = Color(0xFFF4F7FB);
-  static const Color _surface = Colors.white;
-  static const Color _primary = Color(0xFF2563EB);
-  static const Color _secondary = Color(0xFF06B6D4);
-  static const Color _textPrimary = Color(0xFF0F172A);
-  static const Color _textSecondary = Color(0xFF64748B);
-  static const Color _border = Color(0xFFE2E8F0);
-  static const Color _success = Color(0xFF16A34A);
-  static const Color _warning = Color(0xFFF59E0B);
-
   final TextEditingController _searchController = TextEditingController();
+  late final ExploreDataSource _dataSource;
+  late final ExploreLocationService _locationService;
+  late Stream<Map<String, dynamic>?> _profileStream;
+  late Stream<List<ExploreProfessional>> _professionalsStream;
 
-  static const LatLng _defaultMapCenter = LatLng(34.0097, 71.9970);
+  ExploreFilters _filters = const ExploreFilters();
+  ExploreSort _sort = ExploreSort.recommended;
+  SkillNovaCoordinate? _deviceLocation;
   GoogleMapController? _mapController;
-  Position? _customerPosition;
-  bool _isMapView = false;
-  bool _isLocating = false;
-  String? _selectedMapWorkerId;
-  Map<String, dynamic>? _selectedMapWorker;
+  CameraPosition? _lastCamera;
+  List<ExploreProfessional> _latestVisible = const [];
+  SkillNovaCoordinate? _latestCustomerLocation;
+  String _query = '';
+  String? _selectedWorkerId;
+  bool _mapMode = false;
+  bool _locating = false;
 
-  String _searchQuery = '';
-  String _selectedCategory = 'All';
-  String _selectedSort = 'Top Rated';
-  bool _showOnlyAvailable = false;
+  @override
+  void initState() {
+    super.initState();
+    _dataSource = widget.dataSource ?? FirebaseExploreDataSource();
+    _locationService = widget.locationService ?? DeviceExploreLocationService();
+    _createStreams();
+  }
 
-  List<ServiceOption> get _categories => const [
-    ServiceOption(
-      title: 'All',
-      icon: Icons.grid_view_rounded,
-      color: Color(0xFF2563EB),
-    ),
-    ...allServices,
-  ];
-  Stream<QuerySnapshot<Map<String, dynamic>>> get _workersStream {
-    return FirebaseFirestore.instance
-        .collection('users')
-        .where('role', isEqualTo: 'worker')
-        .where('profileCompleted', isEqualTo: true)
-        .snapshots();
+  void _createStreams() {
+    _profileStream = _dataSource.watchCustomerProfile();
+    _professionalsStream = _dataSource.watchEligibleProfessionals();
   }
 
   @override
@@ -68,2071 +64,789 @@ class _ExploreState extends State<Explore> {
 
   @override
   Widget build(BuildContext context) {
+    if (_dataSource.customerId.isEmpty) {
+      return const Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: ErrorState(
+              title: 'Session unavailable',
+              message: 'Please sign in again to explore professionals.',
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: _background,
-      bottomNavigationBar: const CustomerBottomBar(selectedIndex: 1),
-      body: Stack(
-        children: [
-          Positioned(
-            top: -150,
-            right: -120,
-            child: _ambientCircle(size: 330, color: _primary.withOpacity(0.09)),
-          ),
-          Positioned(
-            bottom: -160,
-            left: -130,
-            child: _ambientCircle(
-              size: 340,
-              color: _secondary.withOpacity(0.06),
-            ),
-          ),
-          SafeArea(
-            child: RefreshIndicator(
-              color: _primary,
-              onRefresh: () async {
-                await Future<void>.delayed(const Duration(milliseconds: 600));
-              },
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 115),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        _header(),
-                        const SizedBox(height: 20),
-                        _heroCard(),
-                        const SizedBox(height: 20),
-                        _searchAndFilter(),
-                        const SizedBox(height: 14),
-                        _viewModeToggle(),
-                        const SizedBox(height: 24),
-                        _sectionTitle(
-                          title: 'Browse services',
-                          subtitle: 'Select a category to narrow results',
-                        ),
-                        const SizedBox(height: 14),
-                        _categoryScroller(),
-                        const SizedBox(height: 26),
-                        _workerSectionHeader(),
-                        const SizedBox(height: 14),
-                        _realTimeWorkers(),
-                      ]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      body: SafeArea(
+        bottom: false,
+        child: StreamBuilder<Map<String, dynamic>?>(
+          stream: _profileStream,
+          builder: (context, profileSnapshot) {
+            final profile = profileSnapshot.data;
+            final savedLocation = customerCoordinate(profile);
+            final currentLocation = _deviceLocation ?? savedLocation;
+            _latestCustomerLocation = currentLocation;
+            final locationLabel = customerLocationLabel(profile);
 
-  Widget _header() {
-    return Row(
-      children: [
-        Container(
-          height: 50,
-          width: 50,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [_primary, _secondary]),
-            borderRadius: BorderRadius.circular(17),
-            boxShadow: [
-              BoxShadow(
-                color: _primary.withOpacity(0.22),
-                blurRadius: 18,
-                offset: const Offset(0, 9),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.explore_rounded,
-            color: Colors.white,
-            size: 27,
-          ),
-        ),
-        const SizedBox(width: 13),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Explore professionals',
-                style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.45,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Find trusted workers for every job',
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10.8,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(15),
-            onTap: _openFilterSheet,
-            child: Container(
-              height: 46,
-              width: 46,
-              decoration: BoxDecoration(
-                color: _surface,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: _border),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x070F172A),
-                    blurRadius: 14,
-                    offset: Offset(0, 7),
-                  ),
-                ],
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(Icons.tune_rounded, color: _primary, size: 21),
-                  if (_showOnlyAvailable || _selectedSort != 'Top Rated')
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        height: 8,
-                        width: 8,
-                        decoration: const BoxDecoration(
-                          color: _success,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+            return StreamBuilder<List<ExploreProfessional>>(
+              stream: _professionalsStream,
+              builder: (context, snapshot) {
+                final loading =
+                    snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData;
+                final professionals = snapshot.data ?? const [];
+                final visible = _filterAndSort(professionals, currentLocation);
+                _latestVisible = visible;
 
-  Widget _heroCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_primary, _secondary],
-        ),
-        borderRadius: BorderRadius.circular(27),
-        boxShadow: [
-          BoxShadow(
-            color: _primary.withOpacity(0.24),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -70,
-            right: -55,
-            child: Container(
-              height: 170,
-              width: 170,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.09),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -85,
-            left: -45,
-            child: Container(
-              height: 165,
-              width: 165,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.07),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.14),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'TRUSTED MARKETPLACE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 9.1,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.7,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    const Text(
-                      'Discover skilled\nworkers near you',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        height: 1.12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.7,
-                      ),
-                    ),
-                    const SizedBox(height: 9),
-                    Text(
-                      'Compare ratings, services and availability before choosing a professional.',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.82),
-                        fontSize: 11.7,
-                        height: 1.45,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Container(
-                height: 105,
-                width: 82,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(color: Colors.white.withOpacity(0.18)),
-                ),
-                child: const Icon(
-                  Icons.engineering_rounded,
-                  color: Colors.white,
-                  size: 45,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _searchAndFilter() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 58,
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: _border),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x070F172A),
-                  blurRadius: 16,
-                  offset: Offset(0, 8),
-                ),
-              ],
-            ),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.trim().toLowerCase();
-                });
-              },
-              decoration: InputDecoration(
-                hintText: 'Search worker, skill or city',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF94A3B8),
-                  fontSize: 11.8,
-                  fontWeight: FontWeight.w600,
-                ),
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: Color(0xFF94A3B8),
-                  size: 21,
-                ),
-                suffixIcon: _searchQuery.isEmpty
-                    ? null
-                    : IconButton(
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: _textSecondary,
-                          size: 19,
-                        ),
-                      ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 18,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 11),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(18),
-            onTap: _openFilterSheet,
-            child: Container(
-              height: 58,
-              width: 58,
-              decoration: BoxDecoration(
-                color: _primary,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: _primary.withOpacity(0.22),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.filter_alt_rounded,
-                color: Colors.white,
-                size: 23,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _sectionTitle({required String title, required String subtitle}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: _textPrimary,
-            fontSize: 18.3,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.3,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: _textSecondary,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _categoryScroller() {
-    return SizedBox(
-      height: 108,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: _categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 11),
-        itemBuilder: (context, index) {
-          final category = _categories[index];
-          final selected = _selectedCategory == category.title;
-
-          return Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () {
-                setState(() {
-                  _selectedCategory = category.title;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 240),
-                width: 94,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: selected ? category.color.withOpacity(0.10) : _surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: selected ? category.color : _border,
-                    width: selected ? 1.5 : 1,
-                  ),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x060F172A),
-                      blurRadius: 12,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      height: 42,
-                      width: 42,
-                      decoration: BoxDecoration(
-                        color: category.color.withOpacity(0.11),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        category.icon,
-                        color: category.color,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(height: 9),
-                    Text(
-                      category.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: selected ? category.color : _textPrimary,
-                        fontSize: 10.3,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _viewModeToggle() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF3F8),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _viewModeButton(
-              label: 'List',
-              icon: Icons.view_agenda_outlined,
-              selected: !_isMapView,
-              onTap: () {
-                if (!_isMapView) return;
-                setState(() {
-                  _isMapView = false;
-                  _selectedMapWorkerId = null;
-                  _selectedMapWorker = null;
-                });
-              },
-            ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: _viewModeButton(
-              label: 'Map',
-              icon: Icons.map_outlined,
-              selected: _isMapView,
-              onTap: () {
-                if (_isMapView) return;
-                setState(() => _isMapView = true);
-                _ensureCustomerLocation();
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _viewModeButton({
-    required String label,
-    required IconData icon,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(13),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          height: 44,
-          decoration: BoxDecoration(
-            color: selected ? _surface : Colors.transparent,
-            borderRadius: BorderRadius.circular(13),
-            boxShadow: selected
-                ? const [
-                    BoxShadow(
-                      color: Color(0x100F172A),
-                      blurRadius: 12,
-                      offset: Offset(0, 5),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: selected ? _primary : _textSecondary),
-              const SizedBox(width: 7),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? _textPrimary : _textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _workersMap(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> workers,
-  ) {
-    final workersWithLocation = workers.where((doc) {
-      return _workerLatLng(doc.data()) != null;
-    }).toList();
-
-    final markers = workersWithLocation.map((doc) {
-      final worker = doc.data();
-      final position = _workerLatLng(worker)!;
-      final name = _fallbackValue(worker['name'], 'Professional');
-      final skill = _fallbackValue(worker['skill'], 'Service');
-      final rating = _doubleValue(worker['rating']);
-
-      return Marker(
-        markerId: MarkerId('worker_${doc.id}'),
-        position: position,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        infoWindow: InfoWindow(
-          title: name,
-          snippet: '$skill • ${rating.toStringAsFixed(1)} ★',
-        ),
-        onTap: () {
-          setState(() {
-            _selectedMapWorkerId = doc.id;
-            _selectedMapWorker = worker;
-          });
-          _mapController?.animateCamera(
-            CameraUpdate.newCameraPosition(
-              CameraPosition(target: position, zoom: 15.2),
-            ),
-          );
-        },
-      );
-    }).toSet();
-
-    final initialTarget = _customerPosition == null
-        ? (workersWithLocation.isNotEmpty
-              ? _workerLatLng(workersWithLocation.first.data())!
-              : _defaultMapCenter)
-        : LatLng(_customerPosition!.latitude, _customerPosition!.longitude);
-
-    return Column(
-      children: [
-        Container(
-          height: 545,
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: _border),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x100F172A),
-                blurRadius: 25,
-                offset: Offset(0, 10),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: initialTarget,
-                    zoom: 13.3,
-                  ),
-                  markers: markers,
-                  myLocationEnabled: _customerPosition != null,
-                  myLocationButtonEnabled: false,
-                  zoomControlsEnabled: false,
-                  mapToolbarEnabled: false,
-                  compassEnabled: false,
-                  onMapCreated: (controller) {
-                    _mapController = controller;
-                    _fitWorkerMarkers(workersWithLocation);
-                  },
-                  onTap: (_) {
-                    if (_selectedMapWorkerId != null) {
-                      setState(() {
-                        _selectedMapWorkerId = null;
-                        _selectedMapWorker = null;
-                      });
-                    }
-                  },
-                ),
-              ),
-              Positioned(
-                top: 14,
-                left: 14,
-                child: _mapStatusChip(
-                  icon: Icons.people_alt_outlined,
-                  text: '${workersWithLocation.length} on map',
-                ),
-              ),
-              Positioned(
-                top: 14,
-                right: 14,
-                child: _mapRoundButton(
-                  icon: _isLocating
-                      ? Icons.hourglass_top_rounded
-                      : Icons.my_location_rounded,
-                  onTap: _ensureCustomerLocation,
-                ),
-              ),
-              if (workersWithLocation.isEmpty)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Center(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 30),
-                        padding: const EdgeInsets.fromLTRB(22, 20, 22, 19),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.96),
-                          borderRadius: BorderRadius.circular(22),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x190F172A),
-                              blurRadius: 20,
-                              offset: Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.location_off_outlined,
-                              color: _primary,
-                              size: 30,
-                            ),
-                            SizedBox(height: 10),
-                            Text(
-                              'Locations are still syncing',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: _textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: CustomScrollView(
+                    key: const PageStorageKey('explore-v2-scroll'),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 720),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                SkillNovaSpacing.md,
+                                SkillNovaSpacing.md,
+                                SkillNovaSpacing.md,
+                                SkillNovaSpacing.xxxl,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _header(locationLabel, currentLocation),
+                                  const SizedBox(height: SkillNovaSpacing.lg),
+                                  _searchAndActions(currentLocation),
+                                  const SizedBox(height: SkillNovaSpacing.md),
+                                  _categoryChips(),
+                                  const SizedBox(height: SkillNovaSpacing.lg),
+                                  _modeControl(),
+                                  const SizedBox(height: SkillNovaSpacing.md),
+                                  if (currentLocation == null)
+                                    _locationNotice(),
+                                  if (currentLocation == null)
+                                    const SizedBox(height: SkillNovaSpacing.md),
+                                  if (loading)
+                                    _loadingState()
+                                  else if (snapshot.hasError)
+                                    ErrorState(
+                                      title: 'Professionals unavailable',
+                                      message:
+                                          'We could not load professionals right now.',
+                                      actionLabel: 'Try again',
+                                      onAction: _resetStreams,
+                                    )
+                                  else ...[
+                                    _resultsHeader(visible.length),
+                                    const SizedBox(height: SkillNovaSpacing.sm),
+                                    AnimatedSwitcher(
+                                      duration: const Duration(
+                                        milliseconds: 220,
+                                      ),
+                                      child: _mapMode
+                                          ? _mapResults(
+                                              visible,
+                                              currentLocation,
+                                            )
+                                          : _listResults(
+                                              visible,
+                                              currentLocation,
+                                            ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
-                            SizedBox(height: 5),
-                            Text(
-                              'Workers with a shared location will appear here automatically.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: _textSecondary,
-                                fontSize: 11,
-                                height: 1.45,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        if (_selectedMapWorkerId != null && _selectedMapWorker != null) ...[
-          const SizedBox(height: 14),
-          _mapWorkerCard(
-            workerId: _selectedMapWorkerId!,
-            worker: _selectedMapWorker!,
-          ),
-        ] else ...[
-          const SizedBox(height: 11),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.touch_app_rounded, size: 15, color: _textSecondary),
-              SizedBox(width: 6),
-              Text(
-                'Tap a worker marker to preview the professional',
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _mapStatusChip({required IconData icon, required String text}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.96),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x160F172A),
-            blurRadius: 14,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: _primary, size: 17),
-          const SizedBox(width: 7),
-          Text(
-            text,
-            style: const TextStyle(
-              color: _textPrimary,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _mapRoundButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          height: 43,
-          width: 43,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.97),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x160F172A),
-                blurRadius: 14,
-                offset: Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Icon(icon, color: _primary, size: 20),
-        ),
-      ),
-    );
-  }
-
-  Widget _mapWorkerCard({
-    required String workerId,
-    required Map<String, dynamic> worker,
-  }) {
-    final name = _fallbackValue(worker['name'], 'Skilled Professional');
-    final skill = _fallbackValue(worker['skill'], 'Professional Service');
-    final city = _fallbackValue(worker['city'], 'Nearby');
-    final rating = _doubleValue(worker['rating']);
-    final available =
-        worker['canAcceptJobs'] == true ||
-        _boolValue(
-          worker['isAvailable'] ?? worker['available'] ?? worker['isOnline'],
-          defaultValue: true,
-        );
-
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D0F172A),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                height: 52,
-                width: 52,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [_primary, _secondary],
-                  ),
-                  borderRadius: BorderRadius.circular(17),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  _initials(name),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _textPrimary,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$skill • $city',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _textSecondary,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7E6),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.star_rounded, size: 15, color: _warning),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        color: _textPrimary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 13),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            WorkerPublicProfileScreen(workerId: workerId),
-                      ),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _textPrimary,
-                    side: const BorderSide(color: _border),
-                    minimumSize: const Size(0, 44),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                  ),
-                  child: const Text(
-                    'View profile',
-                    style: TextStyle(
-                      fontSize: 10.8,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: available
-                      ? () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  Request(selectedWorkerId: workerId),
-                            ),
-                          );
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: _primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(0, 44),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                  ),
-                  child: Text(
-                    available ? 'Request service' : 'Unavailable',
-                    style: const TextStyle(
-                      fontSize: 10.8,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  LatLng? _workerLatLng(Map<String, dynamic> worker) {
-    // Explore must never expose an active worker's private/live GPS by default.
-    // Prefer a deliberately public/service-area location saved in the profile.
-    final publicPairs = [
-      [worker['publicLat'], worker['publicLng']],
-      [worker['serviceAreaLat'], worker['serviceAreaLng']],
-      [worker['baseLatitude'], worker['baseLongitude']],
-    ];
-
-    for (final pair in publicPairs) {
-      final latValue = pair[0];
-      final lngValue = pair[1];
-      if (latValue is num && lngValue is num) {
-        final lat = latValue.toDouble();
-        final lng = lngValue.toDouble();
-        if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-          return LatLng(lat, lng);
-        }
-      }
-    }
-
-    for (final key in [
-      'publicLocation',
-      'serviceAreaLocation',
-      'baseLocation',
-    ]) {
-      final value = worker[key];
-      if (value is GeoPoint) {
-        return LatLng(value.latitude, value.longitude);
-      }
-      if (value is Map) {
-        final lat = value['lat'] ?? value['latitude'];
-        final lng = value['lng'] ?? value['longitude'];
-        if (lat is num && lng is num) {
-          return LatLng(lat.toDouble(), lng.toDouble());
-        }
-      }
-    }
-
-    // Backward-compatible fallback only when the worker explicitly opted in.
-    if (worker['shareLocationOnExplore'] == true) {
-      final directLat = worker['lat'] ?? worker['latitude'];
-      final directLng = worker['lng'] ?? worker['longitude'];
-      if (directLat is num && directLng is num) {
-        return LatLng(directLat.toDouble(), directLng.toDouble());
-      }
-    }
-
-    return null;
-  }
-
-  Future<void> _ensureCustomerLocation() async {
-    if (_isLocating) return;
-
-    setState(() => _isLocating = true);
-    try {
-      final servicesEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!servicesEnabled) return;
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-
-      if (!mounted) return;
-      setState(() => _customerPosition = position);
-
-      await _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(position.latitude, position.longitude),
-            zoom: 14.2,
-          ),
-        ),
-      );
-    } catch (_) {
-      // Location is an enhancement for discovery; Explore remains usable.
-    } finally {
-      if (mounted) setState(() => _isLocating = false);
-    }
-  }
-
-  Future<void> _fitWorkerMarkers(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> workers,
-  ) async {
-    if (_mapController == null || workers.isEmpty) return;
-
-    final points = workers
-        .map((doc) => _workerLatLng(doc.data()))
-        .whereType<LatLng>()
-        .toList();
-
-    if (_customerPosition != null) {
-      points.add(
-        LatLng(_customerPosition!.latitude, _customerPosition!.longitude),
-      );
-    }
-
-    if (points.isEmpty) return;
-    if (points.length == 1) {
-      await _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: points.first, zoom: 14.2),
-        ),
-      );
-      return;
-    }
-
-    var minLat = points.first.latitude;
-    var maxLat = points.first.latitude;
-    var minLng = points.first.longitude;
-    var maxLng = points.first.longitude;
-
-    for (final point in points.skip(1)) {
-      if (point.latitude < minLat) minLat = point.latitude;
-      if (point.latitude > maxLat) maxLat = point.latitude;
-      if (point.longitude < minLng) minLng = point.longitude;
-      if (point.longitude > maxLng) maxLng = point.longitude;
-    }
-
-    if ((maxLat - minLat).abs() < 0.0001 && (maxLng - minLng).abs() < 0.0001) {
-      await _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: points.first, zoom: 14.2),
-        ),
-      );
-      return;
-    }
-
-    await _mapController!.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat, minLng),
-          northeast: LatLng(maxLat, maxLng),
-        ),
-        70,
-      ),
-    );
-  }
-
-  Widget _workerSectionHeader() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: _sectionTitle(
-            title: _selectedCategory == 'All'
-                ? 'Top rated workers'
-                : 'Top $_selectedCategory workers',
-            subtitle: _selectedSort == 'Top Rated'
-                ? 'Sorted by highest customer ratings'
-                : 'Sorted by $_selectedSort',
-          ),
-        ),
-        if (_selectedCategory != 'All' ||
-            _showOnlyAvailable ||
-            _selectedSort != 'Top Rated')
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _selectedCategory = 'All';
-                _selectedSort = 'Top Rated';
-                _showOnlyAvailable = false;
-              });
-            },
-            child: const Text(
-              'Reset',
-              style: TextStyle(
-                color: _primary,
-                fontSize: 10.8,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _realTimeWorkers() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _workersStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _loadingWorkers();
-        }
-
-        if (snapshot.hasError) {
-          return _messageCard(
-            icon: Icons.cloud_off_rounded,
-            title: 'Unable to load professionals',
-            message: 'Please check your internet connection and try again.',
-            iconColor: const Color(0xFFDC2626),
-          );
-        }
-
-        final documents = snapshot.data?.docs ?? [];
-
-        final workers = documents
-            .where((document) => _matchesFilters(document.data()))
-            .toList();
-
-        _sortWorkers(workers);
-
-        if (workers.isEmpty) {
-          return _messageCard(
-            icon: Icons.person_search_rounded,
-            title: 'No professionals found',
-            message: _selectedCategory == 'All'
-                ? 'Try another search or adjust your filters.'
-                : 'No $_selectedCategory professional matches your filters.',
-            iconColor: _primary,
-          );
-        }
-
-        if (_isMapView) {
-          return _workersMap(workers);
-        }
-
-        return Column(
-          children: workers.asMap().entries.map((entry) {
-            return _workerCard(
-              workerId: entry.value.id,
-              worker: entry.value.data(),
-              rank: entry.key + 1,
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  bool _matchesFilters(Map<String, dynamic> worker) {
-    final name = _stringValue(worker['name']).toLowerCase();
-    final skill = _stringValue(worker['skill']).toLowerCase();
-    final city = _stringValue(worker['city']).toLowerCase();
-    final available = _boolValue(
-      worker['isAvailable'] ?? worker['available'],
-      defaultValue: true,
-    );
-
-    final matchesSearch =
-        _searchQuery.isEmpty ||
-        name.contains(_searchQuery) ||
-        skill.contains(_searchQuery) ||
-        city.contains(_searchQuery);
-
-    final matchesCategory =
-        _selectedCategory == 'All' ||
-        skill.contains(_selectedCategory.toLowerCase());
-
-    final matchesAvailability = !_showOnlyAvailable || available;
-
-    return matchesSearch && matchesCategory && matchesAvailability;
-  }
-
-  void _sortWorkers(List<QueryDocumentSnapshot<Map<String, dynamic>>> workers) {
-    workers.sort((first, second) {
-      final firstData = first.data();
-      final secondData = second.data();
-
-      switch (_selectedSort) {
-        case 'Most Jobs':
-          return _intValue(
-            secondData['completedJobs'],
-          ).compareTo(_intValue(firstData['completedJobs']));
-
-        case 'Lowest Rate':
-          return _numberValue(
-            firstData['hourlyRate'],
-          ).compareTo(_numberValue(secondData['hourlyRate']));
-
-        case 'Top Rated':
-        default:
-          final ratingComparison = _doubleValue(
-            secondData['rating'],
-          ).compareTo(_doubleValue(firstData['rating']));
-
-          if (ratingComparison != 0) {
-            return ratingComparison;
-          }
-
-          return _intValue(
-            secondData['completedJobs'],
-          ).compareTo(_intValue(firstData['completedJobs']));
-      }
-    });
-  }
-
-  Widget _workerCard({
-    required String workerId,
-    required Map<String, dynamic> worker,
-    required int rank,
-  }) {
-    final name = _fallbackValue(worker['name'], 'Skilled Professional');
-
-    final skill = _fallbackValue(worker['skill'], 'Professional Service');
-
-    final city = _fallbackValue(worker['city'], 'Nearby');
-
-    final rating = _doubleValue(worker['rating']);
-    final reviews = _intValue(worker['reviewsCount'] ?? worker['totalReviews']);
-    final isAvailable =
-        worker['canAcceptJobs'] == true ||
-        _boolValue(
-          worker['isAvailable'] ?? worker['available'] ?? worker['isOnline'],
-          defaultValue: true,
-        );
-    final verified =
-        worker['identityVerificationStatus']?.toString() == 'approved' ||
-        _boolValue(
-          worker['isVerified'] ?? worker['verified'],
-          defaultValue: false,
-        );
-    final rate = _formatRate(worker['hourlyRate']);
-
-    final profileImageUrl =
-        worker['profileImageUrl']?.toString().trim().isNotEmpty == true
-        ? worker['profileImageUrl'].toString().trim()
-        : worker['profileImage']?.toString().trim().isNotEmpty == true
-        ? worker['profileImage'].toString().trim()
-        : worker['imageUrl']?.toString().trim().isNotEmpty == true
-        ? worker['imageUrl'].toString().trim()
-        : worker['photoUrl']?.toString().trim().isNotEmpty == true
-        ? worker['photoUrl'].toString().trim()
-        : '';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x080F172A),
-            blurRadius: 17,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    height: 68,
-                    width: 68,
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [_primary, _secondary],
-                      ),
-                      borderRadius: BorderRadius.circular(21),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _primary.withOpacity(0.18),
-                          blurRadius: 14,
-                          offset: const Offset(0, 7),
-                        ),
-                      ],
-                    ),
-                    child: Container(
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: _surface,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: profileImageUrl.isNotEmpty
-                          ? Image.network(
-                              profileImageUrl,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-
-                                return const Center(
-                                  child: CircularProgressIndicator(
-                                    color: _primary,
-                                    strokeWidth: 2,
-                                  ),
-                                );
-                              },
-                              errorBuilder: (_, __, ___) {
-                                return _workerAvatarFallback(name);
-                              },
-                            )
-                          : _workerAvatarFallback(name),
-                    ),
-                  ),
-                  Positioned(left: -5, top: -5, child: _rankBadge(rank)),
-                  Positioned(
-                    right: -3,
-                    bottom: -3,
-                    child: Container(
-                      height: 19,
-                      width: 19,
-                      decoration: BoxDecoration(
-                        color: isAvailable ? _success : const Color(0xFF94A3B8),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _surface, width: 3),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _textPrimary,
-                              fontSize: 14.8,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        if (verified) ...[
-                          const SizedBox(width: 5),
-                          const Icon(
-                            Icons.verified_rounded,
-                            color: _primary,
-                            size: 16,
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      skill,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _textSecondary,
-                        fontSize: 10.8,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 5,
-                      children: [
-                        _smallInfo(
-                          icon: Icons.location_on_outlined,
-                          text: city,
-                        ),
-                        _smallInfo(
-                          icon: isAvailable
-                              ? Icons.check_circle_outline_rounded
-                              : Icons.schedule_rounded,
-                          text: isAvailable ? 'Available' : 'Busy',
-                          color: isAvailable ? _success : _textSecondary,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 9),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: _primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Text(
-                  rate,
-                  style: const TextStyle(
-                    color: _primary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection("requests")
-                .where("workerId", isEqualTo: workerId)
-                .where("status", isEqualTo: "completed")
-                .snapshots(),
-            builder: (context, snapshot) {
-              final completedJobs = snapshot.data?.docs.length ?? 0;
-
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 11,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _metric(
-                        icon: Icons.star_rounded,
-                        iconColor: _warning,
-                        value: rating.toStringAsFixed(1),
-                        label: reviews > 0 ? '$reviews reviews' : 'Rating',
-                      ),
-                    ),
-                    _metricDivider(),
-                    Expanded(
-                      child: _metric(
-                        icon: Icons.work_outline_rounded,
-                        iconColor: _primary,
-                        value: completedJobs.toString(),
-                        label: 'Jobs done',
-                      ),
-                    ),
-                    _metricDivider(),
-                    Expanded(
-                      child: _metric(
-                        icon: Icons.workspace_premium_outlined,
-                        iconColor: _success,
-                        value: rank <= 3 ? 'Top $rank' : 'Trusted',
-                        label: 'Ranking',
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 13),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            WorkerPublicProfileScreen(workerId: workerId),
-                      ),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _textPrimary,
-                    side: const BorderSide(color: _border),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    minimumSize: const Size(0, 46),
-                  ),
-                  icon: const Icon(Icons.person_outline_rounded, size: 17),
-                  label: const Text(
-                    'View profile',
-                    style: TextStyle(
-                      fontSize: 10.7,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: isAvailable
-                      ? () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  Request(selectedWorkerId: workerId),
-                            ),
-                          );
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    foregroundColor: Colors.white,
-                    backgroundColor: _primary,
-                    disabledBackgroundColor: _textSecondary.withOpacity(0.25),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    minimumSize: const Size(0, 46),
-                  ),
-                  icon: const Icon(Icons.send_rounded, size: 16),
-                  label: Text(
-                    isAvailable ? 'Send request' : 'Unavailable',
-                    style: const TextStyle(
-                      fontSize: 10.7,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _workerAvatarFallback(String name) {
-    return Container(
-      alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFEFF6FF), Color(0xFFDDF4FF)],
-        ),
-      ),
-      child: Text(
-        _initials(name),
-        style: const TextStyle(
-          color: _primary,
-          fontSize: 18,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-
-  Widget _rankBadge(int rank) {
-    final color = rank == 1
-        ? const Color(0xFFF59E0B)
-        : rank == 2
-        ? const Color(0xFF94A3B8)
-        : rank == 3
-        ? const Color(0xFFB45309)
-        : _primary;
-
-    return Container(
-      height: 24,
-      constraints: const BoxConstraints(minWidth: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: _surface, width: 2),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        '#$rank',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 8.5,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-
-  Widget _smallInfo({
-    required IconData icon,
-    required String text,
-    Color color = _textSecondary,
-  }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 13),
-        const SizedBox(width: 3),
-        Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 9.4,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _metric({
-    required IconData icon,
-    required Color iconColor,
-    required String value,
-    required String label,
-  }) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: iconColor, size: 14),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: _textPrimary,
-                  fontSize: 10.3,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: _textSecondary,
-            fontSize: 8.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _metricDivider() {
-    return Container(width: 1, height: 29, color: _border);
-  }
-
-  Widget _loadingWorkers() {
-    return Column(
-      children: List.generate(
-        3,
-        (_) => Container(
-          height: 176,
-          margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: _border),
-          ),
-          child: const Center(
-            child: CircularProgressIndicator(color: _primary, strokeWidth: 2.5),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _messageCard({
-    required IconData icon,
-    required String title,
-    required String message,
-    required Color iconColor,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(23),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        children: [
-          Container(
-            height: 54,
-            width: 54,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.10),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Icon(icon, color: iconColor, size: 28),
-          ),
-          const SizedBox(height: 13),
-          Text(
-            title,
-            style: const TextStyle(
-              color: _textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _textSecondary,
-              fontSize: 10.8,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _openFilterSheet() async {
-    String tempSort = _selectedSort;
-    bool tempAvailability = _showOnlyAvailable;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Container(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                12,
-                20,
-                24 + MediaQuery.paddingOf(context).bottom,
-              ),
-              decoration: const BoxDecoration(
-                color: _surface,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      height: 5,
-                      width: 48,
-                      decoration: BoxDecoration(
-                        color: _border,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Filter professionals',
-                    style: TextStyle(
-                      color: _textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  const Text(
-                    'Choose how workers should be displayed.',
-                    style: TextStyle(
-                      color: _textSecondary,
-                      fontSize: 10.8,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  const Text(
-                    'Sort workers',
-                    style: TextStyle(
-                      color: _textPrimary,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 11),
-                  Wrap(
-                    spacing: 9,
-                    runSpacing: 9,
-                    children: ['Top Rated', 'Most Jobs', 'Lowest Rate'].map((
-                      option,
-                    ) {
-                      final selected = tempSort == option;
-
-                      return ChoiceChip(
-                        selected: selected,
-                        label: Text(option),
-                        onSelected: (_) {
-                          setSheetState(() => tempSort = option);
-                        },
-                        selectedColor: _primary.withOpacity(0.12),
-                        backgroundColor: const Color(0xFFF8FAFC),
-                        side: BorderSide(color: selected ? _primary : _border),
-                        labelStyle: TextStyle(
-                          color: selected ? _primary : _textSecondary,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 18),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: tempAvailability,
-                    activeColor: _primary,
-                    title: const Text(
-                      'Available workers only',
-                      style: TextStyle(
-                        color: _textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      'Hide professionals who are currently busy.',
-                      style: TextStyle(
-                        color: _textSecondary,
-                        fontSize: 10.2,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    onChanged: (value) {
-                      setSheetState(() => tempAvailability = value);
-                    },
-                  ),
-                  const SizedBox(height: 17),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            setSheetState(() {
-                              tempSort = 'Top Rated';
-                              tempAvailability = false;
-                            });
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _textPrimary,
-                            side: const BorderSide(color: _border),
-                            minimumSize: const Size(0, 52),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: const Text(
-                            'Reset',
-                            style: TextStyle(fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 11),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedSort = tempSort;
-                              _showOnlyAvailable = tempAvailability;
-                            });
-
-                            Navigator.pop(sheetContext);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            foregroundColor: Colors.white,
-                            backgroundColor: _primary,
-                            minimumSize: const Size(0, 52),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: const Text(
-                            'Apply filters',
-                            style: TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
-        );
-      },
-    );
-  }
-
-  String _fallbackValue(dynamic value, String fallback) {
-    final text = value?.toString().trim() ?? '';
-    return text.isEmpty ? fallback : text;
-  }
-
-  String _stringValue(dynamic value) {
-    return value?.toString().trim() ?? '';
-  }
-
-  double _doubleValue(dynamic value) {
-    if (value is num) return value.toDouble();
-    return double.tryParse(value?.toString() ?? '') ?? 0;
-  }
-
-  double _numberValue(dynamic value) {
-    if (value is num) return value.toDouble();
-
-    final cleaned = value?.toString().replaceAll(RegExp(r'[^0-9.]'), '');
-
-    return double.tryParse(cleaned ?? '') ?? double.infinity;
-  }
-
-  int _intValue(dynamic value) {
-    if (value is num) return value.toInt();
-    return int.tryParse(value?.toString() ?? '') ?? 0;
-  }
-
-  bool _boolValue(dynamic value, {required bool defaultValue}) {
-    if (value is bool) return value;
-
-    final text = value?.toString().toLowerCase().trim();
-
-    if (text == 'true' || text == '1' || text == 'yes') {
-      return true;
-    }
-
-    if (text == 'false' || text == '0' || text == 'no') {
-      return false;
-    }
-
-    return defaultValue;
-  }
-
-  String _formatRate(dynamic value) {
-    final text = value?.toString().trim() ?? '';
-
-    if (text.isEmpty) return 'Rate N/A';
-
-    if (text.toLowerCase().contains('rs')) return text;
-
-    return 'Rs. $text';
-  }
-
-  String _initials(String name) {
-    final parts = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .toList();
-
-    if (parts.isEmpty) return 'WP';
-
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
-
-    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
-        .toUpperCase();
-  }
-
-  Widget _ambientCircle({required double size, required Color color}) {
-    return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-      child: Container(
-        height: size,
-        width: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
       ),
     );
   }
-}
 
-class ServiceCategory {
-  final String title;
-  final IconData icon;
-  final Color accent;
+  Widget _header(String locationLabel, SkillNovaCoordinate? location) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Explore professionals', style: theme.textTheme.headlineSmall),
+        const SizedBox(height: SkillNovaSpacing.xs),
+        InkWell(
+          onTap: _locate,
+          borderRadius: BorderRadius.circular(SkillNovaRadius.small),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: SkillNovaSpacing.xxs),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  location == null
+                      ? Icons.location_off_outlined
+                      : Icons.location_on_outlined,
+                  color: theme.colorScheme.primary,
+                  size: 19,
+                ),
+                const SizedBox(width: SkillNovaSpacing.xs),
+                Flexible(
+                  child: Text(
+                    location == null ? 'Use current location' : locationLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+                const SizedBox(width: SkillNovaSpacing.xxs),
+                if (_locating)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  const Icon(Icons.my_location_rounded, size: 17),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-  const ServiceCategory({
-    required this.title,
-    required this.icon,
-    required this.accent,
-  });
+  Widget _searchAndActions(SkillNovaCoordinate? location) {
+    return Column(
+      children: [
+        SkillNovaSearchField(
+          key: const ValueKey('explore-search'),
+          controller: _searchController,
+          hintText: 'Search plumber, electrician, AC repair...',
+          onChanged: (value) {
+            setState(() => _query = value.trim().toLowerCase());
+          },
+          trailing: _searchController.text.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Clear search',
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _query = '');
+                  },
+                  icon: const Icon(Icons.close_rounded),
+                ),
+        ),
+        const SizedBox(height: SkillNovaSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _openFilters(location),
+                icon: const Icon(Icons.tune_rounded, size: 19),
+                label: Text(
+                  _filters.activeCount == 0
+                      ? 'Filters'
+                      : 'Filters (${_filters.activeCount})',
+                ),
+              ),
+            ),
+            const SizedBox(width: SkillNovaSpacing.sm),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _openSort(location),
+                icon: const Icon(Icons.swap_vert_rounded, size: 19),
+                label: Text(_sort.label, overflow: TextOverflow.ellipsis),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _categoryChips() {
+    final categories = ['All', ...allServices.map((service) => service.title)];
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length,
+        separatorBuilder: (context, index) =>
+            const SizedBox(width: SkillNovaSpacing.xs),
+        itemBuilder: (context, index) {
+          final category = categories[index];
+          return ChoiceChip(
+            key: ValueKey('category-$category'),
+            label: Text(category),
+            selected: _filters.category == category,
+            onSelected: (_) {
+              setState(() {
+                _filters = ExploreFilters(
+                  category: category,
+                  minimumRating: _filters.minimumRating,
+                  minimumRate: _filters.minimumRate,
+                  maximumRate: _filters.maximumRate,
+                  maximumDistanceKm: _filters.maximumDistanceKm,
+                );
+                _selectedWorkerId = null;
+              });
+              _scheduleMapFit();
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _modeControl() {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(SkillNovaSpacing.xxs),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
+      ),
+      child: Row(
+        children: [
+          _modeButton(
+            label: 'List',
+            icon: Icons.view_agenda_outlined,
+            selected: !_mapMode,
+          ),
+          _modeButton(
+            label: 'Map',
+            icon: Icons.map_outlined,
+            selected: _mapMode,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _modeButton({
+    required String label,
+    required IconData icon,
+    required bool selected,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Material(
+        color: selected ? colors.surface : Colors.transparent,
+        borderRadius: BorderRadius.circular(SkillNovaRadius.small),
+        child: InkWell(
+          onTap: () {
+            if (_mapMode == (label == 'Map')) return;
+            setState(() {
+              _mapMode = label == 'Map';
+              _selectedWorkerId = null;
+            });
+          },
+          borderRadius: BorderRadius.circular(SkillNovaRadius.small),
+          child: SizedBox(
+            height: 44,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 19,
+                  color: selected ? colors.primary : colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: SkillNovaSpacing.xs),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: selected ? colors.primary : colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _locationNotice() {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(SkillNovaSpacing.sm),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.near_me_disabled_outlined,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: SkillNovaSpacing.sm),
+          Expanded(
+            child: Text(
+              'Enable location to see real distances and nearest sorting.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+          TextButton(onPressed: _locate, child: const Text('Enable')),
+        ],
+      ),
+    );
+  }
+
+  Widget _resultsHeader(int count) {
+    return SectionHeader(
+      title: '$count ${count == 1 ? 'professional' : 'professionals'}',
+      subtitle: 'Only currently eligible, identity-verified providers',
+      actionLabel: _filters.isActive || _query.isNotEmpty ? 'Clear' : null,
+      onAction: _filters.isActive || _query.isNotEmpty ? _clearFilters : null,
+    );
+  }
+
+  Widget _loadingState() {
+    return Column(
+      children: List.generate(
+        3,
+        (index) => const Padding(
+          padding: EdgeInsets.only(bottom: SkillNovaSpacing.sm),
+          child: SkeletonCard(height: 230),
+        ),
+      ),
+    );
+  }
+
+  Widget _listResults(
+    List<ExploreProfessional> professionals,
+    SkillNovaCoordinate? customerLocation,
+  ) {
+    if (professionals.isEmpty) return _emptyResults();
+    return Column(
+      key: const PageStorageKey('explore-list-results'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: professionals
+          .map((professional) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: SkillNovaSpacing.sm),
+              child: _professionalCard(professional, customerLocation),
+            );
+          })
+          .toList(growable: false),
+    );
+  }
+
+  Widget _professionalCard(
+    ExploreProfessional professional,
+    SkillNovaCoordinate? customerLocation,
+  ) {
+    final coordinate = professional.publicCoordinate;
+    final distance = customerLocation != null && coordinate != null
+        ? distanceInKilometers(customerLocation, coordinate)
+        : null;
+    return ProfessionalCard(
+      width: double.infinity,
+      name: professional.name,
+      skill: professional.skill,
+      photoUrl: professional.photoUrl,
+      rating: professional.rating,
+      reviewCount: professional.reviewCount,
+      verified: true,
+      experience: professional.experience.isEmpty
+          ? null
+          : professional.experience,
+      startingRate: professional.rateText.isEmpty
+          ? null
+          : formatRate(professional.rateText),
+      distanceKm: distance,
+      onViewProfile: () => _openProfile(professional, distance),
+      onBook: () => _requestService(professional.id),
+    );
+  }
+
+  Widget _emptyResults() {
+    final filtered = _filters.isActive || _query.isNotEmpty;
+    return EmptyState(
+      icon: filtered
+          ? Icons.manage_search_outlined
+          : Icons.person_search_outlined,
+      title: filtered
+          ? 'No matching professionals'
+          : 'No professionals available',
+      message: filtered
+          ? 'Try a broader search or clear your current filters.'
+          : 'Eligible professionals will appear here when available.',
+      actionLabel: filtered ? 'Clear filters' : null,
+      onAction: filtered ? _clearFilters : null,
+    );
+  }
+
+  Widget _mapResults(
+    List<ExploreProfessional> professionals,
+    SkillNovaCoordinate? customerLocation,
+  ) {
+    final mapped = professionals
+        .where((professional) => professional.publicCoordinate != null)
+        .toList(growable: false);
+    if (mapped.isEmpty) {
+      return const EmptyState(
+        key: ValueKey('map-empty'),
+        icon: Icons.location_off_outlined,
+        title: 'No public locations to show',
+        message:
+            'These professionals can still be viewed in the list, but none has shared a valid public service location.',
+      );
+    }
+
+    final selected = mapped
+        .where((professional) => professional.id == _selectedWorkerId)
+        .firstOrNull;
+    final markers = mapped.map((professional) {
+      final coordinate = professional.publicCoordinate!;
+      return Marker(
+        markerId: MarkerId(professional.id),
+        position: LatLng(coordinate.latitude, coordinate.longitude),
+        infoWindow: InfoWindow(
+          title: professional.name,
+          snippet: professional.skill,
+        ),
+        onTap: () => setState(() => _selectedWorkerId = professional.id),
+      );
+    }).toSet();
+    final first = customerLocation ?? mapped.first.publicCoordinate!;
+    final initialCamera =
+        _lastCamera ??
+        CameraPosition(
+          target: LatLng(first.latitude, first.longitude),
+          zoom: 12.5,
+        );
+
+    return Column(
+      key: const ValueKey('map-results'),
+      children: [
+        Container(
+          height: 430,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(SkillNovaRadius.large),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GoogleMap(
+                  initialCameraPosition: initialCamera,
+                  markers: markers,
+                  myLocationEnabled: customerLocation != null,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  onCameraMove: (position) => _lastCamera = position,
+                  onMapCreated: (controller) {
+                    _mapController = controller;
+                    _fitMap(mapped, customerLocation);
+                  },
+                ),
+              ),
+              Positioned(
+                top: SkillNovaSpacing.sm,
+                left: SkillNovaSpacing.sm,
+                child: _mapCount(mapped.length),
+              ),
+              Positioned(
+                top: SkillNovaSpacing.sm,
+                right: SkillNovaSpacing.sm,
+                child: IconButton.filled(
+                  tooltip: 'Use current location',
+                  onPressed: _locate,
+                  icon: const Icon(Icons.my_location_rounded),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (selected != null) ...[
+          const SizedBox(height: SkillNovaSpacing.sm),
+          _professionalCard(selected, customerLocation),
+        ],
+      ],
+    );
+  }
+
+  Widget _mapCount(int count) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: SkillNovaSpacing.sm,
+        vertical: SkillNovaSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(SkillNovaRadius.pill),
+        boxShadow: SkillNovaElevation.subtle,
+      ),
+      child: Text('$count on map', style: theme.textTheme.labelMedium),
+    );
+  }
+
+  List<ExploreProfessional> _filterAndSort(
+    List<ExploreProfessional> source,
+    SkillNovaCoordinate? customerLocation,
+  ) {
+    final visible = source.where((professional) {
+      final matchesSearch =
+          _query.isEmpty ||
+          professional.name.toLowerCase().contains(_query) ||
+          professional.skill.toLowerCase().contains(_query) ||
+          professional.city.toLowerCase().contains(_query);
+      final matchesCategory =
+          _filters.category == 'All' ||
+          professional.skill.toLowerCase().contains(
+            _filters.category.toLowerCase(),
+          );
+      final matchesRating = professional.rating >= _filters.minimumRating;
+      final rate = professional.numericRate;
+      final matchesMinimumRate =
+          _filters.minimumRate == null ||
+          (rate != null && rate >= _filters.minimumRate!);
+      final matchesMaximumRate =
+          _filters.maximumRate == null ||
+          (rate != null && rate <= _filters.maximumRate!);
+      final workerLocation = professional.publicCoordinate;
+      final distance = customerLocation != null && workerLocation != null
+          ? distanceInKilometers(customerLocation, workerLocation)
+          : null;
+      final matchesDistance =
+          _filters.maximumDistanceKm == null ||
+          (distance != null && distance <= _filters.maximumDistanceKm!);
+      return matchesSearch &&
+          matchesCategory &&
+          matchesRating &&
+          matchesMinimumRate &&
+          matchesMaximumRate &&
+          matchesDistance;
+    }).toList();
+
+    final effectiveSort =
+        _sort == ExploreSort.nearest && customerLocation == null
+        ? ExploreSort.recommended
+        : _sort;
+    visible.sort((first, second) {
+      final result = switch (effectiveSort) {
+        ExploreSort.highestRated => _compareRating(first, second),
+        ExploreSort.lowestRate => _compareRate(first, second, ascending: true),
+        ExploreSort.highestRate => _compareRate(
+          first,
+          second,
+          ascending: false,
+        ),
+        ExploreSort.nearest => _compareDistance(
+          first,
+          second,
+          customerLocation!,
+        ),
+        ExploreSort.recommended => _recommendedScore(
+          second,
+        ).compareTo(_recommendedScore(first)),
+      };
+      return result != 0 ? result : first.name.compareTo(second.name);
+    });
+    return visible.take(40).toList(growable: false);
+  }
+
+  int _compareRating(ExploreProfessional first, ExploreProfessional second) {
+    final rating = second.rating.compareTo(first.rating);
+    return rating != 0
+        ? rating
+        : second.reviewCount.compareTo(first.reviewCount);
+  }
+
+  int _compareRate(
+    ExploreProfessional first,
+    ExploreProfessional second, {
+    required bool ascending,
+  }) {
+    final firstRate = first.numericRate;
+    final secondRate = second.numericRate;
+    if (firstRate == null && secondRate == null) return 0;
+    if (firstRate == null) return 1;
+    if (secondRate == null) return -1;
+    return ascending
+        ? firstRate.compareTo(secondRate)
+        : secondRate.compareTo(firstRate);
+  }
+
+  int _compareDistance(
+    ExploreProfessional first,
+    ExploreProfessional second,
+    SkillNovaCoordinate customer,
+  ) {
+    final firstLocation = first.publicCoordinate;
+    final secondLocation = second.publicCoordinate;
+    if (firstLocation == null && secondLocation == null) return 0;
+    if (firstLocation == null) return 1;
+    if (secondLocation == null) return -1;
+    return distanceInKilometers(
+      customer,
+      firstLocation,
+    ).compareTo(distanceInKilometers(customer, secondLocation));
+  }
+
+  double _recommendedScore(ExploreProfessional professional) {
+    final reviewConfidence = math.log(professional.reviewCount + 1) * 4;
+    return professional.rating * 20 + reviewConfidence;
+  }
+
+  Future<void> _openFilters(SkillNovaCoordinate? location) async {
+    final updated = await showExploreFilterSheet(
+      context: context,
+      current: _filters,
+      distanceAvailable: location != null,
+    );
+    if (updated == null || !mounted) return;
+    setState(() {
+      _filters = updated;
+      _selectedWorkerId = null;
+    });
+    _scheduleMapFit();
+  }
+
+  Future<void> _openSort(SkillNovaCoordinate? location) async {
+    final selected = await showExploreSortSheet(
+      context: context,
+      current: _sort,
+      distanceAvailable: location != null,
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _sort = selected);
+  }
+
+  Future<void> _locate() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    try {
+      final location = await _locationService.currentLocation();
+      if (!mounted) return;
+      if (location == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location permission or service is unavailable.'),
+          ),
+        );
+        return;
+      }
+      setState(() {
+        _deviceLocation = location;
+        _lastCamera = CameraPosition(
+          target: LatLng(location.latitude, location.longitude),
+          zoom: 13.5,
+        );
+      });
+      await _mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(_lastCamera!),
+      );
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<void> _refresh() => _dataSource.refresh();
+
+  void _resetStreams() => setState(_createStreams);
+
+  void _clearFilters() {
+    _searchController.clear();
+    setState(() {
+      _query = '';
+      _filters = const ExploreFilters();
+      _sort = ExploreSort.recommended;
+      _selectedWorkerId = null;
+    });
+    _scheduleMapFit();
+  }
+
+  void _openProfile(ExploreProfessional professional, double? distance) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WorkerPublicProfileScreen(
+          workerId: professional.id,
+          distanceKm: distance,
+        ),
+      ),
+    );
+  }
+
+  void _requestService(String workerId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => Request(selectedWorkerId: workerId)),
+    );
+  }
+
+  void _scheduleMapFit() {
+    if (!_mapMode) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _fitMap(_latestVisible, _latestCustomerLocation);
+    });
+  }
+
+  Future<void> _fitMap(
+    List<ExploreProfessional> professionals,
+    SkillNovaCoordinate? customer,
+  ) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    final points = professionals
+        .map((professional) => professional.publicCoordinate)
+        .whereType<SkillNovaCoordinate>()
+        .toList();
+    if (customer != null) points.add(customer);
+    if (points.isEmpty) return;
+    if (points.length == 1) {
+      await controller.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(points.first.latitude, points.first.longitude),
+          13.5,
+        ),
+      );
+      return;
+    }
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+    for (final point in points.skip(1)) {
+      minLat = math.min(minLat, point.latitude);
+      maxLat = math.max(maxLat, point.latitude);
+      minLng = math.min(minLng, point.longitude);
+      maxLng = math.max(maxLng, point.longitude);
+    }
+    if ((maxLat - minLat).abs() < 0.0001 && (maxLng - minLng).abs() < 0.0001) {
+      await controller.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(minLat, minLng), 13.5),
+      );
+      return;
+    }
+    await controller.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        64,
+      ),
+    );
+  }
 }

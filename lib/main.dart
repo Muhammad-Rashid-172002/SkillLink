@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:skill_link/design_system/skillnova_theme.dart';
 import 'package:skill_link/screens/customer_screens/Chat/chat_detail_screen.dart';
 import 'package:skill_link/screens/splash_screen/splash_screen.dart';
 import 'package:skill_link/screens/worker_screens/Chat/WorkerChatDetailScreen.dart';
@@ -148,8 +149,6 @@ class _MyAppState extends State<MyApp> {
 
     // Current logged-in user ke liye token save karega.
     final String? initialToken = await messaging.getToken();
-
-    debugPrint('FCM Token: $initialToken');
 
     if (initialToken != null && initialToken.isNotEmpty) {
       await _saveTokenToFirestore(initialToken);
@@ -538,6 +537,9 @@ class _MyAppState extends State<MyApp> {
         workerSkill: workerSkill.isEmpty ? service : workerSkill,
         workerPhone: workerPhone?.isEmpty == true ? null : workerPhone,
         workerImageUrl: workerImageUrl?.isEmpty == true ? null : workerImageUrl,
+        workerVerified:
+            workerData['role'] == 'worker' &&
+            workerData['identityVerificationStatus'] == 'approved',
       ),
     );
   }
@@ -559,17 +561,22 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      debugShowCheckedModeBanner: false,
-      title: 'SkillNova',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const SplashScreen(),
-      navigatorObservers: [
-        // FirebaseAnalyticsObserver(analytics: MyApp.analytics),
-      ],
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: SkillNovaThemeController.mode,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          navigatorKey: navigatorKey,
+          debugShowCheckedModeBanner: false,
+          title: 'SkillNova',
+          theme: SkillNovaTheme.light,
+          darkTheme: SkillNovaTheme.dark,
+          themeMode: themeMode,
+          home: const SplashScreen(),
+          navigatorObservers: [
+            // FirebaseAnalyticsObserver(analytics: MyApp.analytics),
+          ],
+        );
+      },
     );
   }
 }

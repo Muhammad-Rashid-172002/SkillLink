@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/request_tracking_screen.dart';
 
 class Request extends StatefulWidget {
@@ -407,7 +406,6 @@ class _RequestState extends State<Request> {
 
     return Scaffold(
       backgroundColor: _background,
-      bottomNavigationBar: const CustomerBottomBar(selectedIndex: 2),
       body: Stack(
         children: [
           Positioned(
