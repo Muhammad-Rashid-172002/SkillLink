@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
-import 'package:skill_link/screens/worker_screens/Chat/Chat_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_screen.dart';
-import 'package:skill_link/screens/worker_screens/home_screen/JobsByStatusScreen.dart';
+import 'package:skill_link/screens/worker_screens/jobs/worker_jobs_screen.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_leads_screen.dart';
+import 'package:skill_link/screens/worker_screens/messages/worker_messages_screen.dart';
 import 'package:skill_link/screens/worker_screens/navigation/worker_navigation_scope.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/WorkerProfileScreen.dart';
 
@@ -39,12 +39,8 @@ class _WorkerNavigationShellState extends State<WorkerNavigationShell> {
     return switch (index) {
       0 => WorkerHomeScreen(onSelectTab: _selectTab),
       1 => const WorkerLeadsScreen(),
-      2 => const JobsByStatusScreen(
-        title: 'My jobs',
-        status: 'all',
-        embedded: true,
-      ),
-      3 => const ChatScreen(),
+      2 => const WorkerJobsScreen(embedded: true),
+      3 => const WorkerMessagesScreen(),
       4 => const WorkerProfileScreen(),
       _ => WorkerHomeScreen(onSelectTab: _selectTab),
     };

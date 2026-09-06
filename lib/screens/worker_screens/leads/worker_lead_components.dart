@@ -343,18 +343,29 @@ class WorkerLeadCustomerAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final photo = customer?.photoUrl ?? '';
     final colors = Theme.of(context).colorScheme;
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: colors.primaryContainer,
-      foregroundColor: colors.onPrimaryContainer,
-      backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
-      onBackgroundImageError: photo.isNotEmpty ? (_, _) {} : null,
-      child: photo.isEmpty
-          ? Text(
-              customer?.initials ?? 'C',
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            )
-          : null,
+    final fallback = ColoredBox(
+      color: colors.primaryContainer,
+      child: Center(
+        child: Text(
+          customer?.initials ?? 'C',
+          style: TextStyle(
+            color: colors.onPrimaryContainer,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+    return ClipOval(
+      child: SizedBox.square(
+        dimension: radius * 2,
+        child: photo.isEmpty
+            ? fallback
+            : Image.network(
+                photo,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => fallback,
+              ),
+      ),
     );
   }
 }

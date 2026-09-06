@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
 import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
+import 'package:skill_link/screens/worker_screens/jobs/worker_job_detail_screen.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_lead_components.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_lead_models.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_leads_repository.dart';
@@ -452,15 +452,7 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
         await Navigator.pushReplacement(
           context,
           MaterialPageRoute<void>(
-            builder: (_) => WorkerJobDetailScreen(
-              requestId: lead.id,
-              title: lead.title,
-              category: lead.category,
-              location: lead.privateLocation,
-              distance: workerLeadDistance(lead.distanceKm),
-              budget: lead.postedBudget,
-              urgency: lead.urgency,
-            ),
+            builder: (_) => WorkerJobDetailV2Screen(requestId: lead.id),
           ),
         );
       }

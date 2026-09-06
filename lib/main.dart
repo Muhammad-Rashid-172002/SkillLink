@@ -10,9 +10,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:skill_link/design_system/skillnova_theme.dart';
 import 'package:skill_link/screens/customer_screens/Chat/chat_detail_screen.dart';
 import 'package:skill_link/screens/splash_screen/splash_screen.dart';
-import 'package:skill_link/screens/worker_screens/Chat/WorkerChatDetailScreen.dart';
-import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
+import 'package:skill_link/screens/worker_screens/jobs/worker_job_detail_screen.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_lead_detail_screen.dart';
+import 'package:skill_link/screens/worker_screens/messages/worker_chat_detail_screen.dart';
 import 'package:skill_link/services/skillnova_preferences.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -358,23 +358,6 @@ class _MyAppState extends State<MyApp> {
       final Map<String, dynamic> requestData =
           requestSnapshot.data() ?? <String, dynamic>{};
 
-      final String title =
-          requestData['title']?.toString().trim() ?? 'Service request';
-      final String category =
-          requestData['category']?.toString().trim() ?? 'Service';
-      final String location =
-          requestData['location']?.toString().trim() ?? 'Location unavailable';
-      final String urgency =
-          requestData['urgency']?.toString().trim() ?? 'Normal';
-      final String rawBudget =
-          requestData['budget']?.toString().trim() ?? 'Not specified';
-      final String distance =
-          requestData['distance']?.toString().trim() ?? 'Nearby';
-
-      final String budget = rawBudget.toLowerCase().startsWith('rs')
-          ? rawBudget
-          : 'Rs. $rawBudget';
-
       final status = requestData['status']
           ?.toString()
           .trim()
@@ -383,15 +366,7 @@ class _MyAppState extends State<MyApp> {
       await _navigateWhenReady(
         status == 'searching'
             ? WorkerLeadDetailScreen(requestId: requestId)
-            : WorkerJobDetailScreen(
-                requestId: requestId,
-                title: title,
-                category: category,
-                location: location,
-                distance: distance,
-                budget: budget,
-                urgency: urgency,
-              ),
+            : WorkerJobDetailV2Screen(requestId: requestId),
       );
     } catch (error, stackTrace) {
       debugPrint('Job navigation error: $error');
@@ -503,7 +478,7 @@ class _MyAppState extends State<MyApp> {
         'Customer';
 
     await _navigateWhenReady(
-      WorkerChatDetailScreen(
+      WorkerChatDetailV2Screen(
         chatId: chatId,
         customerId: customerId,
         customerName: customerName.isEmpty ? 'Customer' : customerName,

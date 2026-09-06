@@ -28,6 +28,18 @@ void main() {
     expect(lead.imageUrls, hasLength(1));
     expect(lead.publicServiceArea, isNot(contains('33.6844')));
     expect(_lead(id: 'bad', lat: 110, lng: 300).coordinate, isNull);
+    const minimal = WorkerLead(
+      id: 'minimal',
+      data: {'status': 'searching', 'category': 'AC Repair'},
+    );
+    expect(minimal.postedBudget, 'Not provided');
+    expect(minimal.coordinate, isNull);
+    expect(minimal.imageUrls, isEmpty);
+    expect(minimal.customerId, isEmpty);
+    expect(
+      workerLeadCategoryQueryValues('AC Technician'),
+      contains('AC Repair'),
+    );
   });
 
   test(
@@ -208,6 +220,43 @@ void main() {
           ),
         ),
       );
+      final unchangedWorker = {..._worker().data};
+      for (final workerData in [
+        {..._worker().data, 'isBlocked': true},
+        {..._worker().data, 'accountStatus': 'inactive'},
+        {..._worker().data, 'canAcceptJobs': false},
+        {..._worker().data, 'profileCompleted': false},
+      ]) {
+        expect(
+          () => planWorkerLeadAcceptance(
+            workerId: 'worker-1',
+            workerData: workerData,
+            requestId: 'lead-1',
+            requestData: _lead(id: 'lead-1').data,
+          ),
+          throwsA(isA<WorkerLeadAcceptanceException>()),
+        );
+      }
+      expect(
+        () => planWorkerLeadAcceptance(
+          workerId: 'worker-1',
+          workerData: unchangedWorker,
+          requestId: 'deleted',
+          requestData: null,
+        ),
+        throwsA(
+          isA<WorkerLeadAcceptanceException>().having(
+            (error) => error.failure,
+            'failure',
+            WorkerLeadAcceptanceFailure.leadMissing,
+          ),
+        ),
+      );
+      expect(
+        unchangedWorker['credits'],
+        5,
+        reason: 'failed plans do not mutate credit data',
+      );
     },
   );
 
@@ -257,8 +306,20 @@ void main() {
         '',
       );
 
+      await tester.tap(find.byKey(const ValueKey('worker-lead-sort')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Highest posted budget'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.text('Bedroom AC not cooling')).dy,
+        lessThan(
+          tester.getTopLeft(find.text('Office air conditioner service')).dy,
+        ),
+      );
+
       await tester.tap(find.byKey(const ValueKey('worker-lead-filters')));
       await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'AC Repair'));
       await tester.tap(find.widgetWithText(ChoiceChip, 'Urgent'));
       await tester.ensureVisible(find.text('Apply filters'));
       await tester.tap(find.text('Apply filters'));
@@ -266,14 +327,71 @@ void main() {
       expect(find.text('Bedroom AC not cooling'), findsOneWidget);
       expect(find.text('Office air conditioner service'), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('worker-lead-sort')));
-      await tester.pumpAndSettle();
-      expect(find.text('Highest posted budget'), findsOneWidget);
-      Navigator.pop(tester.element(find.text('Sort leads')));
-      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('empty, error and dark states are responsive at 320', (
+    tester,
+  ) async {
+    _size(tester, const Size(320, 720));
+    await tester.pumpWidget(
+      _app(
+        WorkerLeadsScreen(
+          key: const ValueKey('empty-leads'),
+          repository: _FakeWorkerLeadsRepository(
+            worker: _worker(),
+            leads: const [],
+          ),
+        ),
+        themeMode: ThemeMode.dark,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('No matching leads yet'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(
+      _app(
+        WorkerLeadsScreen(
+          key: const ValueKey('error-leads'),
+          repository: _FakeWorkerLeadsRepository(
+            worker: _worker(),
+            leads: const [],
+            leadsError: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Unable to load leads'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('missing worker location disables nearest without hiding leads', (
+    tester,
+  ) async {
+    _size(tester, const Size(390, 844));
+    final repo = _FakeWorkerLeadsRepository(
+      worker: _worker(includeCoordinates: false),
+      leads: [_lead(id: 'located-request', lat: 33.6844, lng: 73.0479)],
+    );
+    await tester.pumpWidget(_app(WorkerLeadsScreen(repository: repo)));
+    await tester.pumpAndSettle();
+    expect(find.text('AC service request'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('worker-lead-sort')));
+    await tester.pumpAndSettle();
+    expect(find.text('Nearest'), findsNothing);
+    Navigator.pop(tester.element(find.text('Sort leads')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Map'));
+    await tester.pumpAndSettle();
+    final map = tester.widget<GoogleMap>(find.byType(GoogleMap));
+    expect(map.markers, hasLength(1));
+    expect(map.markers.single.markerId.value, 'located-request');
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('List and map preserve filters and use only valid map points', (
     tester,
@@ -415,6 +533,67 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'Lead Detail preserves images, customer photo and avatar fallback',
+    (tester) async {
+      _size(tester, const Size(390, 844));
+      const photoCustomer = WorkerLeadCustomer(
+        id: 'customer-photo',
+        name: 'Ayesha Khan',
+        city: 'Islamabad',
+        photoUrl: 'https://example.com/customer.jpg',
+      );
+      final withImage = _lead(
+        id: 'image-detail',
+        images: const ['https://example.com/request.jpg'],
+        customer: photoCustomer,
+      );
+      await tester.pumpWidget(
+        _app(
+          WorkerLeadDetailScreen(
+            key: const ValueKey('image-detail-screen'),
+            requestId: withImage.id,
+            repository: _FakeWorkerLeadsRepository(
+              worker: _worker(),
+              leads: [withImage],
+            ),
+          ),
+          themeMode: ThemeMode.dark,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Ayesha'), findsOneWidget);
+      expect(find.byType(Image), findsWidgets);
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('lead-image-0')),
+        220,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.byKey(const ValueKey('lead-image-0')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      final fallback = _lead(
+        id: 'fallback-detail',
+        customer: const WorkerLeadCustomer(id: 'c', name: 'Bilal Ali'),
+      );
+      await tester.pumpWidget(
+        _app(
+          WorkerLeadDetailScreen(
+            key: const ValueKey('fallback-detail-screen'),
+            requestId: fallback.id,
+            repository: _FakeWorkerLeadsRepository(
+              worker: _worker(),
+              leads: [fallback],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('B'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('acceptance failures show professional messages', (tester) async {
     _size(tester, const Size(390, 844));
     final repo = _FakeWorkerLeadsRepository(
@@ -441,7 +620,11 @@ void main() {
   });
 }
 
-WorkerHomeProfile _worker({int credits = 5, String verification = 'approved'}) {
+WorkerHomeProfile _worker({
+  int credits = 5,
+  String verification = 'approved',
+  bool includeCoordinates = true,
+}) {
   return WorkerHomeProfile(
     uid: 'worker-1',
     data: {
@@ -453,8 +636,8 @@ WorkerHomeProfile _worker({int credits = 5, String verification = 'approved'}) {
       'canAcceptJobs': true,
       'accountStatus': 'active',
       'credits': credits,
-      'lat': 33.6938,
-      'lng': 73.0652,
+      if (includeCoordinates) 'lat': 33.6938,
+      if (includeCoordinates) 'lng': 73.0652,
     },
   );
 }
@@ -502,12 +685,14 @@ class _FakeWorkerLeadsRepository implements WorkerLeadsRepository {
     required this.leads,
     this.acceptance,
     this.acceptError,
+    this.leadsError = false,
   });
 
   final WorkerHomeProfile worker;
   final List<WorkerLead> leads;
   final Completer<void>? acceptance;
   final Object? acceptError;
+  final bool leadsError;
   int acceptCalls = 0;
 
   @override
@@ -529,17 +714,19 @@ class _FakeWorkerLeadsRepository implements WorkerLeadsRepository {
 
   @override
   Stream<List<WorkerLead>> watchLeads(WorkerHomeProfile worker) =>
-      Stream.value(leads);
+      leadsError ? Stream.error(StateError('offline')) : Stream.value(leads);
 
   @override
   Stream<WorkerHomeProfile> watchWorker() => Stream.value(worker);
 }
 
-Widget _app(Widget child) => MaterialApp(
-  theme: SkillNovaTheme.light,
-  darkTheme: SkillNovaTheme.dark,
-  home: WorkerNavigationScope(child: child),
-);
+Widget _app(Widget child, {ThemeMode themeMode = ThemeMode.light}) =>
+    MaterialApp(
+      theme: SkillNovaTheme.light,
+      darkTheme: SkillNovaTheme.dark,
+      themeMode: themeMode,
+      home: WorkerNavigationScope(child: child),
+    );
 
 void _size(WidgetTester tester, Size size) {
   tester.view.physicalSize = size;

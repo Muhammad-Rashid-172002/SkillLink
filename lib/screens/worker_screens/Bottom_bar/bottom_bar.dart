@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:skill_link/screens/worker_screens/Chat/Chat_screen.dart';
 import 'package:skill_link/screens/worker_screens/Map/Map_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_screen.dart';
-import 'package:skill_link/screens/worker_screens/home_screen/JobsByStatusScreen.dart';
+import 'package:skill_link/screens/worker_screens/jobs/worker_jobs_screen.dart';
+import 'package:skill_link/screens/worker_screens/messages/worker_messages_screen.dart';
 import 'package:skill_link/screens/worker_screens/navigation/worker_navigation_scope.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/WorkerProfileScreen.dart';
 
@@ -49,8 +49,8 @@ class WorkerBottomBar extends StatelessWidget {
     final screen = switch (index) {
       0 => const WorkerHomeScreen(),
       1 => const MapSreen(),
-      2 => const JobsByStatusScreen(title: 'My jobs', status: 'all'),
-      3 => const ChatScreen(),
+      2 => const WorkerJobsScreen(),
+      3 => const WorkerMessagesScreen(),
       4 => const WorkerProfileScreen(),
       _ => const WorkerHomeScreen(),
     };

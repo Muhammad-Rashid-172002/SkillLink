@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:skill_link/Notification_screen/notification_screen.dart';
 import 'package:skill_link/screens/verification/worker_verification_center.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
-import 'package:skill_link/screens/worker_screens/Chat/Chat_screen.dart';
-import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
+import 'package:skill_link/screens/worker_screens/messages/worker_messages_screen.dart';
 import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_components.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_repository.dart';
-import 'package:skill_link/screens/worker_screens/home_screen/JobsByStatusScreen.dart';
+import 'package:skill_link/screens/worker_screens/jobs/worker_job_detail_screen.dart';
+import 'package:skill_link/screens/worker_screens/jobs/worker_jobs_screen.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_lead_detail_screen.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_leads_screen.dart';
 import 'package:skill_link/screens/worker_screens/navigation/worker_navigation_scope.dart';
@@ -81,19 +81,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   void _openLead(String id) => _open(WorkerLeadDetailScreen(requestId: id));
 
   void _openActiveJob(WorkerActiveJob job) {
-    _open(
-      WorkerJobDetailScreen(
-        requestId: job.id,
-        title: job.title,
-        category: job.category,
-        location: job.location,
-        distance: 'Distance unavailable',
-        budget: job.budget.isEmpty
-            ? 'Budget not provided'
-            : formatWorkerBudget(job.budget),
-        urgency: job.urgency,
-      ),
-    );
+    _open(WorkerJobDetailV2Screen(requestId: job.id));
   }
 
   @override
@@ -252,11 +240,8 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           const SizedBox(height: 8),
           WorkerQuickActions(
             onLeads: () => _tab(1, const WorkerLeadsScreen()),
-            onJobs: () => _tab(
-              2,
-              const JobsByStatusScreen(title: 'My jobs', status: 'all'),
-            ),
-            onMessages: () => _tab(3, const ChatScreen()),
+            onJobs: () => _tab(2, const WorkerJobsScreen()),
+            onMessages: () => _tab(3, const WorkerMessagesScreen()),
             onProfile: () => _tab(4, const WorkerProfileScreen()),
           ),
         ],

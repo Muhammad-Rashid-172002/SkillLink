@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
+import 'package:skill_link/screens/worker_screens/leads/worker_lead_models.dart';
 
 abstract interface class WorkerHomeRepository {
   String? get currentWorkerId;
@@ -99,9 +100,15 @@ class FirebaseWorkerHomeRepository implements WorkerHomeRepository {
   @override
   Stream<List<WorkerLeadPreview>> watchLeads(WorkerHomeProfile worker) {
     if (worker.querySkill.isEmpty) return Stream.value(const []);
-    return _firestore
+    final categories = workerLeadCategoryQueryValues(worker.querySkill);
+    Query<Map<String, dynamic>> query = _firestore
         .collection('requests')
-        .where('status', isEqualTo: 'searching')
+        .where('status', isEqualTo: 'searching');
+    query = categories.length == 1
+        ? query.where('category', isEqualTo: categories.single)
+        : query.where('category', whereIn: categories);
+    return query
+        .orderBy('createdAt', descending: true)
         .limit(30)
         .snapshots()
         .map((snapshot) {
