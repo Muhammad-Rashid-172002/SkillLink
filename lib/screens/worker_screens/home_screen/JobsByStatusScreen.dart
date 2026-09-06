@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
+import 'package:skill_link/screens/worker_screens/leads/worker_lead_detail_screen.dart';
 
 class JobsByStatusScreen extends StatefulWidget {
   final String title;
@@ -575,15 +576,17 @@ class _JobsByStatusScreenState extends State<JobsByStatusScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => WorkerJobDetailScreen(
-                requestId: requestId,
-                title: jobTitle,
-                category: category,
-                location: location,
-                distance: 'Nearby',
-                budget: budget,
-                urgency: urgency,
-              ),
+              builder: (_) => _isAvailableJobs
+                  ? WorkerLeadDetailScreen(requestId: requestId)
+                  : WorkerJobDetailScreen(
+                      requestId: requestId,
+                      title: jobTitle,
+                      category: category,
+                      location: location,
+                      distance: 'Distance unavailable',
+                      budget: budget,
+                      urgency: urgency,
+                    ),
             ),
           );
         },

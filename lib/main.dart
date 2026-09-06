@@ -12,6 +12,7 @@ import 'package:skill_link/screens/customer_screens/Chat/chat_detail_screen.dart
 import 'package:skill_link/screens/splash_screen/splash_screen.dart';
 import 'package:skill_link/screens/worker_screens/Chat/WorkerChatDetailScreen.dart';
 import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
+import 'package:skill_link/screens/worker_screens/leads/worker_lead_detail_screen.dart';
 import 'package:skill_link/services/skillnova_preferences.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -374,16 +375,23 @@ class _MyAppState extends State<MyApp> {
           ? rawBudget
           : 'Rs. $rawBudget';
 
+      final status = requestData['status']
+          ?.toString()
+          .trim()
+          .toLowerCase()
+          .replaceAll(' ', '_');
       await _navigateWhenReady(
-        WorkerJobDetailScreen(
-          requestId: requestId,
-          title: title,
-          category: category,
-          location: location,
-          distance: distance,
-          budget: budget,
-          urgency: urgency,
-        ),
+        status == 'searching'
+            ? WorkerLeadDetailScreen(requestId: requestId)
+            : WorkerJobDetailScreen(
+                requestId: requestId,
+                title: title,
+                category: category,
+                location: location,
+                distance: distance,
+                budget: budget,
+                urgency: urgency,
+              ),
       );
     } catch (error, stackTrace) {
       debugPrint('Job navigation error: $error');

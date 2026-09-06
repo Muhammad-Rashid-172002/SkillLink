@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
+import 'package:skill_link/screens/worker_screens/leads/worker_lead_detail_screen.dart';
 import 'package:skill_link/services/emergency_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -843,115 +843,16 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
   Widget _actionButton(BuildContext context, String status) {
     if (status == "searching" || status == "pending") {
       return _button(
-        text: "Accept Job",
-        icon: Icons.check_circle_outline_rounded,
+        text: "Review Lead",
+        icon: Icons.arrow_forward_rounded,
         color: const Color(0xFF16A34A),
-        onTap: () async {
-          final uid = FirebaseAuth.instance.currentUser!.uid;
-
-          final workerDoc = await FirebaseFirestore.instance
-              .collection("users")
-              .doc(uid)
-              .get();
-
-          final workerData = workerDoc.data() as Map<String, dynamic>;
-
-          final bool canAcceptJobs = workerData["canAcceptJobs"] == true;
-
-          final String verificationStatus =
-              workerData["identityVerificationStatus"]?.toString() ??
-              "not_submitted";
-
-          if (!canAcceptJobs || verificationStatus != "approved") {
-            if (!context.mounted) return;
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                behavior: SnackBarBehavior.floating,
-                backgroundColor: const Color(0xFFDC2626),
-                content: Text(
-                  verificationStatus == "pending"
-                      ? "Your identity verification is under review."
-                      : verificationStatus == "rejected"
-                      ? "Your verification was rejected. Please submit your documents again."
-                      : "Complete identity verification before accepting jobs.",
-                ),
-              ),
-            );
-
-            return;
-          }
-
-          final credits = workerData["credits"] ?? 0;
-
-          if (credits <= 0) {
-            _showNoCreditsDialog();
-            return;
-          }
-
-          await FirebaseFirestore.instance.runTransaction((transaction) async {
-            final workerRef = FirebaseFirestore.instance
-                .collection("users")
-                .doc(uid);
-
-            final requestRef = FirebaseFirestore.instance
-                .collection("requests")
-                .doc(widget.requestId);
-
-            final freshWorkerDoc = await transaction.get(workerRef);
-
-            final freshWorkerData = freshWorkerDoc.data();
-
-            if (freshWorkerData == null) {
-              throw Exception("Worker profile not found");
-            }
-
-            final bool freshCanAcceptJobs =
-                freshWorkerData["canAcceptJobs"] == true;
-
-            final String freshVerificationStatus =
-                freshWorkerData["identityVerificationStatus"]?.toString() ??
-                "not_submitted";
-
-            if (!freshCanAcceptJobs || freshVerificationStatus != "approved") {
-              throw Exception("Identity verification approval is required");
-            }
-
-            final freshCredits =
-                (freshWorkerDoc.data()?["credits"] ?? 0) as int;
-
-            if (freshCredits <= 0) {
-              throw Exception("No credits available");
-            }
-
-            transaction.update(workerRef, {
-              "credits": freshCredits - 1,
-              "updatedAt": FieldValue.serverTimestamp(),
-            });
-
-            transaction.update(requestRef, {
-              "status": "accepted",
-              "workerId": uid,
-              "acceptedAt": FieldValue.serverTimestamp(),
-              "updatedAt": FieldValue.serverTimestamp(),
-            });
-
-            final transactionRef = FirebaseFirestore.instance
-                .collection("transactions")
-                .doc();
-
-            transaction.set(transactionRef, {
-              "workerId": uid,
-              "requestId": widget.requestId,
-              "title": "Used 1 lead credit",
-              "amount": "-1 Credit",
-              "type": "lead_used",
-              "createdAt": FieldValue.serverTimestamp(),
-            });
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Job accepted. 1 credit deducted.")),
+        onTap: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) =>
+                  WorkerLeadDetailScreen(requestId: widget.requestId),
+            ),
           );
         },
       );
@@ -1024,158 +925,6 @@ class _WorkerJobDetailScreenState extends State<WorkerJobDetailScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  void _showNoCreditsDialog() {
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: "No Credits",
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (_, __, ___) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 30,
-                    offset: Offset(0, 15),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    height: 78,
-                    width: 78,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF4E5),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFFFFC107),
-                        width: 2,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.account_balance_wallet_rounded,
-                      size: 40,
-                      color: Color(0xFFF59E0B),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  const Text(
-                    "Insufficient Credits",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  const Text(
-                    "You don't have enough credits to accept this job.\n\nPurchase more credits to continue receiving customer requests.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-
-                  const SizedBox(height: 26),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(52),
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          child: const Text(
-                            "Maybe Later",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF475569),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            elevation: 0,
-                            backgroundColor: const Color(0xFF16A34A),
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(52),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.shopping_cart_checkout_rounded,
-                          ),
-                          label: const Text(
-                            "Buy Credits",
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context);
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const WallatScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (_, animation, __, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutBack,
-            ),
-            child: child,
-          ),
-        );
-      },
     );
   }
 

@@ -3,13 +3,14 @@ import 'package:skill_link/Notification_screen/notification_screen.dart';
 import 'package:skill_link/screens/verification/worker_verification_center.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/Chat/Chat_screen.dart';
-import 'package:skill_link/screens/worker_screens/Map/Map_screen.dart';
 import 'package:skill_link/screens/worker_screens/Map/worker_job_detail.dart';
 import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_components.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_repository.dart';
 import 'package:skill_link/screens/worker_screens/home_screen/JobsByStatusScreen.dart';
+import 'package:skill_link/screens/worker_screens/leads/worker_lead_detail_screen.dart';
+import 'package:skill_link/screens/worker_screens/leads/worker_leads_screen.dart';
 import 'package:skill_link/screens/worker_screens/navigation/worker_navigation_scope.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/WorkerProfileScreen.dart';
 
@@ -77,28 +78,20 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     select == null ? _open(fallback) : select(index);
   }
 
-  void _openJob({
-    required String id,
-    required String title,
-    required String category,
-    required String location,
-    required String budget,
-    required String urgency,
-    double? distanceKm,
-  }) {
+  void _openLead(String id) => _open(WorkerLeadDetailScreen(requestId: id));
+
+  void _openActiveJob(WorkerActiveJob job) {
     _open(
       WorkerJobDetailScreen(
-        requestId: id,
-        title: title,
-        category: category,
-        location: location,
-        distance: distanceKm == null
-            ? 'Distance unavailable'
-            : formatWorkerDistance(distanceKm),
-        budget: budget.isEmpty
+        requestId: job.id,
+        title: job.title,
+        category: job.category,
+        location: job.location,
+        distance: 'Distance unavailable',
+        budget: job.budget.isEmpty
             ? 'Budget not provided'
-            : formatWorkerBudget(budget),
-        urgency: urgency,
+            : formatWorkerBudget(job.budget),
+        urgency: job.urgency,
       ),
     );
   }
@@ -182,14 +175,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
               return ActiveWorkerJobCard(
                 job: job,
                 hasAdditionalJobs: active!.hasAdditionalJobs,
-                onTap: () => _openJob(
-                  id: job.id,
-                  title: job.title,
-                  category: job.category,
-                  location: job.location,
-                  budget: job.budget,
-                  urgency: job.urgency,
-                ),
+                onTap: () => _openActiveJob(job),
               );
             },
           ),
@@ -197,7 +183,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           WorkerSectionHeader(
             title: 'New leads',
             actionLabel: 'See all leads',
-            onAction: () => _tab(1, const MapSreen()),
+            onAction: () => _tab(1, const WorkerLeadsScreen()),
           ),
           const SizedBox(height: 10),
           if (!readiness.canReceiveLeads)
@@ -237,15 +223,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
                           padding: const EdgeInsets.only(bottom: 10),
                           child: WorkerLeadPreviewCard(
                             lead: lead,
-                            onTap: () => _openJob(
-                              id: lead.id,
-                              title: lead.title,
-                              category: lead.category,
-                              location: lead.location,
-                              budget: lead.budget,
-                              urgency: lead.urgency,
-                              distanceKm: lead.distanceKm,
-                            ),
+                            onTap: () => _openLead(lead.id),
                           ),
                         ),
                       )
@@ -273,7 +251,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           const WorkerSectionHeader(title: 'Quick actions'),
           const SizedBox(height: 8),
           WorkerQuickActions(
-            onLeads: () => _tab(1, const MapSreen()),
+            onLeads: () => _tab(1, const WorkerLeadsScreen()),
             onJobs: () => _tab(
               2,
               const JobsByStatusScreen(title: 'My jobs', status: 'all'),
