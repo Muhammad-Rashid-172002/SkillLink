@@ -68,8 +68,8 @@ class ExploreProfessional {
   String get skill => firstText(data, const ['skill'], 'Professional service');
   String get city => firstText(data, const ['city', 'location'], '');
   String get photoUrl => firstText(data, const [
-    'profileImage',
     'profileImageUrl',
+    'profileImage',
     'photoUrl',
     'imageUrl',
   ], '');

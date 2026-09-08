@@ -5,7 +5,7 @@ import 'package:skill_link/screens/worker_screens/jobs/worker_jobs_screen.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_leads_screen.dart';
 import 'package:skill_link/screens/worker_screens/messages/worker_messages_screen.dart';
 import 'package:skill_link/screens/worker_screens/navigation/worker_navigation_scope.dart';
-import 'package:skill_link/screens/worker_screens/profile_screen/WorkerProfileScreen.dart';
+import 'package:skill_link/screens/worker_screens/profile/worker_profile_screen.dart';
 
 class WorkerNavigationShell extends StatefulWidget {
   const WorkerNavigationShell({

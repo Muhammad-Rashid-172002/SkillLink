@@ -119,8 +119,8 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
     final name = firstText(worker, const ['name'], 'Professional');
     final skill = firstText(worker, const ['skill'], 'Professional service');
     final photo = firstText(worker, const [
-      'profileImage',
       'profileImageUrl',
+      'profileImage',
       'photoUrl',
       'imageUrl',
     ], '');
@@ -329,8 +329,8 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
         workerSkill: firstText(worker, const ['skill'], ''),
         workerPhone: firstText(worker, const ['phone', 'phoneNumber'], ''),
         workerImageUrl: firstText(worker, const [
-          'profileImage',
           'profileImageUrl',
+          'profileImage',
           'photoUrl',
           'imageUrl',
         ], ''),

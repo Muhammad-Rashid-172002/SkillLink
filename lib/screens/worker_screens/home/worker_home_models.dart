@@ -104,8 +104,8 @@ class WorkerHomeProfile {
   String get querySkill =>
       workerText(data, const ['skill', 'mainSkill', 'category']);
   String get photoUrl => workerText(data, const [
-    'profileImage',
     'profileImageUrl',
+    'profileImage',
     'photoUrl',
     'imageUrl',
   ]);
@@ -194,6 +194,36 @@ class WorkerReadiness {
 
 abstract final class WorkerEligibilityAdapter {
   static WorkerReadiness evaluate(WorkerHomeProfile worker) {
+    final blocker = availabilityBlocker(worker);
+    if (blocker != null) return blocker;
+    if (!worker.canAcceptJobs) {
+      return const WorkerReadiness(
+        state: WorkerReadinessState.acceptanceDisabled,
+        title: 'Not accepting new jobs',
+        message:
+            'Your profile is verified, but job acceptance is currently disabled.',
+      );
+    }
+    if (worker.credits <= 0) {
+      return const WorkerReadiness(
+        state: WorkerReadinessState.needsCredits,
+        title: 'Add lead credits to accept jobs',
+        message:
+            'Your profile can receive eligible leads, but accepting one requires a lead credit.',
+      );
+    }
+    return const WorkerReadiness(
+      state: WorkerReadinessState.ready,
+      title: 'Ready for new jobs',
+      message:
+          'Your verified profile can receive and accept eligible customer leads.',
+    );
+  }
+
+  /// Returns the authoritative blocker that prevents a worker from enabling
+  /// `canAcceptJobs`. Credits are intentionally excluded: a verified worker may
+  /// receive leads at zero credits, but still needs a credit to accept one.
+  static WorkerReadiness? availabilityBlocker(WorkerHomeProfile worker) {
     if (worker.explicitlyBlocked ||
         worker.accountStatus == 'blocked' ||
         worker.accountStatus == 'suspended') {
@@ -257,28 +287,7 @@ abstract final class WorkerEligibilityAdapter {
       case WorkerVerificationState.approved:
         break;
     }
-    if (!worker.canAcceptJobs) {
-      return const WorkerReadiness(
-        state: WorkerReadinessState.acceptanceDisabled,
-        title: 'Not accepting new jobs',
-        message:
-            'Your profile is verified, but job acceptance is currently disabled.',
-      );
-    }
-    if (worker.credits <= 0) {
-      return const WorkerReadiness(
-        state: WorkerReadinessState.needsCredits,
-        title: 'Add lead credits to accept jobs',
-        message:
-            'Your profile can receive eligible leads, but accepting one requires a lead credit.',
-      );
-    }
-    return const WorkerReadiness(
-      state: WorkerReadinessState.ready,
-      title: 'Ready for new jobs',
-      message:
-          'Your verified profile can receive and accept eligible customer leads.',
-    );
+    return null;
   }
 }
 
