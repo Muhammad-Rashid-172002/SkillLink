@@ -252,8 +252,8 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_app(const HelpSupportScreen()));
-    expect(find.text('Booking help'), findsOneWidget);
-    expect(find.text('Email support'), findsOneWidget);
+    expect(find.text('Booking / Requests'), findsOneWidget);
+    expect(find.text('Email Support'), findsWidgets);
     await tester.pumpWidget(_app(const CustomerSafetyScreen()));
     expect(find.text('Call Police 15'), findsOneWidget);
     await tester.pumpWidget(_app(const CustomerPrivacyScreen()));

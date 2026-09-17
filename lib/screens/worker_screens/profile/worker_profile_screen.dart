@@ -403,7 +403,10 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                 icon: Icons.info_outline_rounded,
                 title: 'About SkillNova',
                 subtitle: 'Product information and actual app version',
-                onTap: () => _open(const AboutSkillNovaScreen()),
+                onTap: () => showSkillNovaAboutDialog(
+                  context,
+                  helpBuilder: (_) => const WorkerHelpScreen(),
+                ),
               ),
             ],
           ),

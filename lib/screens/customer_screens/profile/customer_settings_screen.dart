@@ -225,7 +225,10 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                   icon: Icons.info_outline_rounded,
                   title: 'SkillNova',
                   subtitle: 'About and application version',
-                  onTap: () => _open(const AboutSkillNovaScreen()),
+                  onTap: () => showSkillNovaAboutDialog(
+                    context,
+                    helpBuilder: (_) => const HelpSupportScreen(),
+                  ),
                 ),
               ],
             ),
