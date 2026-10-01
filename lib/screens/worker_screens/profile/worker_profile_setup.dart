@@ -6,11 +6,11 @@ import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/core/auth/session_router.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:skill_link/models/service_data.dart';
-import 'package:skill_link/screens/verification/worker_verification_center.dart';
 
 class WorkerProfileSetupScreen extends StatefulWidget {
   const WorkerProfileSetupScreen({super.key});
@@ -267,12 +267,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
 
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const WorkerVerificationCenterScreen(),
-        ),
-      );
+      await SessionRouter.continueSession(context);
     } catch (error) {
       if (!mounted) return;
 

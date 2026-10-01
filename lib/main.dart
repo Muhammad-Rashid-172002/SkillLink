@@ -2,12 +2,20 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:skill_link/firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:skill_link/core/auth/auth_session_service.dart';
+import 'package:skill_link/core/auth/user_role.dart';
 import 'package:skill_link/design_system/skillnova_theme.dart';
+import 'package:skill_link/screens/customer_screens/bookings/booking_detail_screen.dart';
+import 'package:skill_link/screens/worker_screens/menuTiles/ReviewsScreen.dart';
+import 'package:skill_link/services/saveFcmToken.dart';
 import 'package:skill_link/screens/customer_screens/Chat/chat_detail_screen.dart';
 import 'package:skill_link/screens/splash_screen/splash_screen.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_detail_screen.dart';
@@ -36,7 +44,7 @@ const AndroidNotificationChannel jobChannel = AndroidNotificationChannel(
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   debugPrint('Background notification received');
   debugPrint('Title: ${message.notification?.title}');
@@ -44,10 +52,29 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('Data: ${message.data}');
 }
 
+/// QA only: `flutter run --dart-define=USE_FIREBASE_EMULATOR=true` points the
+/// app at the local Firebase Emulator Suite so auth/role flows can be tested
+/// without touching production data. Never enabled in release builds.
+const bool _useFirebaseEmulator = bool.fromEnvironment('USE_FIREBASE_EMULATOR');
+const String _emulatorHost = String.fromEnvironment(
+  'FIREBASE_EMULATOR_HOST',
+  defaultValue: 'localhost',
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  if (_useFirebaseEmulator && !kReleaseMode) {
+    await FirebaseAuth.instance.useAuthEmulator(_emulatorHost, 9099);
+    FirebaseFirestore.instance.useFirestoreEmulator(_emulatorHost, 8080);
+    FirebaseFunctions.instanceFor(
+      region: 'us-central1',
+    ).useFunctionsEmulator(_emulatorHost, 5001);
+    FirebaseStorage.instance.useStorageEmulator(_emulatorHost, 9199);
+    debugPrint('Using Firebase emulators on $_emulatorHost');
+  }
   await skillNovaPreferences.load();
   SkillNovaThemeController.syncFromPreferences();
   final app = Firebase.app();
@@ -56,7 +83,9 @@ Future<void> main() async {
   debugPrint('Firebase appId: ${app.options.appId}');
   debugPrint('Firebase messagingSenderId: ${app.options.messagingSenderId}');
 
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  }
 
   runApp(const MyApp());
 }
@@ -86,8 +115,18 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _setupNotifications() async {
-    await _initializeLocalNotifications();
-    await _initializeFirebaseNotifications();
+    // Push setup must never crash or block app start (e.g. no APNs token on a
+    // simulator, Play Services missing, or the device is offline).
+    try {
+      await _initializeLocalNotifications();
+    } catch (error) {
+      debugPrint('Local notifications unavailable: $error');
+    }
+    try {
+      await _initializeFirebaseNotifications();
+    } catch (error) {
+      debugPrint('Firebase messaging unavailable: $error');
+    }
   }
 
   Future<void> _initializeLocalNotifications() async {
@@ -171,15 +210,7 @@ class _MyAppState extends State<MyApp> {
         final String? token = await messaging.getToken();
 
         if (token != null && token.isNotEmpty) {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .set({
-                'fcmToken': token,
-                'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
-              }, SetOptions(merge: true));
-
-          debugPrint('FCM token saved after login.');
+          await syncFcmToken(user.uid, token);
         }
       } catch (error, stackTrace) {
         debugPrint('FCM token login save error: $error');
@@ -276,17 +307,7 @@ class _MyAppState extends State<MyApp> {
       return;
     }
 
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'fcmToken': token,
-        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      debugPrint('FCM token saved successfully');
-    } catch (error, stackTrace) {
-      debugPrint('FCM token saving error: $error');
-      debugPrintStack(stackTrace: stackTrace);
-    }
+    await syncFcmToken(user.uid, token);
   }
 
   Future<void> _handleNotificationTap(RemoteMessage message) async {
@@ -307,20 +328,38 @@ class _MyAppState extends State<MyApp> {
     }
 
     if (type == 'job_status') {
-      debugPrint('Job status notification tapped: ${data['requestId']}');
-
-      // Customer request detail screen navigation yahan add hogi.
+      final requestId = data['requestId']?.toString().trim() ?? '';
+      if (requestId.isEmpty) return;
+      final role = await _currentVerifiedRole();
+      if (role == UserRole.customer) {
+        await _navigateWhenReady(BookingDetailScreen(requestId: requestId));
+      } else if (role == UserRole.worker) {
+        await _navigateWhenReady(WorkerJobDetailV2Screen(requestId: requestId));
+      }
       return;
     }
 
     if (type == 'review') {
-      debugPrint('Review notification tapped: ${data['reviewId']}');
-
-      // Worker reviews/profile screen navigation yahan add hogi.
+      if (await _currentVerifiedRole() == UserRole.worker) {
+        await _navigateWhenReady(const ReviewsRatingsScreen());
+      }
       return;
     }
 
     debugPrint('Unsupported notification type: $type');
+  }
+
+  /// Role is always verified against Firestore before opening a
+  /// role-specific screen from a notification.
+  Future<UserRole?> _currentVerifiedRole() async {
+    final service = AuthSessionService.instance;
+    if (service.verifiedRole.value != null) return service.verifiedRole.value;
+    if (FirebaseAuth.instance.currentUser == null) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    if (FirebaseAuth.instance.currentUser == null) return null;
+    final session = await service.resolve();
+    return session.stage == SessionStage.home ? session.role : null;
   }
 
   Future<void> _openJobFromData(Map<String, dynamic> data) async {
@@ -340,6 +379,11 @@ class _MyAppState extends State<MyApp> {
 
     if (currentUser == null) {
       debugPrint('User is not logged in. Job cannot be opened.');
+      return;
+    }
+
+    if (await _currentVerifiedRole() != UserRole.worker) {
+      debugPrint('Job notification ignored: not a verified worker session.');
       return;
     }
 

@@ -34,21 +34,26 @@ class SkillNovaPreferencesController extends ChangeNotifier {
 
   static const String themeKey = 'skillnova_theme_mode';
   static const String notificationKey = 'notifications_enabled';
+  static const String onboardingKey = 'skillnova_onboarding_completed';
 
   final SkillNovaPreferenceStore _store;
   ThemeMode _themeMode = ThemeMode.system;
   bool _localNotificationsEnabled = true;
+  bool _onboardingCompleted = false;
 
   ThemeMode get themeMode => _themeMode;
+  bool get onboardingCompleted => _onboardingCompleted;
   bool get localNotificationsEnabled => _localNotificationsEnabled;
 
   Future<void> load() async {
     final values = await Future.wait<Object?>([
       _store.readString(themeKey),
       _store.readBool(notificationKey),
+      _store.readBool(onboardingKey),
     ]);
     _themeMode = _themeFromName(values[0] as String?);
     _localNotificationsEnabled = values[1] as bool? ?? true;
+    _onboardingCompleted = values[2] as bool? ?? false;
     notifyListeners();
   }
 
@@ -66,6 +71,12 @@ class SkillNovaPreferencesController extends ChangeNotifier {
     _localNotificationsEnabled = value;
     notifyListeners();
     return true;
+  }
+
+  Future<void> markOnboardingCompleted() async {
+    if (_onboardingCompleted) return;
+    _onboardingCompleted = true;
+    await _store.writeBool(onboardingKey, true);
   }
 
   ThemeMode _themeFromName(String? value) => switch (value) {

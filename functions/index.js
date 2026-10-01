@@ -1728,3 +1728,71 @@ exports.syncLiveTrackingWithJobStatus = onDocumentUpdated(
       }
     },
 );
+
+/**
+ * Keeps `users/{workerId}.completedJobs` accurate whenever a job is completed
+ * (or un-completed by an admin). Customers display this number instead of
+ * querying other customers' requests, which security rules do not allow.
+ */
+exports.syncWorkerCompletedJobs = onDocumentUpdated(
+    "requests/{requestId}",
+    async (event) => {
+      const before = event.data.before.data() || {};
+      const after = event.data.after.data() || {};
+      const wasCompleted = String(before.status || "").toLowerCase() === "completed";
+      const isCompleted = String(after.status || "").toLowerCase() === "completed";
+      if (wasCompleted === isCompleted) return;
+
+      const workerId = String(after.workerId || before.workerId || "").trim();
+      if (!workerId) return;
+
+      const firestore = getFirestore();
+      const aggregate = await firestore
+          .collection("requests")
+          .where("workerId", "==", workerId)
+          .where("status", "==", "completed")
+          .count()
+          .get();
+
+      await firestore.collection("users").doc(workerId).set({
+        completedJobs: aggregate.data().count,
+        statsUpdatedAt: new Date(),
+      }, {merge: true});
+    },
+);
+
+/**
+ * Recomputes a worker's rating server-side whenever a review is created, so
+ * ratings no longer depend on a client writing another user's profile.
+ */
+exports.syncWorkerRating = onDocumentCreated(
+    "reviews/{reviewId}",
+    async (event) => {
+      const review = event.data && event.data.data();
+      const workerId = review && String(review.workerId || "").trim();
+      if (!workerId) return;
+
+      const firestore = getFirestore();
+      const snapshot = await firestore
+          .collection("reviews")
+          .where("workerId", "==", workerId)
+          .get();
+
+      let total = 0;
+      let count = 0;
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const rating = Number(data.rating);
+        if (data.isHidden === true || data.isDeleted === true) return;
+        if (!Number.isFinite(rating) || rating < 1 || rating > 5) return;
+        total += rating;
+        count += 1;
+      });
+
+      await firestore.collection("users").doc(workerId).set({
+        rating: count === 0 ? 0 : Math.round((total / count) * 10) / 10,
+        totalReviews: count,
+        statsUpdatedAt: new Date(),
+      }, {merge: true});
+    },
+);

@@ -1,3 +1,4 @@
+import 'package:skill_link/core/auth/auth_session_service.dart';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -101,7 +102,7 @@ class FirebaseCustomerProfileRepository implements CustomerProfileRepository {
   }
 
   @override
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() => AuthSessionService.instance.signOut();
 }
 
 abstract interface class CustomerProfileImagePicker {

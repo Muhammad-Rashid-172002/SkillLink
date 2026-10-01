@@ -1,0 +1,292 @@
+rules_version = '2';
+
+// SkillNova Firestore security rules.
+//
+// Goals:
+//  * The account role (`users/{uid}.role`) is set once and can never be
+//    changed from a client — except to repair an account whose role is
+//    missing/invalid (legacy data), and only to "customer" or "worker".
+//  * A person can never grant themselves verification, job eligibility,
+//    credits, ratings or an account status from the client.
+//  * Customer-only and worker-only data is enforced here, not just in the UI.
+//  * Admins (documents in /admins/{uid} with isActive == true) keep full
+//    access for the admin console. Cloud Functions use the Admin SDK and are
+//    not affected by these rules.
+//
+// Before deploying: run the app against the Firebase Emulator Suite
+// (`firebase emulators:start` + `--dart-define=USE_FIREBASE_EMULATOR=true`).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function isOwner(userId) { return signedIn() && uid() == userId; }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(uid()))
+        && get(/databases/$(database)/documents/admins/$(uid())).data.get('isActive', false) == true;
+    }
+
+    function appRoles() { return ['customer', 'worker']; }
+
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(uid())).data.get('role', '');
+    }
+    function isCustomer() { return signedIn() && myRole() == 'customer'; }
+    function isWorker() { return signedIn() && myRole() == 'worker'; }
+
+    function newData() { return request.resource.data; }
+    function oldData() { return resource.data; }
+    function unchanged(field) {
+      return newData().get(field, null) == oldData().get(field, null);
+    }
+    function changedKeys() { return newData().diff(oldData()).affectedKeys(); }
+
+    // ------------------------------------------------------------------ users
+    match /users/{userId} {
+      // Workers are public profiles (customers browse them). Customer
+      // profiles are visible to themselves, workers (to serve jobs/chats)
+      // and admins — never to other customers.
+      allow read: if isOwner(userId)
+        || isAdmin()
+        || (signedIn() && resource.data.get('role', '') == 'worker')
+        || isWorker();
+
+      allow create: if isOwner(userId)
+        && newData().role in appRoles()
+        && newData().get('accountStatus', 'active') == 'active'
+        && newData().get('identityVerificationStatus', 'not_submitted')
+             in ['not_submitted', 'not_required']
+        && newData().get('verificationLevel', 'unverified') in ['unverified', 'basic']
+        && newData().get('canAcceptJobs', false) == false
+        && !('credits' in newData())
+        && !('rating' in newData())
+        && !('totalReviews' in newData())
+        && !('completedJobs' in newData());
+
+      allow update: if isAdmin()
+        || (isOwner(userId) && ownerUpdateIsSafe())
+        || reviewAggregateUpdate();
+
+      allow delete: if isAdmin();
+
+      function roleUpdateIsSafe() {
+        // Role is immutable once valid; a missing/invalid role may be repaired
+        // once to a valid app role.
+        return unchanged('role')
+          || (!(oldData().get('role', '') in appRoles())
+              && newData().role in appRoles());
+      }
+
+      function verificationUpdateIsSafe() {
+        // Workers may only *submit* verification (-> pending).
+        return (unchanged('identityVerificationStatus')
+                && unchanged('verificationLevel'))
+          || (oldData().get('role', '') == 'worker'
+              && oldData().get('identityVerificationStatus', 'not_submitted')
+                   in ['not_submitted', 'rejected', 'more_information_required', 'pending']
+              && newData().identityVerificationStatus == 'pending'
+              && newData().get('verificationLevel', 'unverified') == 'unverified');
+      }
+
+      function availabilityUpdateIsSafe() {
+        // Only approved workers can switch job availability on.
+        return unchanged('canAcceptJobs')
+          || newData().canAcceptJobs == false
+          || (oldData().get('role', '') == 'worker'
+              && oldData().get('identityVerificationStatus', '') == 'approved'
+              && newData().canAcceptJobs == true);
+      }
+
+      function creditsUpdateIsSafe() {
+        // Credits can be spent (decreased) by the worker, never added.
+        return unchanged('credits')
+          || (oldData().get('credits', 0) is number
+              && newData().credits is number
+              && newData().credits >= 0
+              && newData().credits < oldData().get('credits', 0));
+      }
+
+      function ownerUpdateIsSafe() {
+        return roleUpdateIsSafe()
+          && verificationUpdateIsSafe()
+          && availabilityUpdateIsSafe()
+          && creditsUpdateIsSafe()
+          && unchanged('accountStatus')
+          && unchanged('backgroundVerificationStatus')
+          && unchanged('rating')
+          && unchanged('totalReviews')
+          && unchanged('completedJobs')
+          && unchanged('uid');
+      }
+
+      // A customer who reviewed a job may refresh the worker's aggregate.
+      function reviewAggregateUpdate() {
+        return isCustomer()
+          && oldData().get('role', '') == 'worker'
+          && changedKeys().hasOnly(['rating', 'totalReviews', 'updatedAt'])
+          && newData().rating is number
+          && newData().rating >= 0 && newData().rating <= 5;
+      }
+    }
+
+    // --------------------------------------------------------------- requests
+    match /requests/{requestId} {
+      function isRequestCustomer() {
+        return signedIn() && resource.data.get('customerId', '') == uid();
+      }
+      function isAssignedWorker() {
+        return signedIn() && resource.data.get('workerId', '') == uid();
+      }
+      // Open leads are visible to workers; the app hides direct requests
+      // meant for someone else.
+      function isOpenLead() {
+        return resource.data.get('status', '') == 'searching';
+      }
+
+      allow read: if isAdmin()
+        || isRequestCustomer()
+        || isAssignedWorker()
+        || (isWorker() && isOpenLead());
+
+      allow create: if isCustomer()
+        && newData().customerId == uid()
+        && newData().status == 'searching';
+
+      allow update: if isAdmin()
+        || (isRequestCustomer() && newData().customerId == uid())
+        || (isWorker()
+            && (isAssignedWorker() || isOpenLead())
+            && newData().get('workerId', '') == uid()
+            && unchanged('customerId'));
+
+      allow delete: if isAdmin();
+    }
+
+    // ------------------------------------------------------------------ chats
+    match /chats/{chatId} {
+      function isParticipant(data) {
+        return signedIn()
+          && (data.get('customerId', '') == uid() || data.get('workerId', '') == uid());
+      }
+
+      allow read: if isAdmin() || isParticipant(resource.data);
+      allow create: if isParticipant(newData());
+      allow update: if isAdmin()
+        || (isParticipant(resource.data)
+            && unchanged('customerId') && unchanged('workerId'));
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        function parentChat() {
+          return get(/databases/$(database)/documents/chats/$(chatId)).data;
+        }
+        allow read, update: if isAdmin() || isParticipant(parentChat());
+        allow create: if isParticipant(parentChat())
+          && newData().get('senderId', uid()) == uid();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ---------------------------------------------------------- notifications
+    match /notifications/{notificationId} {
+      allow read, delete: if isAdmin()
+        || (signedIn() && resource.data.get('userId', '') == uid());
+      // Customers notify workers about requests; never forge another sender.
+      allow create: if signedIn()
+        && newData().userId is string
+        && newData().get('customerId', uid()) == uid()
+        && newData().get('isRead', false) == false;
+      allow update: if isAdmin()
+        || (signedIn() && resource.data.get('userId', '') == uid()
+            && changedKeys().hasOnly(['isRead', 'readAt', 'updatedAt']));
+    }
+
+    // ---------------------------------------------------------------- reviews
+    match /reviews/{reviewId} {
+      allow read: if signedIn();
+      allow create: if isCustomer()
+        && newData().get('customerId', '') == uid()
+        && newData().rating is number
+        && newData().rating >= 1 && newData().rating <= 5;
+      allow update, delete: if isAdmin();
+    }
+
+    // ------------------------------------------------- verification requests
+    match /verification_requests/{workerId} {
+      allow read: if isAdmin() || isOwner(workerId);
+      allow create, update: if isAdmin()
+        || (isOwner(workerId)
+            && newData().workerId == uid()
+            && newData().get('identityStatus', 'pending') == 'pending'
+            && newData().get('status', 'pending') == 'pending');
+      allow delete: if isAdmin();
+    }
+
+    // ------------------------------------------- payments, credits, ledgers
+    match /payment_requests/{paymentId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.get('workerId', '') == uid());
+      allow create: if isWorker()
+        && newData().workerId == uid()
+        && newData().get('status', 'pending') == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.get('workerId', '') == uid());
+      allow create: if isWorker()
+        && newData().workerId == uid()
+        && newData().type == 'lead_used';
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------- safety / SOS
+    match /emergency_alerts/{alertId} {
+      function involved(data) {
+        return signedIn()
+          && (data.get('raisedBy', '') == uid()
+              || data.get('customerId', '') == uid()
+              || data.get('workerId', '') == uid());
+      }
+      allow read: if isAdmin() || involved(resource.data);
+      allow create: if signedIn() && newData().raisedBy == uid();
+      allow update: if isAdmin() || involved(resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /admin_notifications/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if signedIn();
+    }
+
+    match /reports/{reportId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ------------------------------------------------------------------ admin
+    match /admins/{adminId} {
+      allow read: if isOwner(adminId) || isAdmin();
+      allow write: if false; // managed via Firebase console / Admin SDK
+    }
+
+    match /admin_settings/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /admin_audit_logs/{doc} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // Everything else is closed by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

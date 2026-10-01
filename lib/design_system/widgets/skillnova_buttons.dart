@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 
-enum SkillNovaButtonVariant { primary, secondary, ghost, destructive }
+/// Button hierarchy:
+/// * [primary] – the one main action on a screen.
+/// * [secondary] – tonal, for supporting actions.
+/// * [outline] – neutral bordered action.
+/// * [ghost] – low-emphasis text action.
+/// * [destructive] – irreversible / dangerous action.
+enum SkillNovaButtonVariant { primary, secondary, outline, ghost, destructive }
 
 class SkillNovaButton extends StatelessWidget {
   const SkillNovaButton({
@@ -27,6 +33,7 @@ class SkillNovaButton extends StatelessWidget {
     final loadingColor = switch (variant) {
       SkillNovaButtonVariant.primary ||
       SkillNovaButtonVariant.destructive => Colors.white,
+      SkillNovaButtonVariant.outline => Theme.of(context).colorScheme.onSurface,
       _ => Theme.of(context).colorScheme.primary,
     };
     final content = AnimatedSwitcher(
@@ -60,7 +67,15 @@ class SkillNovaButton extends StatelessWidget {
         onPressed: action,
         child: content,
       ),
-      SkillNovaButtonVariant.secondary => OutlinedButton(
+      SkillNovaButtonVariant.secondary => FilledButton.tonal(
+        onPressed: action,
+        style: FilledButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+        ),
+        child: content,
+      ),
+      SkillNovaButtonVariant.outline => OutlinedButton(
         onPressed: action,
         child: content,
       ),
@@ -78,7 +93,16 @@ class SkillNovaButton extends StatelessWidget {
       ),
     };
 
-    return SizedBox(width: fullWidth ? double.infinity : null, child: button);
+    return Semantics(
+      button: true,
+      enabled: action != null,
+      label: loading ? '$label, loading' : null,
+      excludeSemantics: loading,
+      child: SizedBox(
+        width: fullWidth ? double.infinity : null,
+        child: button,
+      ),
+    );
   }
 }
 
@@ -113,4 +137,26 @@ class GhostButton extends SkillNovaButton {
     super.loading,
     super.fullWidth,
   }) : super(variant: SkillNovaButtonVariant.ghost);
+}
+
+class OutlineButton extends SkillNovaButton {
+  const OutlineButton({
+    super.key,
+    required super.label,
+    required super.onPressed,
+    super.icon,
+    super.loading,
+    super.fullWidth,
+  }) : super(variant: SkillNovaButtonVariant.outline);
+}
+
+class DestructiveButton extends SkillNovaButton {
+  const DestructiveButton({
+    super.key,
+    required super.label,
+    required super.onPressed,
+    super.icon,
+    super.loading,
+    super.fullWidth,
+  }) : super(variant: SkillNovaButtonVariant.destructive);
 }

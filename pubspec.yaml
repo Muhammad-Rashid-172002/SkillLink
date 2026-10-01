@@ -1,5 +1,5 @@
 name: skill_link
-description: "A new Flutter project."
+description: "SkillNova — book trusted local professionals."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -100,11 +100,11 @@ flutter:
   assets:
     - assets/app_icon_512x512(1).png
     - assets/skillNove_customer.png
-    - assets/onboarding/worker_ac.png
-    - assets/onboarding/worker_electrician.png
-    - assets/onboarding/worker_hero.png
-    - assets/onboarding/worker_painter.png
-    - assets/onboarding/worker_plumber.png
+    - assets/onboarding/pro_hero.jpg
+    - assets/onboarding/pro_ac.png
+    - assets/onboarding/pro_electrician.png
+    - assets/onboarding/pro_painter.png
+    - assets/onboarding/pro_plumber.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

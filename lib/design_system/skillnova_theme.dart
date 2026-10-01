@@ -9,99 +9,186 @@ abstract final class SkillNovaTheme {
 
   static ThemeData _build(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
+    final surface = isDark ? SkillNovaColors.darkSurface : SkillNovaColors.surface;
+    final onSurface = isDark
+        ? SkillNovaColors.darkTextPrimary
+        : SkillNovaColors.textPrimary;
+    final onSurfaceVariant = isDark
+        ? SkillNovaColors.darkTextSecondary
+        : SkillNovaColors.textSecondary;
+    final outline = isDark ? SkillNovaColors.darkBorder : SkillNovaColors.border;
+
     final scheme = ColorScheme(
       brightness: brightness,
-      primary: SkillNovaColors.primary,
+      primary: isDark ? const Color(0xFF528BFF) : SkillNovaColors.primary,
       onPrimary: Colors.white,
+      primaryContainer: isDark
+          ? const Color(0xFF14284F)
+          : SkillNovaColors.primarySoft,
+      onPrimaryContainer: isDark
+          ? const Color(0xFFD6E4FF)
+          : SkillNovaColors.primaryDark,
       secondary: SkillNovaColors.accent,
       onSecondary: Colors.white,
+      secondaryContainer: isDark
+          ? const Color(0xFF0D3B37)
+          : const Color(0xFFE6F6F4),
+      onSecondaryContainer: isDark
+          ? const Color(0xFFB6EDE6)
+          : const Color(0xFF0B5F57),
+      tertiary: SkillNovaColors.worker,
+      onTertiary: Colors.white,
       error: SkillNovaColors.error,
       onError: Colors.white,
-      surface: isDark ? SkillNovaColors.darkSurface : SkillNovaColors.surface,
-      onSurface: isDark
-          ? SkillNovaColors.darkTextPrimary
-          : SkillNovaColors.textPrimary,
-      outline: isDark ? SkillNovaColors.darkBorder : SkillNovaColors.border,
-      outlineVariant: isDark
-          ? SkillNovaColors.darkBorder
-          : SkillNovaColors.border,
+      errorContainer: isDark
+          ? const Color(0xFF4A1512)
+          : SkillNovaColors.errorSoft,
+      onErrorContainer: isDark
+          ? const Color(0xFFFFDAD6)
+          : const Color(0xFF912018),
+      surface: surface,
+      onSurface: onSurface,
+      onSurfaceVariant: onSurfaceVariant,
+      outline: outline,
+      outlineVariant: outline,
       surfaceContainerLowest: isDark
           ? SkillNovaColors.darkBackground
           : SkillNovaColors.background,
-      surfaceContainerLow: isDark
-          ? SkillNovaColors.darkSurface
-          : SkillNovaColors.surface,
+      surfaceContainerLow: surface,
       surfaceContainer: isDark
           ? SkillNovaColors.darkSurfaceMuted
           : SkillNovaColors.surfaceMuted,
+      surfaceContainerHigh: isDark
+          ? const Color(0xFF223047)
+          : const Color(0xFFEAEEF3),
+      surfaceContainerHighest: isDark
+          ? const Color(0xFF2A3A52)
+          : const Color(0xFFE3E8EF),
+      inverseSurface: isDark ? SkillNovaColors.surface : SkillNovaColors.secondary,
+      onInverseSurface: isDark
+          ? SkillNovaColors.textPrimary
+          : SkillNovaColors.darkTextPrimary,
+      shadow: Colors.black,
+      scrim: Colors.black54,
     );
 
     final textTheme = SkillNovaTypography.textTheme(brightness);
+    final radiusMedium = BorderRadius.circular(SkillNovaRadius.medium);
+
+    OutlineInputBorder inputBorder(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: radiusMedium,
+          borderSide: BorderSide(color: color, width: width),
+        );
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
-      scaffoldBackgroundColor: isDark
-          ? SkillNovaColors.darkBackground
-          : SkillNovaColors.background,
+      scaffoldBackgroundColor: scheme.surfaceContainerLowest,
+      canvasColor: scheme.surfaceContainerLowest,
       textTheme: textTheme,
       visualDensity: VisualDensity.standard,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
       splashFactory: InkSparkle.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: Colors.transparent,
+        centerTitle: false,
+        backgroundColor: scheme.surfaceContainerLowest,
+        surfaceTintColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
         titleTextStyle: textTheme.titleLarge,
       ),
+      cardTheme: CardThemeData(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        color: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SkillNovaRadius.large),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
+      ),
       dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
+      iconTheme: IconThemeData(color: scheme.onSurface, size: 24),
+      listTileTheme: ListTileThemeData(
+        iconColor: scheme.onSurfaceVariant,
+        titleTextStyle: textTheme.titleSmall,
+        subtitleTextStyle: textTheme.bodySmall,
+        minVerticalPadding: SkillNovaSpacing.sm,
+        shape: RoundedRectangleBorder(borderRadius: radiusMedium),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surface,
-        hintStyle: textTheme.bodyMedium,
+        fillColor: isDark ? SkillNovaColors.darkSurfaceMuted : scheme.surface,
+        hintStyle: textTheme.bodyMedium?.copyWith(
+          color: isDark
+              ? SkillNovaColors.darkTextSecondary
+              : SkillNovaColors.textTertiary,
+        ),
+        labelStyle: textTheme.bodyMedium,
+        floatingLabelStyle: textTheme.labelMedium?.copyWith(
+          color: scheme.primary,
+        ),
+        helperStyle: textTheme.bodySmall,
+        errorStyle: textTheme.bodySmall?.copyWith(
+          color: scheme.error,
+          fontWeight: FontWeight.w500,
+        ),
+        errorMaxLines: 3,
+        prefixIconColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.focused)
+              ? scheme.primary
+              : onSurfaceVariant,
+        ),
+        suffixIconColor: onSurfaceVariant,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: SkillNovaSpacing.md,
           vertical: SkillNovaSpacing.md,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
-          borderSide: BorderSide(color: scheme.outline),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
-          borderSide: BorderSide(color: scheme.outline),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
-          borderSide: BorderSide(color: scheme.primary, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
-          borderSide: BorderSide(color: scheme.error),
+        border: inputBorder(scheme.outline),
+        enabledBorder: inputBorder(scheme.outline),
+        focusedBorder: inputBorder(scheme.primary, 1.6),
+        errorBorder: inputBorder(scheme.error),
+        focusedErrorBorder: inputBorder(scheme.error, 1.6),
+        disabledBorder: inputBorder(scheme.outline.withValues(alpha: 0.5)),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(48, 52),
+          textStyle: textTheme.labelLarge,
+          shape: RoundedRectangleBorder(borderRadius: radiusMedium),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          minimumSize: const Size(48, 48),
+          minimumSize: const Size(48, 52),
           elevation: 0,
           backgroundColor: scheme.primary,
           foregroundColor: scheme.onPrimary,
+          disabledBackgroundColor: scheme.onSurface.withValues(alpha: 0.10),
+          disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.38),
           textStyle: textTheme.labelLarge,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: radiusMedium),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(48, 48),
-          foregroundColor: scheme.primary,
+          minimumSize: const Size(48, 52),
+          foregroundColor: scheme.onSurface,
           side: BorderSide(color: scheme.outline),
           textStyle: textTheme.labelLarge,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: radiusMedium),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -114,10 +201,79 @@ abstract final class SkillNovaTheme {
           ),
         ),
       ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(minimumSize: const Size(44, 44)),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: scheme.surface,
+        selectedColor: scheme.primaryContainer,
+        side: BorderSide(color: scheme.outlineVariant),
+        labelStyle: textTheme.labelMedium?.copyWith(color: onSurface),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SkillNovaRadius.pill),
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        side: BorderSide(color: scheme.outline, width: 1.5),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.white
+              : null,
+        ),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: scheme.primary,
+        linearTrackColor: scheme.surfaceContainer,
+        circularTrackColor: Colors.transparent,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: scheme.inverseSurface,
+        contentTextStyle: textTheme.bodyMedium?.copyWith(
+          color: scheme.onInverseSurface,
+          fontWeight: FontWeight.w500,
+        ),
+        actionTextColor: isDark ? scheme.primary : const Color(0xFF8CB3FF),
+        shape: RoundedRectangleBorder(borderRadius: radiusMedium),
+        insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: true,
+        dragHandleColor: scheme.outline,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(SkillNovaRadius.large),
+          ),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: textTheme.titleLarge,
+        contentTextStyle: textTheme.bodyMedium,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SkillNovaRadius.large),
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: scheme.primary,
+        unselectedLabelColor: onSurfaceVariant,
+        labelStyle: textTheme.labelLarge,
+        unselectedLabelStyle: textTheme.labelLarge,
+        indicatorColor: scheme.primary,
+        dividerColor: scheme.outlineVariant,
+      ),
       navigationBarTheme: NavigationBarThemeData(
         height: 72,
         elevation: 0,
         backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
         indicatorColor: scheme.primary.withValues(alpha: 0.10),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
@@ -133,6 +289,17 @@ abstract final class SkillNovaTheme {
             size: 24,
           );
         }),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: scheme.surface,
+        indicatorColor: scheme.primary.withValues(alpha: 0.10),
+        selectedIconTheme: IconThemeData(color: scheme.primary),
+        unselectedIconTheme: IconThemeData(color: scheme.onSurfaceVariant),
+        selectedLabelTextStyle: textTheme.labelMedium?.copyWith(
+          color: scheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
+        unselectedLabelTextStyle: textTheme.labelMedium,
       ),
     );
   }

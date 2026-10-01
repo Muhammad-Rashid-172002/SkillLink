@@ -4,9 +4,9 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/core/auth/session_router.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:skill_link/screens/customer_screens/navigation/customer_navigation_shell.dart';
 
 class CustomerProfileSetupScreen extends StatefulWidget {
   const CustomerProfileSetupScreen({super.key});
@@ -191,15 +191,7 @@ class _CustomerProfileSetupScreenState
 
       if (!mounted) return;
 
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 520),
-          pageBuilder: (_, animation, __) => FadeTransition(
-            opacity: animation,
-            child: const CustomerNavigationShell(),
-          ),
-        ),
-      );
+      await SessionRouter.continueSession(context);
     } on FirebaseException catch (error) {
       _showMessage(
         error.message ?? 'Unable to save your profile.',

@@ -1,316 +1,86 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'dart:async';
 
-import 'email_verification_screen.dart';
-import 'phone_verification_screen.dart';
-import '../verification/worker_verification_center.dart';
-import 'package:skill_link/screens/customer_screens/navigation/customer_navigation_shell.dart';
-import 'package:skill_link/screens/customer_screens/profile/customer_profile_setup_screen.dart';
-import 'package:skill_link/screens/worker_screens/navigation/worker_navigation_shell.dart';
-import 'package:skill_link/screens/worker_screens/profile/worker_profile_setup.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:skill_link/config/skillnova_support_config.dart';
+import 'package:skill_link/core/auth/auth_errors.dart';
+import 'package:skill_link/core/auth/auth_session_service.dart';
+import 'package:skill_link/core/auth/session_router.dart';
+import 'package:skill_link/core/auth/user_role.dart';
+import 'package:skill_link/design_system/skillnova_tokens.dart';
+import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
+import 'package:skill_link/design_system/widgets/skillnova_feedback.dart';
+import 'package:skill_link/design_system/widgets/skillnova_text_field.dart';
+import 'package:skill_link/screens/auth_screens/auth_layout.dart';
+import 'package:skill_link/screens/shared/skillnova_about.dart';
 import 'package:skill_link/services/saveFcmToken.dart';
 
+/// Sign in / create account for customers and workers.
+///
+/// All routing after authentication goes through [SessionRouter], which reads
+/// the role stored on the account. [role] only decides the type of a *new*
+/// account (and helps recover legacy accounts that have no stored role).
 class AuthScreen extends StatefulWidget {
-  final String role;
+  const AuthScreen({super.key, required this.role, this.startInLogin = false});
 
-  const AuthScreen({super.key, required this.role});
+  final String role;
+  final bool startInLogin;
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen>
-    with SingleTickerProviderStateMixin {
-  static const Color _background = Color(0xFFF4F7FB);
-  static const Color _surface = Colors.white;
-  static const Color _textPrimary = Color(0xFF0F172A);
-  static const Color _textSecondary = Color(0xFF64748B);
-  static const Color _border = Color(0xFFE2E8F0);
-  static const Color _success = Color(0xFF16A34A);
-  static const Color _danger = Color(0xFFDC2626);
-  static const Color _info = Color(0xFF2563EB);
+/// `GoogleSignIn.initialize` must only run once per app process.
+Future<void>? _googleInit;
 
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-
-  final FocusNode _nameFocus = FocusNode();
-  final FocusNode _emailFocus = FocusNode();
-  final FocusNode _passwordFocus = FocusNode();
+class _AuthScreenState extends State<AuthScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  final AuthSessionService _session = AuthSessionService.instance;
 
-  late final AnimationController _animationController;
-  late final Animation<double> _floatingAnimation;
-
-  bool _isLogin = false;
-  bool _hidePassword = true;
-  bool _isLoading = false;
+  late bool _isLogin = widget.startInLogin;
   bool _acceptTerms = false;
-  bool _googleInitialized = false;
+  bool _termsError = false;
+  bool _busy = false;
+  bool _googleBusy = false;
+  String? _formError;
 
-  bool get _isCustomer => widget.role.toLowerCase() == 'customer';
-  bool get _isWorker => !_isCustomer;
-  String get _role => _isCustomer ? 'customer' : 'worker';
-
-  Color get _primary =>
-      _isCustomer ? const Color(0xFF2563EB) : const Color(0xFF10B981);
-
-  Color get _primaryDark =>
-      _isCustomer ? const Color(0xFF1D4ED8) : const Color(0xFF047857);
-
-  Color get _secondary =>
-      _isCustomer ? const Color(0xFF06B6D4) : const Color(0xFF14B8A6);
-
-  @override
-  void initState() {
-    super.initState();
-
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
-
-    _floatingAnimation = Tween<double>(begin: -4, end: 4).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-
-    _initializeGoogleSignIn();
-  }
+  UserRole get _role => UserRole.tryParse(widget.role) ?? UserRole.customer;
+  Color get _accent => SkillNovaColors.roleColor(_role);
 
   @override
   void dispose() {
-    _animationController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _nameFocus.dispose();
     _emailFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
   }
 
-  Future<void> _initializeGoogleSignIn() async {
-    try {
-      await _googleSignIn.initialize();
-      _googleInitialized = true;
-    } catch (error) {
-      debugPrint('Google Sign-In initialization error: $error');
-    }
-  }
-
-  Future<void> _signInWithGoogle() async {
-    FocusScope.of(context).unfocus();
-
-    if (_isLoading) return;
-
-    if (!_isLogin && !_acceptTerms) {
-      _message(
-        'Please accept the Terms of Service and Privacy Policy first.',
-        error: true,
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      if (!_googleInitialized) {
-        await _initializeGoogleSignIn();
-      }
-
-      final googleUser = await _googleSignIn.authenticate();
-      final googleAuth = googleUser.authentication;
-
-      if (googleAuth.idToken == null) {
-        throw FirebaseAuthException(code: 'google-token-missing');
-      }
-
-      final credential = GoogleAuthProvider.credential(
-        idToken: googleAuth.idToken,
-      );
-
-      final result = await _auth.signInWithCredential(credential);
-      final user = result.user;
-
-      if (user == null) {
-        throw FirebaseAuthException(code: 'user-not-found');
-      }
-
-      final reference = _firestore.collection('users').doc(user.uid);
-      final snapshot = await reference.get();
-
-      if (!snapshot.exists) {
-        await reference.set({
-          'uid': user.uid,
-          'name':
-              (user.displayName ?? googleUser.displayName ?? 'SkillNova User')
-                  .trim(),
-          'email': user.email ?? googleUser.email,
-          'photoUrl': user.photoURL ?? googleUser.photoUrl,
-          'role': _role,
-          'authProvider': 'google',
-          'emailVerified': true,
-          'emailVerifiedAt': FieldValue.serverTimestamp(),
-          'phoneVerified': user.phoneNumber != null,
-          'phoneNumber': user.phoneNumber,
-          'profileCompleted': false,
-          'identityVerificationStatus': _role == 'worker'
-              ? 'not_submitted'
-              : 'not_required',
-          'backgroundVerificationStatus': _role == 'worker'
-              ? 'not_submitted'
-              : 'not_required',
-          'verificationLevel': _role == 'worker' ? 'unverified' : 'basic',
-          'canAcceptJobs': false,
-          'accountStatus': 'active',
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        final data = snapshot.data() ?? <String, dynamic>{};
-        final savedRole = data['role']?.toString().toLowerCase();
-
-        if (savedRole != 'customer' && savedRole != 'worker') {
-          await _auth.signOut();
-          await _googleSignIn.signOut();
-          throw FirebaseException(
-            plugin: 'cloud_firestore',
-            message: 'Account role is invalid.',
-          );
-        }
-
-        if (savedRole != _role) {
-          await _auth.signOut();
-          await _googleSignIn.signOut();
-          throw FirebaseException(
-            plugin: 'cloud_firestore',
-            message:
-                'This Google account is registered as a $savedRole. Please select the correct role.',
-          );
-        }
-
-        if (data['accountStatus'] == 'suspended' ||
-            data['accountStatus'] == 'blocked') {
-          await _auth.signOut();
-          await _googleSignIn.signOut();
-          throw FirebaseException(
-            plugin: 'cloud_firestore',
-            message: 'This account is restricted. Contact support.',
-          );
-        }
-
-        await reference.set({
-          'name': user.displayName ?? data['name'],
-          'email': user.email ?? data['email'],
-          'photoUrl': user.photoURL ?? data['photoUrl'],
-          'authProvider': 'google',
-          'emailVerified': true,
-          'emailVerifiedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-
-      await saveFcmToken();
-
-      if (!mounted) return;
-      await _routeAuthenticatedUser(user.uid);
-    } on GoogleSignInException catch (error) {
-      debugPrint('Google Sign-In exception: $error');
-      _message(
-        'Google Sign-In was cancelled or could not be completed.',
-        error: true,
-      );
-    } on FirebaseAuthException catch (error) {
-      _message(_authMessage(error.code), error: true);
-    } on FirebaseException catch (error) {
-      _message(error.message ?? 'Google Sign-In failed.', error: true);
-    } catch (error) {
-      debugPrint('Google Sign-In error: $error');
-      _message('Google Sign-In failed. Please try again.', error: true);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _routeAuthenticatedUser(String uid) async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    final snapshot = await _firestore.collection('users').doc(uid).get();
-    if (!snapshot.exists) {
-      throw FirebaseException(
-        plugin: 'cloud_firestore',
-        message: 'Profile record was not found.',
-      );
-    }
-
-    final data = snapshot.data() ?? <String, dynamic>{};
-    final savedRole = data['role']?.toString().toLowerCase();
-
-    if (savedRole != 'customer' && savedRole != 'worker') {
-      throw FirebaseException(
-        plugin: 'cloud_firestore',
-        message: 'Account role is invalid.',
-      );
-    }
-
-    if (!user.emailVerified) {
-      _replace(EmailVerificationScreen(role: savedRole!));
-      return;
-    }
-
-    if (data['phoneVerified'] != true || user.phoneNumber == null) {
-      _replace(PhoneVerificationScreen(role: savedRole!));
-      return;
-    }
-
-    if (data['profileCompleted'] != true) {
-      _replace(
-        savedRole == 'worker'
-            ? const WorkerProfileSetupScreen()
-            : const CustomerProfileSetupScreen(),
-      );
-      return;
-    }
-
-    if (savedRole == 'worker') {
-      final identity =
-          data['identityVerificationStatus']?.toString() ?? 'not_submitted';
-      _replace(
-        identity == 'approved'
-            ? const WorkerNavigationShell()
-            : const WorkerVerificationCenterScreen(),
-      );
-    } else {
-      _replace(const CustomerNavigationShell());
-    }
-  }
+  // ---------------------------------------------------------------------------
+  // Actions
+  // ---------------------------------------------------------------------------
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
-
-    if (_isLoading || !(_formKey.currentState?.validate() ?? false)) {
-      return;
-    }
-
+    setState(() => _formError = null);
+    final valid = _formKey.currentState?.validate() ?? false;
     if (!_isLogin && !_acceptTerms) {
-      _message(
-        'Please accept the Terms of Service and Privacy Policy.',
-        error: true,
-      );
-      return;
+      setState(() => _termsError = true);
     }
+    if (!valid || (!_isLogin && !_acceptTerms) || _busy) return;
 
-    setState(() => _isLoading = true);
-
+    setState(() => _busy = true);
     try {
       if (_isLogin) {
         await _login();
@@ -318,1421 +88,769 @@ class _AuthScreenState extends State<AuthScreen>
         await _signUp();
       }
     } on FirebaseAuthException catch (error) {
-      _message(_authMessage(error.code), error: true);
+      _showFormError(AuthErrors.forAuthCode(error.code));
     } on FirebaseException catch (error) {
-      _message(
-        error.message ?? 'Something went wrong. Please try again.',
-        error: true,
-      );
+      _showFormError(AuthErrors.forFirestoreCode(error.code));
     } catch (error) {
-      _message(
-        'Unable to complete your request. Please try again.',
-        error: true,
-      );
-      debugPrint('Authentication submit error: $error');
+      debugPrint('Auth submit error: $error');
+      _showFormError(AuthErrors.generic);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _busy = false);
     }
   }
 
+  Future<void> _login() async {
+    await _auth.signInWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+    unawaited(saveFcmToken());
+    await _routeAfterAuth();
+  }
+
   Future<void> _signUp() async {
+    final role = _role;
+    await _session.rememberPendingRole(role);
+
     final credential = await _auth.createUserWithEmailAndPassword(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
-
     final user = credential.user;
-
     if (user == null) {
       throw FirebaseAuthException(code: 'user-creation-failed');
     }
 
     final name = _nameController.text.trim();
-
-    await user.updateDisplayName(name);
-
-    // Force-refresh the freshly-created Firebase ID token so callable
-    // authentication is available immediately after sign-up.
-    await user.getIdToken(true);
-
-    await _firestore.collection('users').doc(user.uid).set({
-      'uid': user.uid,
-      'name': name,
-      'email': user.email,
-      'role': _role,
-      'emailVerified': false,
-      'phoneVerified': false,
-      'phoneNumber': null,
-      'profileCompleted': false,
-      'identityVerificationStatus': _role == 'worker'
-          ? 'not_submitted'
-          : 'not_required',
-      'backgroundVerificationStatus': _role == 'worker'
-          ? 'not_submitted'
-          : 'not_required',
-      'verificationLevel': _role == 'worker' ? 'unverified' : 'basic',
-      'canAcceptJobs': false,
-      'accountStatus': 'active',
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    await saveFcmToken();
+    try {
+      await user.updateDisplayName(name);
+    } catch (_) {
+      // Display name is cosmetic; the Firestore profile holds the real name.
+    }
 
     try {
-      await FirebaseFunctions.instanceFor(
-        region: 'us-central1',
-      ).httpsCallable('sendCustomVerificationEmail').call(<String, dynamic>{
-        'uid': user.uid,
-        'email': (user.email ?? _emailController.text.trim())
-            .trim()
-            .toLowerCase(),
-      });
-    } on FirebaseFunctionsException catch (error) {
-      debugPrint(
-        'Custom verification email error: '
-        '${error.code} - ${error.message}',
-      );
-
-      if (error.code != 'already-exists') {
-        _message(
-          error.message ??
-              'Account created, but verification email could not be sent. '
-                  'Please use resend on the verification screen.',
-          error: true,
-        );
-      }
-    } catch (error) {
-      debugPrint('Custom verification email error: $error');
-      _message(
-        'Account created, but verification email could not be sent. '
-        'Please use resend on the verification screen.',
-        error: true,
-      );
+      await _session.createProfile(user: user, role: role, name: name);
+    } on FirebaseException catch (error) {
+      // The auth account exists; the session resolver recreates the profile
+      // from the remembered role on the next step, so don't strand the user.
+      debugPrint('Profile write deferred: ${error.code}');
     }
 
-    if (!mounted) return;
-
-    _replace(EmailVerificationScreen(role: _role));
+    unawaited(saveFcmToken());
+    await _sendVerificationEmail(user);
+    await _routeAfterAuth();
   }
 
-  Future<void> _login() async {
-    final credential = await _auth.signInWithEmailAndPassword(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
-
-    final user = credential.user;
-
-    if (user == null) {
-      throw FirebaseAuthException(code: 'user-not-found');
+  Future<void> _sendVerificationEmail(User user) async {
+    try {
+      await FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('sendCustomVerificationEmail')
+          .call(<String, dynamic>{
+            'uid': user.uid,
+            'email': (user.email ?? _emailController.text).trim().toLowerCase(),
+          })
+          .timeout(const Duration(seconds: 20));
+    } catch (error) {
+      debugPrint('Custom verification email failed, falling back: $error');
+      try {
+        await user.sendEmailVerification();
+      } catch (fallbackError) {
+        debugPrint('Verification email fallback failed: $fallbackError');
+        // The verification screen offers "Resend", so continue.
+      }
     }
+  }
 
-    final snapshot = await _firestore.collection('users').doc(user.uid).get();
+  Future<void> _signInWithGoogle() async {
+    FocusScope.of(context).unfocus();
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _googleBusy = true;
+      _formError = null;
+    });
 
-    if (!snapshot.exists) {
-      await _auth.signOut();
-
-      throw FirebaseException(
-        plugin: 'cloud_firestore',
-        message: 'Profile record was not found.',
+    try {
+      final google = GoogleSignIn.instance;
+      await (_googleInit ??= google.initialize());
+      final account = await google.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null) {
+        throw FirebaseAuthException(code: 'google-token-missing');
+      }
+      final result = await _auth.signInWithCredential(
+        GoogleAuthProvider.credential(idToken: idToken),
       );
-    }
+      final user = result.user;
+      if (user == null) throw FirebaseAuthException(code: 'user-not-found');
 
-    final data = snapshot.data() ?? <String, dynamic>{};
-    final savedRole = data['role']?.toString().toLowerCase();
+      final reference = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+      final snapshot = await reference.get();
+      if (!snapshot.exists) {
+        await _session.createProfile(
+          user: user,
+          role: _role,
+          name: user.displayName ?? account.displayName,
+          authProvider: 'google',
+        );
+      } else {
+        await reference.set({
+          'photoUrl': user.photoURL ?? snapshot.data()?['photoUrl'],
+          'emailVerified': true,
+          'lastSignInProvider': 'google',
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
 
-    if (savedRole != 'customer' && savedRole != 'worker') {
-      await _auth.signOut();
-
-      throw FirebaseException(
-        plugin: 'cloud_firestore',
-        message: 'Account role is invalid.',
+      unawaited(saveFcmToken());
+      await _routeAfterAuth();
+    } on GoogleSignInException catch (error) {
+      if (error.code != GoogleSignInExceptionCode.canceled) {
+        _showFormError(
+          'Google sign-in couldn’t be completed. Please try again, or use '
+          'your email and password.',
+        );
+      }
+    } on FirebaseAuthException catch (error) {
+      _showFormError(AuthErrors.forAuthCode(error.code));
+    } on FirebaseException catch (error) {
+      _showFormError(AuthErrors.forFirestoreCode(error.code));
+    } catch (error) {
+      debugPrint('Google sign-in error: $error');
+      _showFormError(
+        'Google sign-in isn’t available on this device right now. '
+        'Please use your email and password.',
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _googleBusy = false;
+        });
+      }
     }
+  }
 
-    if (data['accountStatus'] == 'suspended' ||
-        data['accountStatus'] == 'blocked') {
-      await _auth.signOut();
-
-      throw FirebaseException(
-        plugin: 'cloud_firestore',
-        message: 'This account is restricted. Contact support.',
-      );
-    }
-
-    await user.reload();
-
-    final refreshed = _auth.currentUser;
-
-    if (refreshed == null) return;
-
-    await saveFcmToken();
-
+  /// Resolves the account's stored role and opens the right place.
+  Future<void> _routeAfterAuth() async {
+    final session = await _session.resolve(selectedRole: _role);
     if (!mounted) return;
 
-    if (!refreshed.emailVerified) {
-      _replace(EmailVerificationScreen(role: savedRole!));
+    if (session.stage == SessionStage.error) {
+      _showFormError(session.message ?? AuthErrors.generic);
       return;
     }
 
-    await _firestore.collection('users').doc(user.uid).set({
-      'emailVerified': true,
-      'emailVerifiedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    if (data['phoneVerified'] != true || refreshed.phoneNumber == null) {
-      _replace(PhoneVerificationScreen(role: savedRole!));
-      return;
-    }
-
-    final profileCompleted = data['profileCompleted'] == true;
-
-    if (!profileCompleted) {
-      _replace(
-        savedRole == 'worker'
-            ? const WorkerProfileSetupScreen()
-            : const CustomerProfileSetupScreen(),
+    final storedRole = session.role;
+    if (_isLogin &&
+        storedRole != null &&
+        storedRole != _role &&
+        storedRole.isAppRole) {
+      SkillNovaToast.show(
+        context,
+        'Signed in to your ${storedRole.label.toLowerCase()} account.',
+        tone: SkillNovaTone.info,
       );
-      return;
     }
-
-    if (savedRole == 'worker') {
-      final identity =
-          data['identityVerificationStatus']?.toString() ?? 'not_submitted';
-
-      if (identity != 'approved') {
-        _replace(const WorkerVerificationCenterScreen());
-      } else {
-        _replace(const WorkerNavigationShell());
-      }
-    } else {
-      _replace(const CustomerNavigationShell());
-    }
+    SessionRouter.go(context, session);
   }
 
   Future<void> _forgotPassword() async {
-    FocusScope.of(context).unfocus();
-
-    final email = _emailController.text.trim();
-
-    if (!_validEmail(email)) {
-      _message('Enter a valid email address first.', error: true);
-      _emailFocus.requestFocus();
-      return;
-    }
-
-    try {
-      await FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable('sendCustomPasswordResetEmail')
-          .call(<String, dynamic>{'email': email});
-
-      if (!mounted) return;
-
-      await _showPasswordResetDialog(email);
-    } on FirebaseFunctionsException catch (error) {
-      _message(
-        error.message ??
-            'Password reset email could not be sent right now. '
-                'Please try again.',
-        error: true,
-      );
-    } on FirebaseAuthException catch (error) {
-      _message(_authMessage(error.code), error: true);
-    } catch (error) {
-      debugPrint('Password reset callable error: $error');
-      _message(
-        'Password reset email could not be sent right now. '
-        'Please try again.',
-        error: true,
-      );
-    }
-  }
-
-  Future<void> _showPasswordResetDialog(String email) async {
-    await showDialog<void>(
+    final email = await showModalBottomSheet<String>(
       context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x260F172A),
-                  blurRadius: 36,
-                  offset: Offset(0, 16),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 78,
-                  height: 78,
-                  decoration: BoxDecoration(
-                    color: _primary.withOpacity(0.10),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.mark_email_read_outlined,
-                    color: _primary,
-                    size: 40,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'Reset email sent',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Password reset instructions have been sent to\n$email',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: _textSecondary,
-                    fontSize: 11,
-                    height: 1.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 22),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                      backgroundColor: _primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
-                      ),
-                    ),
-                    child: const Text(
-                      'Got It',
-                      style: TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      isScrollControlled: true,
+      builder: (_) => _ResetPasswordSheet(initialEmail: _emailController.text),
+    );
+    if (email == null || !mounted) return;
+    SkillNovaToast.show(
+      context,
+      'If an account exists for $email, a reset link is on its way. '
+      'Check your inbox and spam folder.',
+      tone: SkillNovaTone.success,
+      duration: const Duration(seconds: 6),
     );
   }
 
-  void _replace(Widget screen) {
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 430),
-        pageBuilder: (_, animation, secondaryAnimation) => screen,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final curved = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          );
-
-          return FadeTransition(
-            opacity: curved,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.07, 0),
-                end: Offset.zero,
-              ).animate(curved),
-              child: child,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _message(String text, {bool error = false}) {
+  void _showFormError(String message) {
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          margin: const EdgeInsets.all(16),
-          content: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-            decoration: BoxDecoration(
-              color: error ? _danger : _success,
-              borderRadius: BorderRadius.circular(17),
-              boxShadow: [
-                BoxShadow(
-                  color: (error ? _danger : _success).withOpacity(0.25),
-                  blurRadius: 20,
-                  offset: const Offset(0, 9),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  error
-                      ? Icons.error_outline_rounded
-                      : Icons.check_circle_outline_rounded,
-                  color: Colors.white,
-                  size: 21,
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Text(
-                    text,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      height: 1.4,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+    setState(() => _formError = message);
   }
 
-  String _authMessage(String code) {
-    switch (code) {
-      case 'invalid-email':
-        return 'Please enter a valid email address.';
-      case 'email-already-in-use':
-        return 'An account already exists with this email.';
-      case 'weak-password':
-        return 'Password must contain at least 6 characters.';
-      case 'invalid-credential':
-      case 'wrong-password':
-      case 'user-not-found':
-        return 'Email or password is incorrect.';
-      case 'too-many-requests':
-        return 'Too many attempts. Please try again later.';
-      case 'network-request-failed':
-        return 'Check your internet connection.';
-      case 'user-disabled':
-        return 'This account has been disabled.';
-      case 'account-exists-with-different-credential':
-        return 'An account already exists with this email using another sign-in method.';
-      case 'google-token-missing':
-        return 'Google did not return a valid sign-in token.';
-      default:
-        return 'Authentication failed. Please try again.';
-    }
-  }
-
-  bool _validEmail(String value) {
-    return RegExp(
-      r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
-    ).hasMatch(value);
-  }
-
-  void _changeMode(bool loginMode) {
-    if (_isLoading || _isLogin == loginMode) return;
-
+  void _switchMode(bool login) {
+    if (_busy || _isLogin == login) return;
     FocusScope.of(context).unfocus();
-
     setState(() {
-      _isLogin = loginMode;
-      _hidePassword = true;
-      _acceptTerms = false;
+      _isLogin = login;
+      _formError = null;
+      _termsError = false;
       _formKey.currentState?.reset();
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final screen = MediaQuery.sizeOf(context);
-    final isCompact = screen.height < 760 || screen.width < 360;
-    final horizontalPadding = screen.width >= 700
-        ? 32.0
-        : (isCompact ? 14.0 : 20.0);
-
-    return Scaffold(
-      backgroundColor: _background,
-      body: Stack(
-        children: [
-          Positioned(
-            top: -150,
-            right: -115,
-            child: _ambientCircle(size: 320, color: _primary.withOpacity(0.10)),
-          ),
-          Positioned(
-            bottom: -165,
-            left: -130,
-            child: _ambientCircle(
-              size: 350,
-              color: _secondary.withOpacity(0.07),
-            ),
-          ),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(
-                  horizontalPadding,
-                  isCompact ? 10 : 16,
-                  horizontalPadding,
-                  isCompact ? 18 : 30,
-                ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Column(
-                    children: [
-                      _buildTopBar(),
-                      SizedBox(height: isCompact ? 10 : 18),
-                      _buildHero(),
-                      SizedBox(height: isCompact ? 12 : 18),
-                      _buildAuthCard(),
-                      if (!isCompact) ...[
-                        const SizedBox(height: 18),
-                        _buildTrustCard(),
-                      ],
-                      SizedBox(height: isCompact ? 10 : 14),
-                      _buildBottomNote(),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (_isLoading) _buildBlockingLoader(),
-        ],
+  void _openLegal(String title, Uri? url) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LegalDocumentScreen(title: title, url: url),
       ),
     );
   }
 
-  Widget _buildTopBar() {
-    return Row(
-      children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _isLoading ? null : () => Navigator.maybePop(context),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: _surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _border),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x080F172A),
-                    blurRadius: 16,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 18,
-                color: _textPrimary,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
+  // ---------------------------------------------------------------------------
+  // UI
+  // ---------------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return AuthLayout(
+      role: _role,
+      showBack: Navigator.of(context).canPop(),
+      busy: _busy,
+      child: AutofillGroup(
+        child: Form(
+          key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'SkillNova',
-                style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                _isWorker ? 'Worker access portal' : 'Customer access portal',
-                style: const TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: _primary.withOpacity(0.09),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Text(
-            _role.toUpperCase(),
-            style: TextStyle(
-              color: _primary,
-              fontSize: 8.3,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.55,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHero() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(23),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_primaryDark, _primary, _secondary],
-        ),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: _primary.withOpacity(0.25),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -78,
-            right: -55,
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -98,
-            left: -68,
-            child: Container(
-              width: 195,
-              height: 195,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.06),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
+              _RolePill(role: _role),
+              const SizedBox(height: SkillNovaSpacing.md),
+              AnimatedSwitcher(
+                duration: SkillNovaMotion.of(context, SkillNovaMotion.medium),
                 child: Column(
+                  key: ValueKey(_isLogin),
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.14),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        _isWorker
-                            ? 'TRUSTED WORKER NETWORK'
-                            : 'RELIABLE LOCAL SERVICES',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8.2,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.7,
-                        ),
-                      ),
+                    Text(
+                      _isLogin ? 'Welcome back' : 'Create your account',
+                      style: theme.textTheme.headlineMedium,
                     ),
-                    const SizedBox(height: 18),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 260),
-                      child: Text(
-                        _isLogin
-                            ? 'Welcome back to SkillNova'
-                            : 'Create your SkillNova account',
-                        key: ValueKey(_isLogin),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 25,
-                          height: 1.15,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.65,
-                        ),
+                    const SizedBox(height: SkillNovaSpacing.xs),
+                    Text(
+                      _isLogin
+                          ? 'Sign in to continue to SkillNova.'
+                          : _role.isWorker
+                          ? 'Join as a professional and start receiving job leads near you.'
+                          : 'Book trusted local professionals in a few taps.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colors.onSurfaceVariant,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 260),
-                      child: Text(
-                        _isLogin
-                            ? 'Securely continue to your ${_role.toLowerCase()} dashboard.'
-                            : _isWorker
-                            ? 'Join verified professionals and start receiving service requests.'
-                            : 'Find trusted workers and manage your service requests securely.',
-                        key: ValueKey('${_isLogin}_${_role}'),
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.84),
-                          fontSize: 11.5,
-                          height: 1.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _heroFeature(Icons.verified_user_outlined, 'Secure'),
-                        _heroFeature(Icons.flash_on_rounded, 'Fast'),
-                        _heroFeature(Icons.support_agent_rounded, 'Trusted'),
-                      ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 15),
-              AnimatedBuilder(
-                animation: _floatingAnimation,
-                builder: (context, child) {
-                  return Transform.translate(
-                    offset: Offset(0, _floatingAnimation.value),
-                    child: child,
-                  );
-                },
-                child: Container(
-                  width: 92,
-                  height: 92,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.22),
-                      width: 2,
+              const SizedBox(height: SkillNovaSpacing.xl),
+              _ModeSwitch(
+                isLogin: _isLogin,
+                accent: _accent,
+                onChanged: _switchMode,
+              ),
+              const SizedBox(height: SkillNovaSpacing.xl),
+              AnimatedSize(
+                duration: SkillNovaMotion.of(context, SkillNovaMotion.medium),
+                curve: SkillNovaMotion.standard,
+                alignment: Alignment.topCenter,
+                child: _isLogin
+                    ? const SizedBox(width: double.infinity)
+                    : Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: SkillNovaSpacing.md,
+                        ),
+                        child: SkillNovaTextField(
+                          label: 'Full name',
+                          controller: _nameController,
+                          hint: 'e.g. Ayesha Khan',
+                          prefixIcon: Icons.person_outline_rounded,
+                          textCapitalization: TextCapitalization.words,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.name],
+                          onSubmitted: (_) => _emailFocus.requestFocus(),
+                          validator: AuthValidators.name,
+                        ),
+                      ),
+              ),
+              SkillNovaTextField(
+                label: 'Email',
+                controller: _emailController,
+                focusNode: _emailFocus,
+                hint: 'you@example.com',
+                prefixIcon: Icons.mail_outline_rounded,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.email],
+                onSubmitted: (_) => _passwordFocus.requestFocus(),
+                validator: AuthValidators.email,
+              ),
+              const SizedBox(height: SkillNovaSpacing.md),
+              SkillNovaTextField(
+                label: 'Password',
+                controller: _passwordController,
+                focusNode: _passwordFocus,
+                hint: _isLogin ? 'Your password' : 'At least 8 characters',
+                prefixIcon: Icons.lock_outline_rounded,
+                obscure: true,
+                helper: _isLogin
+                    ? null
+                    : 'Use 8+ characters with a mix of letters and numbers.',
+                textInputAction: TextInputAction.done,
+                autofillHints: [
+                  _isLogin ? AutofillHints.password : AutofillHints.newPassword,
+                ],
+                onSubmitted: (_) => _submit(),
+                validator: _isLogin
+                    ? AuthValidators.loginPassword
+                    : AuthValidators.newPassword,
+              ),
+              if (_isLogin)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _busy ? null : _forgotPassword,
+                    child: const Text('Forgot password?'),
+                  ),
+                )
+              else ...[
+                const SizedBox(height: SkillNovaSpacing.md),
+                _TermsCheckbox(
+                  value: _acceptTerms,
+                  showError: _termsError && !_acceptTerms,
+                  onChanged: (value) => setState(() {
+                    _acceptTerms = value;
+                    if (value) _termsError = false;
+                  }),
+                  onTerms: () => _openLegal(
+                    'Terms of Service',
+                    SkillNovaSupportConfig.termsOfServiceUrl,
+                  ),
+                  onPrivacy: () => _openLegal(
+                    'Privacy Policy',
+                    SkillNovaSupportConfig.privacyPolicyUrl,
+                  ),
+                ),
+              ],
+              AnimatedSize(
+                duration: SkillNovaMotion.of(context, SkillNovaMotion.medium),
+                child: _formError == null
+                    ? const SizedBox(width: double.infinity)
+                    : Padding(
+                        padding: const EdgeInsets.only(
+                          top: SkillNovaSpacing.md,
+                        ),
+                        child: _ErrorBanner(message: _formError!),
+                      ),
+              ),
+              const SizedBox(height: SkillNovaSpacing.lg),
+              PrimaryButton(
+                label: _isLogin ? 'Sign in' : 'Create account',
+                fullWidth: true,
+                loading: _busy && !_googleBusy,
+                onPressed: _submit,
+              ),
+              const SizedBox(height: SkillNovaSpacing.lg),
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('or', style: theme.textTheme.bodySmall),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: SkillNovaSpacing.lg),
+              _GoogleButton(
+                loading: _googleBusy,
+                onPressed: _busy ? null : _signInWithGoogle,
+              ),
+              const SizedBox(height: SkillNovaSpacing.lg),
+              Center(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      _isLogin
+                          ? 'New to SkillNova?'
+                          : 'Already have an account?',
+                      style: theme.textTheme.bodyMedium,
                     ),
-                  ),
-                  child: Icon(
-                    _isWorker
-                        ? Icons.handyman_rounded
-                        : Icons.person_search_rounded,
-                    color: Colors.white,
-                    size: 43,
-                  ),
+                    TextButton(
+                      onPressed: () => _switchMode(!_isLogin),
+                      child: Text(_isLogin ? 'Create an account' : 'Sign in'),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _heroFeature(IconData icon, String label) {
+// -----------------------------------------------------------------------------
+// Pieces
+// -----------------------------------------------------------------------------
+
+class _RolePill extends StatelessWidget {
+  const _RolePill({required this.role});
+
+  final UserRole role;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = SkillNovaColors.roleColor(role);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.13),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: Colors.white.withOpacity(0.14)),
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(SkillNovaRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white, size: 13),
-          const SizedBox(width: 4),
+          Icon(
+            role.isWorker ? Icons.handyman_rounded : Icons.person_rounded,
+            size: 16,
+            color: color,
+          ),
+          const SizedBox(width: 6),
           Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 8,
-              fontWeight: FontWeight.w900,
-            ),
+            role.isWorker ? 'Worker account' : 'Customer account',
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: color),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildAuthCard() {
-    return Container(
+class _ModeSwitch extends StatelessWidget {
+  const _ModeSwitch({
+    required this.isLogin,
+    required this.accent,
+    required this.onChanged,
+  });
+
+  final bool isLogin;
+  final Color accent;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: _border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x090F172A),
-            blurRadius: 24,
-            offset: Offset(0, 12),
-          ),
+      child: SegmentedButton<bool>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(value: false, label: Text('Create account')),
+          ButtonSegment(value: true, label: Text('Sign in')),
         ],
+        selected: {isLogin},
+        onSelectionChanged: (value) => onChanged(value.first),
+        style: SegmentedButton.styleFrom(
+          minimumSize: const Size.fromHeight(48),
+          selectedBackgroundColor: accent.withValues(alpha: 0.12),
+          selectedForegroundColor: accent,
+          textStyle: Theme.of(context).textTheme.labelLarge,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TermsCheckbox extends StatelessWidget {
+  const _TermsCheckbox({
+    required this.value,
+    required this.showError,
+    required this.onChanged,
+    required this.onTerms,
+    required this.onPrivacy,
+  });
+
+  final bool value;
+  final bool showError;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback onTerms;
+  final VoidCallback onPrivacy;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final linkStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w600,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: value,
+              isError: showError,
+              onChanged: (checked) => onChanged(checked ?? false),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    GestureDetector(
+                      onTap: () => onChanged(!value),
+                      child: Text(
+                        'I agree to the ',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: onTerms,
+                      child: Text('Terms of Service', style: linkStyle),
+                    ),
+                    Text(' and ', style: theme.textTheme.bodyMedium),
+                    InkWell(
+                      onTap: onPrivacy,
+                      child: Text('Privacy Policy', style: linkStyle),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (showError)
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Text(
+              'Please accept the terms to create your account.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(SkillNovaSpacing.sm),
+        decoration: BoxDecoration(
+          color: colors.errorContainer,
+          borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
+          border: Border.all(color: colors.error.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.error_outline_rounded, color: colors.error, size: 20),
+            const SizedBox(width: SkillNovaSpacing.xs),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.onErrorContainer,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GoogleButton extends StatelessWidget {
+  const _GoogleButton({required this.loading, required this.onPressed});
+
+  final bool loading;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: loading ? null : onPressed,
+        child: loading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const _GoogleMark(),
+                  const SizedBox(width: SkillNovaSpacing.sm),
+                  Text(
+                    'Continue with Google',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+/// Four-colour "G" drawn without bundling a third-party asset.
+class _GoogleMark extends StatelessWidget {
+  const _GoogleMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: ShaderMask(
+        shaderCallback: (bounds) => const SweepGradient(
+          colors: [
+            Color(0xFFEA4335),
+            Color(0xFFFBBC05),
+            Color(0xFF34A853),
+            Color(0xFF4285F4),
+            Color(0xFFEA4335),
+          ],
+          stops: [0.0, 0.25, 0.5, 0.75, 1.0],
+        ).createShader(bounds),
+        child: const Text(
+          'G',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            height: 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResetPasswordSheet extends StatefulWidget {
+  const _ResetPasswordSheet({required this.initialEmail});
+
+  final String initialEmail;
+
+  @override
+  State<_ResetPasswordSheet> createState() => _ResetPasswordSheetState();
+}
+
+class _ResetPasswordSheetState extends State<_ResetPasswordSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _email = TextEditingController(
+    text: widget.initialEmail.trim(),
+  );
+  bool _sending = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    if (!(_formKey.currentState?.validate() ?? false) || _sending) return;
+    final email = _email.text.trim().toLowerCase();
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      try {
+        await FirebaseFunctions.instanceFor(region: 'us-central1')
+            .httpsCallable('sendCustomPasswordResetEmail')
+            .call(<String, dynamic>{'email': email})
+            .timeout(const Duration(seconds: 20));
+      } on FirebaseFunctionsException catch (error) {
+        if (error.code == 'invalid-argument') rethrow;
+        // Branded email unavailable: fall back to Firebase's built-in email.
+        await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      } on TimeoutException {
+        await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      }
+      if (mounted) Navigator.of(context).pop(email);
+    } on FirebaseAuthException catch (error) {
+      setState(() => _error = AuthErrors.forAuthCode(error.code));
+    } catch (_) {
+      setState(
+        () => _error =
+            'We couldn’t send the reset email right now. Check your connection and try again.',
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        SkillNovaSpacing.xl,
+        0,
+        SkillNovaSpacing.xl,
+        MediaQuery.viewInsetsOf(context).bottom + SkillNovaSpacing.xl,
       ),
       child: Form(
         key: _formKey,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildModeSelector(),
-            const SizedBox(height: 22),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 280),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              child: Column(
-                key: ValueKey(_isLogin),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _isLogin ? 'Sign in to continue' : 'Create your account',
-                    style: const TextStyle(
-                      color: _textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    _isLogin
-                        ? 'Enter your account credentials below.'
-                        : 'Complete the details below to get started.',
-                    style: const TextStyle(
-                      color: _textSecondary,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 19),
-                  if (!_isLogin) ...[
-                    _field(
-                      controller: _nameController,
-                      focusNode: _nameFocus,
-                      label: 'Full Name',
-                      hint: 'Enter your full name',
-                      icon: Icons.person_outline_rounded,
-                      textInputAction: TextInputAction.next,
-                      onSubmitted: (_) => _emailFocus.requestFocus(),
-                      inputFormatters: [LengthLimitingTextInputFormatter(60)],
-                      validator: (value) {
-                        if ((value?.trim().length ?? 0) < 3) {
-                          return 'Enter your full name.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-                  _field(
-                    controller: _emailController,
-                    focusNode: _emailFocus,
-                    label: 'Email Address',
-                    hint: 'name@example.com',
-                    icon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    autofillHints: const [AutofillHints.email],
-                    onSubmitted: (_) => _passwordFocus.requestFocus(),
-                    validator: (value) {
-                      if (!_validEmail(value?.trim() ?? '')) {
-                        return 'Enter a valid email address.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  TextFormField(
-                    controller: _passwordController,
-                    focusNode: _passwordFocus,
-                    obscureText: _hidePassword,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    keyboardType: TextInputType.visiblePassword,
-                    textInputAction: TextInputAction.done,
-                    autofillHints: _isLogin
-                        ? const [AutofillHints.password]
-                        : const [AutofillHints.newPassword],
-                    onFieldSubmitted: (_) => _submit(),
-                    validator: (value) {
-                      if ((value?.length ?? 0) < 6) {
-                        return 'Minimum 6 characters required.';
-                      }
-                      return null;
-                    },
-                    style: const TextStyle(
-                      color: _textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    decoration:
-                        _decoration(
-                          label: 'Password',
-                          hint: 'Minimum 6 characters',
-                          icon: Icons.lock_outline_rounded,
-                        ).copyWith(
-                          suffixIcon: IconButton(
-                            tooltip: _hidePassword
-                                ? 'Show password'
-                                : 'Hide password',
-                            onPressed: () {
-                              setState(() => _hidePassword = !_hidePassword);
-                            },
-                            icon: Icon(
-                              _hidePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              color: _textSecondary,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                  ),
-                  if (_isLogin)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _isLoading ? null : _forgotPassword,
-                        style: TextButton.styleFrom(
-                          foregroundColor: _primary,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 10,
-                          ),
-                        ),
-                        child: const Text(
-                          'Forgot password?',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    )
-                  else ...[
-                    const SizedBox(height: 13),
-                    _buildTermsCard(),
-                  ],
-                  SizedBox(height: _isLogin ? 8 : 18),
-                  _buildSubmitButton(),
-                  const SizedBox(height: 16),
-                  _buildSocialDivider(),
-                  const SizedBox(height: 16),
-                  _buildGoogleButton(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModeSelector() {
-    return Container(
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _modeButton(
-              text: 'Log In',
-              loginMode: true,
-              icon: Icons.login_rounded,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _modeButton(
-              text: 'Sign Up',
-              loginMode: false,
-              icon: Icons.person_add_alt_1_rounded,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _modeButton({
-    required String text,
-    required bool loginMode,
-    required IconData icon,
-  }) {
-    final active = _isLogin == loginMode;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _isLoading ? null : () => _changeMode(loginMode),
-        borderRadius: BorderRadius.circular(14),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          height: 48,
-          decoration: BoxDecoration(
-            color: active ? _surface : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: active
-                ? const [
-                    BoxShadow(
-                      color: Color(0x100F172A),
-                      blurRadius: 12,
-                      offset: Offset(0, 5),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: active ? _primary : _textSecondary, size: 18),
-              const SizedBox(width: 7),
-              Text(
-                text,
-                style: TextStyle(
-                  color: active ? _primary : _textSecondary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _field({
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required String label,
-    required String hint,
-    required IconData icon,
-    required String? Function(String?) validator,
-    TextInputType? keyboardType,
-    TextInputAction? textInputAction,
-    Iterable<String>? autofillHints,
-    List<TextInputFormatter>? inputFormatters,
-    ValueChanged<String>? onSubmitted,
-  }) {
-    return TextFormField(
-      controller: controller,
-      focusNode: focusNode,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      autofillHints: autofillHints,
-      inputFormatters: inputFormatters,
-      validator: validator,
-      onFieldSubmitted: onSubmitted,
-      textCapitalization: keyboardType == TextInputType.emailAddress
-          ? TextCapitalization.none
-          : TextCapitalization.words,
-      style: const TextStyle(
-        color: _textPrimary,
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-      ),
-      decoration: _decoration(label: label, hint: hint, icon: icon),
-    );
-  }
-
-  InputDecoration _decoration({
-    required String label,
-    required String hint,
-    required IconData icon,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: Icon(icon, color: _primary, size: 20),
-      labelStyle: const TextStyle(
-        color: _textSecondary,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-      ),
-      hintStyle: const TextStyle(
-        color: Color(0xFF94A3B8),
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-      ),
-      errorStyle: const TextStyle(
-        color: _danger,
-        fontSize: 9.5,
-        fontWeight: FontWeight.w700,
-      ),
-      filled: true,
-      fillColor: const Color(0xFFF8FAFC),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 17),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(17),
-        borderSide: const BorderSide(color: _border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(17),
-        borderSide: const BorderSide(color: _border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(17),
-        borderSide: BorderSide(color: _primary, width: 1.6),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(17),
-        borderSide: const BorderSide(color: _danger, width: 1.2),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(17),
-        borderSide: const BorderSide(color: _danger, width: 1.6),
-      ),
-    );
-  }
-
-  Widget _buildTermsCard() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _isLoading
-            ? null
-            : () => setState(() => _acceptTerms = !_acceptTerms),
-        borderRadius: BorderRadius.circular(17),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            color: _acceptTerms
-                ? _primary.withOpacity(0.07)
-                : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(17),
-            border: Border.all(
-              color: _acceptTerms ? _primary.withOpacity(0.30) : _border,
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 23,
-                height: 23,
-                decoration: BoxDecoration(
-                  color: _acceptTerms ? _primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(
-                    color: _acceptTerms ? _primary : _border,
-                    width: 1.4,
-                  ),
-                ),
-                child: _acceptTerms
-                    ? const Icon(
-                        Icons.check_rounded,
-                        color: Colors.white,
-                        size: 16,
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 11),
-              const Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    style: TextStyle(
-                      color: _textSecondary,
-                      fontSize: 10.2,
-                      height: 1.45,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    children: [
-                      TextSpan(text: 'I agree to the '),
-                      TextSpan(
-                        text: 'Terms of Service',
-                        style: TextStyle(
-                          color: _textPrimary,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      TextSpan(text: ' and '),
-                      TextSpan(
-                        text: 'Privacy Policy',
-                        style: TextStyle(
-                          color: _textPrimary,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      TextSpan(text: '.'),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 58,
-      child: FilledButton.icon(
-        onPressed: _isLoading ? null : _submit,
-        style: FilledButton.styleFrom(
-          backgroundColor: _primary,
-          disabledBackgroundColor: _primary.withOpacity(0.45),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(19),
-          ),
-          elevation: 0,
-        ),
-        icon: Icon(
-          _isLogin ? Icons.login_rounded : Icons.arrow_forward_rounded,
-          size: 20,
-        ),
-        label: Text(
-          _isLogin ? 'Log In Securely' : 'Create Secure Account',
-          style: const TextStyle(fontSize: 13.2, fontWeight: FontWeight.w900),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSocialDivider() {
-    return const Row(
-      children: [
-        Expanded(child: Divider(color: _border, height: 1)),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            'OR CONTINUE WITH',
-            style: TextStyle(
-              color: _textSecondary,
-              fontSize: 8.8,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.75,
-            ),
-          ),
-        ),
-        Expanded(child: Divider(color: _border, height: 1)),
-      ],
-    );
-  }
-
-  Widget _buildGoogleButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: OutlinedButton(
-        onPressed: _isLoading ? null : _signInWithGoogle,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: _textPrimary,
-          backgroundColor: _surface,
-          side: const BorderSide(color: _border, width: 1.2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          elevation: 0,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                shape: BoxShape.circle,
-                border: Border.all(color: _border),
-              ),
-              child: const Text(
-                'G',
-                style: TextStyle(
-                  color: Color(0xFF4285F4),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            const SizedBox(width: 11),
+            Text('Reset your password', style: theme.textTheme.titleLarge),
+            const SizedBox(height: SkillNovaSpacing.xs),
             Text(
-              _isLogin ? 'Continue with Google' : 'Sign up with Google',
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w900,
-              ),
+              'Enter the email you signed up with and we’ll send you a link '
+              'to choose a new password.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: SkillNovaSpacing.lg),
+            SkillNovaTextField(
+              label: 'Email',
+              controller: _email,
+              prefixIcon: Icons.mail_outline_rounded,
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              autofocus: widget.initialEmail.trim().isEmpty,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _send(),
+              validator: AuthValidators.email,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: SkillNovaSpacing.sm),
+              _ErrorBanner(message: _error!),
+            ],
+            const SizedBox(height: SkillNovaSpacing.lg),
+            PrimaryButton(
+              label: 'Send reset link',
+              fullWidth: true,
+              loading: _sending,
+              onPressed: _send,
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTrustCard() {
-    return Container(
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
-      ),
-      child: Column(
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.shield_outlined, color: _info, size: 23),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Secure account protection',
-                  style: TextStyle(
-                    color: Color(0xFF1E3A8A),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 13),
-          _securityRow(
-            Icons.mark_email_read_outlined,
-            'Email ownership verification',
-          ),
-          _securityRow(
-            Icons.phone_android_rounded,
-            'Secure phone OTP verification',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _securityRow(IconData icon, String text, {bool isLast = false}) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
-      child: Row(
-        children: [
-          Icon(icon, color: _info, size: 16),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: Color(0xFF1E40AF),
-                fontSize: 9.8,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const Icon(Icons.check_circle_rounded, color: _success, size: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNote() {
-    return Text(
-      _isLogin
-          ? 'Your account progress will continue from the last completed verification step.'
-          : 'Email and phone verification are required before profile setup.',
-      textAlign: TextAlign.center,
-      style: const TextStyle(
-        color: _textSecondary,
-        fontSize: 9.5,
-        height: 1.45,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-
-  Widget _buildBlockingLoader() {
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.50),
-        alignment: Alignment.center,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 34),
-          padding: const EdgeInsets.all(25),
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x30000000),
-                blurRadius: 34,
-                offset: Offset(0, 16),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(strokeWidth: 4, color: _primary),
-              const SizedBox(height: 18),
-              Text(
-                _isLogin ? 'Signing you in...' : 'Creating your account...',
-                style: const TextStyle(
-                  color: _textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                _isLogin
-                    ? 'Please wait while SkillNova securely loads your account.'
-                    : 'Please wait while SkillNova creates your secure profile.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10.5,
-                  height: 1.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _ambientCircle({required double size, required Color color}) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }
