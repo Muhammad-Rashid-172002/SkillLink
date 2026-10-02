@@ -106,18 +106,8 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Your service journey',
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.headlineSmall,
-                              ),
-                              const SizedBox(height: SkillNovaSpacing.xs),
-                              Text(
-                                'Clear updates from request to completion.',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                              const SizedBox(height: SkillNovaSpacing.lg),
+                              // The app bar already says "Bookings"; lead
+                              // straight into the status tabs.
                               _groupControl(all),
                               const SizedBox(height: SkillNovaSpacing.lg),
                               if (visible.isEmpty)

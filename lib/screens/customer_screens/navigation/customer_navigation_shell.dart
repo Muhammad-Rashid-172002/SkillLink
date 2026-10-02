@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_adaptive_nav.dart';
 import 'package:skill_link/screens/customer_screens/Chat/chat_screen.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore.dart';
 import 'package:skill_link/screens/customer_screens/Profile_screen/Profile_scree.dart';
@@ -64,14 +65,17 @@ class _CustomerNavigationShellState extends State<CustomerNavigationShell> {
           _selectTab(0);
         }
       },
-      child: Scaffold(
+      child: AdaptiveNavigationScaffold(
+        destinations: CustomerBottomBar.destinations,
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _selectTab,
         body: IndexedStack(
           index: _selectedIndex,
           children: _screens
               .map((screen) => screen ?? const SizedBox.shrink())
               .toList(growable: false),
         ),
-        bottomNavigationBar: CustomerBottomBar(
+        bottomBar: CustomerBottomBar(
           selectedIndex: _selectedIndex,
           onDestinationSelected: _selectTab,
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_map.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
@@ -196,7 +197,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(booking.service, style: theme.textTheme.headlineSmall),
+          Text(booking.title, style: theme.textTheme.headlineSmall),
           if (booking.createdAt != null) ...[
             const SizedBox(height: SkillNovaSpacing.xs),
             Text(
@@ -333,24 +334,29 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
               child: SizedBox(
                 height: 190,
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(coordinate.latitude, coordinate.longitude),
-                    zoom: 14,
-                  ),
-                  markers: {
-                    Marker(
-                      markerId: const MarkerId('customer-location'),
-                      position: LatLng(
-                        coordinate.latitude,
-                        coordinate.longitude,
-                      ),
-                      infoWindow: const InfoWindow(title: 'Service location'),
+                child: SkillNovaMap(
+                  label: 'Service location',
+                  latitude: coordinate.latitude,
+                  longitude: coordinate.longitude,
+                  builder: (_) => GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: LatLng(coordinate.latitude, coordinate.longitude),
+                      zoom: 14,
                     ),
-                  },
-                  myLocationButtonEnabled: false,
-                  mapToolbarEnabled: false,
-                  zoomControlsEnabled: false,
+                    markers: {
+                      Marker(
+                        markerId: const MarkerId('customer-location'),
+                        position: LatLng(
+                          coordinate.latitude,
+                          coordinate.longitude,
+                        ),
+                        infoWindow: const InfoWindow(title: 'Service location'),
+                      ),
+                    },
+                    myLocationButtonEnabled: false,
+                    mapToolbarEnabled: false,
+                    zoomControlsEnabled: false,
+                  ),
                 ),
               ),
             ),

@@ -21,7 +21,10 @@ abstract final class SkillNovaTheme {
     final scheme = ColorScheme(
       brightness: brightness,
       primary: isDark ? const Color(0xFF528BFF) : SkillNovaColors.primary,
-      onPrimary: Colors.white,
+      // In dark mode the lighter blue keeps links readable (5.3:1 on the
+      // surface); dark text on it keeps filled buttons AA too (5.8:1), where
+      // white would only reach 3.2:1.
+      onPrimary: isDark ? SkillNovaColors.darkBackground : Colors.white,
       primaryContainer: isDark
           ? const Color(0xFF14284F)
           : SkillNovaColors.primarySoft,
@@ -277,9 +280,13 @@ abstract final class SkillNovaTheme {
         indicatorColor: scheme.primary.withValues(alpha: 0.10),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
+          // 12px with tight tracking so the longest label ("Messages") fits
+          // a 64px destination on 320px-wide phones without wrapping.
           return textTheme.labelMedium?.copyWith(
+            fontSize: 12,
+            letterSpacing: -0.1,
             color: selected ? scheme.primary : scheme.onSurfaceVariant,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {

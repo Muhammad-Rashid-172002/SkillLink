@@ -21,7 +21,7 @@ void main() {
       lng: 73.0479,
       images: const ['https://example.com/request.jpg', 'not-a-url'],
     );
-    expect(lead.postedBudget, 'Rs. 5,000');
+    expect(lead.postedBudget, 'Rs 5,000');
     expect(lead.budgetValue, 5000);
     expect(lead.coordinate?.latitude, 33.6844);
     expect(lead.approximateMapCoordinate?.latitude, 33.68);

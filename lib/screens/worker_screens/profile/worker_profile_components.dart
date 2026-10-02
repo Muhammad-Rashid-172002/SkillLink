@@ -321,7 +321,9 @@ class WorkerProfessionalSnapshot extends StatelessWidget {
         _DetailRow(
           icon: Icons.work_history_outlined,
           label: 'Experience',
-          value: profile.experience.isEmpty ? 'Not added' : profile.experience,
+          value: profile.experience.isEmpty
+              ? 'Not added'
+              : workerExperienceLabel(profile.experience),
         ),
         if (profile.bio.isNotEmpty) ...[
           const Divider(height: 1),
@@ -330,6 +332,7 @@ class WorkerProfessionalSnapshot extends StatelessWidget {
             label: 'Professional bio',
             value: profile.bio,
             maxLines: 6,
+            longText: true,
           ),
         ],
       ],
@@ -381,12 +384,16 @@ class _DetailRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.maxLines = 3,
+    this.longText = false,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final int maxLines;
+
+  /// Prose (like a bio) reads better in body text than in a bold title.
+  final bool longText;
 
   @override
   Widget build(BuildContext context) {
@@ -398,7 +405,9 @@ class _DetailRow extends StatelessWidget {
         value,
         maxLines: maxLines,
         overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.titleMedium,
+        style: longText
+            ? Theme.of(context).textTheme.bodyLarge
+            : Theme.of(context).textTheme.titleMedium,
       ),
     );
   }
@@ -457,3 +466,12 @@ IconData _readinessIcon(WorkerReadinessState state) => switch (state) {
   WorkerReadinessState.verificationRequired => Icons.shield_outlined,
   _ => Icons.info_outline_rounded,
 };
+
+/// "6" → "6 years"; keeps values that already carry a unit ("6 years",
+/// "6+ yrs") untouched.
+String workerExperienceLabel(String raw) {
+  final value = raw.trim();
+  final years = int.tryParse(value);
+  if (years == null) return value;
+  return years == 1 ? '1 year' : '$years years';
+}

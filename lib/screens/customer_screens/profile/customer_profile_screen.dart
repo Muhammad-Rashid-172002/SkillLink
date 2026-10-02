@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_map.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
-import 'package:skill_link/screens/customer_screens/Chat/chat_screen.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore_models.dart';
-import 'package:skill_link/screens/customer_screens/bookings/customer_bookings_screen.dart';
 import 'package:skill_link/screens/customer_screens/profile/customer_account_screens.dart';
 import 'package:skill_link/screens/customer_screens/profile/customer_edit_profile_screen.dart';
 import 'package:skill_link/screens/customer_screens/profile/customer_profile_components.dart';
@@ -32,11 +31,6 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   void _open(Widget screen) =>
       Navigator.push(context, MaterialPageRoute<void>(builder: (_) => screen));
-
-  void _openTabOrPage(int index, Widget fallback) {
-    final select = widget.onSelectTab;
-    select == null ? _open(fallback) : select(index);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,63 +88,32 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                 ),
               ],
               const SizedBox(height: 24),
-              Text(
-                'Your account',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 10),
+              // Bookings, messages and the service location are already one
+              // tap away (tabs / card above), so the menu only lists what
+              // isn't.
               SettingsSection(
-                title: 'Profile',
+                title: 'Account',
                 children: [
                   ProfileMenuTile(
                     icon: Icons.person_outline,
                     title: 'Personal information',
-                    subtitle: 'Name, photo, and verified account details',
+                    subtitle: 'Name, photo and verified contact details',
                     onTap: () => _open(
                       CustomerAccountInformationScreen(profile: profile),
                     ),
                   ),
                   const Divider(height: 1),
                   ProfileMenuTile(
-                    icon: Icons.location_on_outlined,
-                    title: 'Saved / service location',
-                    subtitle: profile.serviceArea.isEmpty
-                        ? 'Add city and service area'
-                        : profile.serviceArea,
-                    onTap: () => _open(
-                      CustomerEditProfileScreen(
-                        initialProfile: profile,
-                        repository: _repository,
-                      ),
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  ProfileMenuTile(
-                    icon: Icons.calendar_month_outlined,
-                    title: 'Bookings',
-                    subtitle: 'View and track service requests',
-                    onTap: () =>
-                        _openTabOrPage(2, const CustomerBookingsScreen()),
-                  ),
-                  const Divider(height: 1),
-                  ProfileMenuTile(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    title: 'Messages',
-                    subtitle: 'Continue your conversations',
-                    onTap: () => _openTabOrPage(3, const CustomerChatsScreen()),
-                  ),
-                  const Divider(height: 1),
-                  ProfileMenuTile(
                     icon: Icons.health_and_safety_outlined,
                     title: 'Safety & support',
-                    subtitle: 'Safety guidance and existing support options',
+                    subtitle: 'Staying safe, emergencies and getting help',
                     onTap: () => _open(const CustomerSafetyScreen()),
                   ),
                   const Divider(height: 1),
                   ProfileMenuTile(
                     icon: Icons.settings_outlined,
                     title: 'Settings',
-                    subtitle: 'Appearance, notifications, privacy, and account',
+                    subtitle: 'Appearance, notifications and privacy',
                     onTap: () => _open(
                       CustomerSettingsScreen(
                         profile: profile,
@@ -191,24 +154,32 @@ class _LocationCard extends StatelessWidget {
             SizedBox(
               key: const Key('profile-map-preview'),
               height: 145,
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: LatLng(coordinate.latitude, coordinate.longitude),
-                  zoom: 13,
-                ),
-                markers: {
-                  Marker(
-                    markerId: const MarkerId('customer-location'),
-                    position: LatLng(coordinate.latitude, coordinate.longitude),
+              child: SkillNovaMap(
+                label: 'Your service location',
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                builder: (_) => GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(coordinate.latitude, coordinate.longitude),
+                    zoom: 13,
                   ),
-                },
-                liteModeEnabled: true,
-                zoomControlsEnabled: false,
-                myLocationButtonEnabled: false,
-                scrollGesturesEnabled: false,
-                zoomGesturesEnabled: false,
-                rotateGesturesEnabled: false,
-                tiltGesturesEnabled: false,
+                  markers: {
+                    Marker(
+                      markerId: const MarkerId('customer-location'),
+                      position: LatLng(
+                        coordinate.latitude,
+                        coordinate.longitude,
+                      ),
+                    ),
+                  },
+                  liteModeEnabled: true,
+                  zoomControlsEnabled: false,
+                  myLocationButtonEnabled: false,
+                  scrollGesturesEnabled: false,
+                  zoomGesturesEnabled: false,
+                  rotateGesturesEnabled: false,
+                  tiltGesturesEnabled: false,
+                ),
               ),
             ),
           Padding(

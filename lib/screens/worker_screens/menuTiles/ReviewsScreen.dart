@@ -1,7 +1,66 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/skillnova_tokens.dart';
+import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 
+/// Aggregate figures for a worker's reviews. Computed only from real reviews.
+@immutable
+class ReviewStats {
+  const ReviewStats({
+    required this.average,
+    required this.total,
+    required this.starCounts,
+  });
+
+  factory ReviewStats.from(Iterable<Map<String, dynamic>> reviews) {
+    final counts = {for (var star = 1; star <= 5; star++) star: 0};
+    var sum = 0.0;
+    var total = 0;
+    for (final review in reviews) {
+      final rating = reviewRating(review);
+      if (rating <= 0) continue;
+      sum += rating;
+      total++;
+      final star = rating.round().clamp(1, 5);
+      counts[star] = counts[star]! + 1;
+    }
+    return ReviewStats(
+      average: total == 0 ? 0 : sum / total,
+      total: total,
+      starCounts: counts,
+    );
+  }
+
+  final double average;
+  final int total;
+  final Map<int, int> starCounts;
+
+  /// Share of reviews rated 4 or 5 stars.
+  int get positivePercent => total == 0
+      ? 0
+      : (((starCounts[4]! + starCounts[5]!) / total) * 100).round();
+}
+
+double reviewRating(Map<String, dynamic> data) {
+  final value = data['rating'];
+  final rating = value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '') ?? 0;
+  return rating.clamp(0, 5).toDouble();
+}
+
+DateTime? _reviewDate(Map<String, dynamic> data) {
+  for (final key in const ['createdAt', 'updatedAt']) {
+    final value = data[key];
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+  }
+  return null;
+}
+
+/// A worker's reviews and rating breakdown.
 class ReviewsRatingsScreen extends StatefulWidget {
   const ReviewsRatingsScreen({super.key});
 
@@ -10,1028 +69,380 @@ class ReviewsRatingsScreen extends StatefulWidget {
 }
 
 class _ReviewsRatingsScreenState extends State<ReviewsRatingsScreen> {
-  static const Color _primary = Color(0xFFF59E0B);
-  static const Color _primaryDark = Color(0xFFD97706);
-  static const Color _background = Color(0xFFF5F7FB);
-  static const Color _surface = Colors.white;
-  static const Color _textPrimary = Color(0xFF0F172A);
-  static const Color _textSecondary = Color(0xFF64748B);
-  static const Color _border = Color(0xFFE7ECF3);
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Map<String, String> _customerNames = {};
+  final Set<String> _requestedNames = {};
+  int? _starFilter;
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _stream = _query();
 
-  final String uid = FirebaseAuth.instance.currentUser!.uid;
+  String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
-  String selectedFilter = 'All';
+  Stream<QuerySnapshot<Map<String, dynamic>>> _query() => _firestore
+      .collection('reviews')
+      .where('workerId', isEqualTo: _uid)
+      .snapshots();
 
-  final List<String> filters = const [
-    'All',
-    '5 Stars',
-    '4 Stars',
-    '3 Stars',
-    '2 Stars',
-    '1 Star',
-  ];
+  /// Reviews store the customer's id; show their first name instead of a
+  /// generic "Customer". Loaded in small batches and cached.
+  void _loadNames(Iterable<Map<String, dynamic>> reviews) {
+    final missing = reviews
+        .map((review) => review['customerId']?.toString() ?? '')
+        .where((id) => id.isNotEmpty && _requestedNames.add(id))
+        .toList();
+    for (var i = 0; i < missing.length; i += 10) {
+      final chunk = missing.sublist(i, (i + 10).clamp(0, missing.length));
+      _firestore
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get()
+          .then((snapshot) {
+            if (!mounted) return;
+            setState(() {
+              for (final doc in snapshot.docs) {
+                final name = doc.data()['name']?.toString().trim() ?? '';
+                if (name.isNotEmpty) {
+                  _customerNames[doc.id] = name.split(RegExp(r'\s+')).first;
+                }
+              }
+            });
+          })
+          .catchError((_) {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _background,
-      appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor: _background,
-        foregroundColor: _textPrimary,
-        titleSpacing: 0,
-        leadingWidth: 64,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 14),
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _border),
-            ),
-            child: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(
-                Icons.arrow_back_rounded,
-                size: 21,
+      appBar: AppBar(title: const Text('Reviews & ratings')),
+      body: _uid.isEmpty
+          ? const Center(
+              child: EmptyState(
+                icon: Icons.lock_outline_rounded,
+                title: 'Sign in to see your reviews',
+                message: 'Your reviews appear once you’re signed in.',
               ),
-            ),
-          ),
-        ),
-        title: const Text(
-          'Reviews & Ratings',
-          style: TextStyle(
-            color: _textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.25,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        top: false,
-        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('reviews')
-              .where('workerId', isEqualTo: uid)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return _loadingState();
-            }
-
-            if (snapshot.hasError) {
-              return _errorState(snapshot.error.toString());
-            }
-
-            final reviews = snapshot.data?.docs ?? [];
-
-            reviews.sort((a, b) {
-              final aDate = _extractDate(a.data());
-              final bDate = _extractDate(b.data());
-              return bDate.compareTo(aDate);
-            });
-
-            final stats = _calculateStats(reviews);
-            final filteredReviews = _filterReviews(reviews);
-
-            return RefreshIndicator(
-              color: _primary,
-              onRefresh: () async {
-                await Future<void>.delayed(
-                  const Duration(milliseconds: 450),
-                );
+            )
+          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _stream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(SkillNovaSpacing.xl),
+                      child: ErrorState(
+                        title: 'Reviews unavailable',
+                        message:
+                            'We couldn’t load your reviews right now. Check '
+                            'your connection and try again.',
+                        actionLabel: 'Try again',
+                        onAction: () => setState(() => _stream = _query()),
+                      ),
+                    ),
+                  );
+                }
+                if (!snapshot.hasData) return const _ReviewsSkeleton();
+                final reviews =
+                    snapshot.data!.docs.map((doc) => doc.data()).toList()..sort(
+                      (a, b) => (_reviewDate(b) ?? DateTime(0)).compareTo(
+                        _reviewDate(a) ?? DateTime(0),
+                      ),
+                    );
+                _loadNames(reviews);
+                return _content(reviews);
               },
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        _ratingSummaryCard(stats),
-                        const SizedBox(height: 22),
-                        _ratingBreakdown(stats),
-                        const SizedBox(height: 22),
-                        _filterChips(),
-                        const SizedBox(height: 24),
-                        _sectionHeader(filteredReviews.length),
-                        const SizedBox(height: 14),
-                        if (filteredReviews.isEmpty)
-                          _emptyState()
-                        else
-                          ...filteredReviews.map(
-                            (doc) => _reviewCard(doc.data()),
-                          ),
-                      ]),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 
-  Widget _ratingSummaryCard(_ReviewStats stats) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(21, 22, 21, 20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_primaryDark, _primary, Color(0xFFFBBF24)],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x30F59E0B),
-            blurRadius: 28,
-            offset: Offset(0, 13),
+  Widget _content(List<Map<String, dynamic>> reviews) {
+    final stats = ReviewStats.from(reviews);
+    if (stats.total == 0) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(SkillNovaSpacing.xl),
+          child: EmptyState(
+            icon: Icons.star_outline_rounded,
+            title: 'No reviews yet',
+            message:
+                'Customers can rate you after a job is completed. Great '
+                'reviews help you win more leads.',
           ),
-        ],
-      ),
-      child: Stack(
+        ),
+      );
+    }
+    final visible = _starFilter == null
+        ? reviews
+        : reviews
+              .where(
+                (review) =>
+                    reviewRating(review).round().clamp(1, 5) == _starFilter,
+              )
+              .toList();
+    return RefreshIndicator(
+      onRefresh: () async => setState(() => _stream = _query()),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          SkillNovaSpacing.gutter,
+          SkillNovaSpacing.xs,
+          SkillNovaSpacing.gutter,
+          SkillNovaSpacing.xxxl,
+        ),
         children: [
-          Positioned(
-            right: -48,
-            top: -60,
-            child: Container(
-              height: 160,
-              width: 160,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            right: 40,
-            bottom: -72,
-            child: Container(
-              height: 125,
-              width: 125,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.06),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    height: 44,
-                    width: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.16),
-                      borderRadius: BorderRadius.circular(14),
+          ContentWidth(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _summary(stats),
+                const SizedBox(height: SkillNovaSpacing.xl),
+                _filters(stats),
+                const SizedBox(height: SkillNovaSpacing.md),
+                if (visible.isEmpty)
+                  EmptyState(
+                    icon: Icons.filter_alt_off_outlined,
+                    title: 'No $_starFilter-star reviews',
+                    message: 'Try another rating.',
+                    actionLabel: 'Show all',
+                    onAction: () => setState(() => _starFilter = null),
+                  )
+                else
+                  for (final review in visible) ...[
+                    _ReviewCard(
+                      data: review,
+                      customerName:
+                          _customerNames[review['customerId']?.toString()],
                     ),
-                    child: const Icon(
-                      Icons.workspace_premium_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 11),
-                  const Expanded(
-                    child: Text(
-                      'CUSTOMER RATING',
-                      style: TextStyle(
-                        color: Color(0xDFFFFFFF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.05,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.14),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.verified_rounded,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                        SizedBox(width: 5),
-                        Text(
-                          'Live',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 23),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    stats.average.toStringAsFixed(1),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 48,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -1.2,
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.only(left: 7, bottom: 5),
-                    child: Text(
-                      '/ 5.0',
-                      style: TextStyle(
-                        color: Color(0xD9FFFFFF),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.13),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          '${stats.totalReviews}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          stats.totalReviews == 1 ? 'Review' : 'Reviews',
-                          style: const TextStyle(
-                            color: Color(0xD9FFFFFF),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 15),
-              Row(
-                children: List.generate(
-                  5,
-                  (index) => Padding(
-                    padding: const EdgeInsets.only(right: 5),
-                    child: Icon(
-                      index < stats.average.round()
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 17),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.thumb_up_alt_outlined,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 9),
-                    const Expanded(
-                      child: Text(
-                        'Customer satisfaction',
-                        style: TextStyle(
-                          color: Color(0xD9FFFFFF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${stats.satisfactionPercent.toStringAsFixed(0)}%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+                    const SizedBox(height: SkillNovaSpacing.sm),
                   ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _ratingBreakdown(_ReviewStats stats) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x080F172A),
-            blurRadius: 18,
-            offset: Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Column(
+  Widget _summary(ReviewStats stats) {
+    final text = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    return SkillNovaCard(
+      padding: const EdgeInsets.all(SkillNovaSpacing.lg),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Rating breakdown',
-            style: TextStyle(
-              color: _textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
+          Semantics(
+            label:
+                'Average ${stats.average.toStringAsFixed(1)} out of 5 from '
+                '${stats.total} reviews',
+            excludeSemantics: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  stats.average.toStringAsFixed(1),
+                  style: text.displaySmall,
+                ),
+                _Stars(rating: stats.average, size: 16),
+                const SizedBox(height: SkillNovaSpacing.xxs),
+                Text(
+                  '${stats.total} review${stats.total == 1 ? '' : 's'}',
+                  style: text.bodySmall,
+                ),
+                Text(
+                  '${stats.positivePercent}% positive',
+                  style: text.bodySmall,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          ...List.generate(5, (index) {
-            final star = 5 - index;
-            final count = stats.starCounts[star] ?? 0;
-            final ratio = stats.totalReviews == 0
-                ? 0.0
-                : count / stats.totalReviews;
-
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: index == 4 ? 0 : 11,
-              ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 30,
-                    child: Text(
-                      '$star',
-                      style: const TextStyle(
-                        color: _textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
+          const SizedBox(width: SkillNovaSpacing.lg),
+          Expanded(
+            child: Column(
+              children: [
+                for (var star = 5; star >= 1; star--)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 12,
+                          child: Text('$star', style: text.labelMedium),
+                        ),
+                        const SizedBox(width: SkillNovaSpacing.xs),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: stats.starCounts[star]! / stats.total,
+                              minHeight: 6,
+                              color: SkillNovaColors.rating,
+                              backgroundColor: colors.surfaceContainer,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: SkillNovaSpacing.xs),
+                        SizedBox(
+                          width: 20,
+                          child: Text(
+                            '${stats.starCounts[star]}',
+                            textAlign: TextAlign.end,
+                            style: text.bodySmall,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Icon(
-                    Icons.star_rounded,
-                    color: _primary,
-                    size: 17,
-                  ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: LinearProgressIndicator(
-                        value: ratio,
-                        minHeight: 8,
-                        backgroundColor: const Color(0xFFF1F5F9),
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(_primary),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 11),
-                  SizedBox(
-                    width: 26,
-                    child: Text(
-                      '$count',
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        color: _textSecondary,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _filterChips() {
-    return SizedBox(
-      height: 39,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 9),
-        itemBuilder: (context, index) {
-          final filter = filters[index];
-          final selected = filter == selectedFilter;
-
-          return ChoiceChip(
-            selected: selected,
-            showCheckmark: false,
-            onSelected: (_) {
-              setState(() {
-                selectedFilter = filter;
-              });
-            },
-            label: Text(filter),
-            backgroundColor: _surface,
-            selectedColor: _primary,
-            side: BorderSide(
-              color: selected ? _primary : _border,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            labelStyle: TextStyle(
-              color: selected ? Colors.white : _textSecondary,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-            ),
-          );
-        },
+  Widget _filters(ReviewStats stats) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          ChoiceChip(
+            label: Text('All (${stats.total})'),
+            selected: _starFilter == null,
+            onSelected: (_) => setState(() => _starFilter = null),
+          ),
+          for (var star = 5; star >= 1; star--)
+            if (stats.starCounts[star]! > 0) ...[
+              const SizedBox(width: SkillNovaSpacing.xs),
+              ChoiceChip(
+                avatar: const Icon(Icons.star_rounded, size: 16),
+                label: Text('$star (${stats.starCounts[star]})'),
+                selected: _starFilter == star,
+                onSelected: (_) => setState(() => _starFilter = star),
+              ),
+            ],
+        ],
       ),
     );
   }
+}
 
-  Widget _sectionHeader(int count) {
+class _Stars extends StatelessWidget {
+  const _Stars({required this.rating, this.size = 14});
+  final double rating;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Customer reviews',
-                style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.35,
-                ),
-              ),
-              SizedBox(height: 5),
-              Text(
-                'See who reviewed you and what they said',
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+        for (var star = 1; star <= 5; star++)
+          Icon(
+            rating >= star
+                ? Icons.star_rounded
+                : rating >= star - 0.5
+                ? Icons.star_half_rounded
+                : Icons.star_outline_rounded,
+            size: size,
+            color: SkillNovaColors.rating,
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 7,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF7E8),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            '$count',
-            style: const TextStyle(
-              color: _primaryDark,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
       ],
     );
   }
+}
 
-  Widget _reviewCard(Map<String, dynamic> data) {
-    final customerName =
-        (data['customerName'] ?? data['reviewerName'] ?? 'Customer')
-            .toString();
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({required this.data, this.customerName});
+  final Map<String, dynamic> data;
+  final String? customerName;
 
-    final customerImage =
-        (data['customerImage'] ??
-                data['customerImageUrl'] ??
-                data['reviewerImage'] ??
-                '')
-            .toString();
-
-    final reviewText =
-        (data['review'] ?? data['comment'] ?? 'No written review')
-            .toString();
-
-    final jobTitle =
-        (data['jobTitle'] ?? data['serviceTitle'] ?? 'SkillNova service')
-            .toString();
-
-    final rating = _toDouble(data['rating']).clamp(0, 5);
-    final createdAt = _extractDate(data);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x080F172A),
-            blurRadius: 18,
-            offset: Offset(0, 7),
-          ),
-        ],
-      ),
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    final name =
+        customerName ??
+        (data['customerName'] ?? data['reviewerName'])?.toString().trim() ??
+        'Customer';
+    final body = (data['review'] ?? data['comment'])?.toString().trim() ?? '';
+    final service =
+        (data['jobTitle'] ?? data['serviceTitle'] ?? data['category'])
+            ?.toString()
+            .trim() ??
+        '';
+    final rating = reviewRating(data);
+    final date = _reviewDate(data);
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final dateLabel = date == null
+        ? ''
+        : '${date.day} ${months[date.month - 1]} ${date.year}';
+    return SkillNovaCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                height: 52,
-                width: 52,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7E8),
-                  borderRadius: BorderRadius.circular(17),
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: colors.primaryContainer,
+                child: Text(
+                  name.isEmpty ? '?' : name[0].toUpperCase(),
+                  style: text.titleSmall?.copyWith(color: colors.primary),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: customerImage.isNotEmpty
-                    ? Image.network(
-                        customerImage,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _customerPlaceholder(customerName),
-                      )
-                    : _customerPlaceholder(customerName),
               ),
-              const SizedBox(width: 13),
+              const SizedBox(width: SkillNovaSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      customerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.work_outline_rounded,
-                          color: _textSecondary,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            jobTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _textSecondary,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    Text(name, style: text.titleSmall),
+                    if (dateLabel.isNotEmpty)
+                      Text(dateLabel, style: text.bodySmall),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7E8),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: _primary,
-                      size: 17,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        color: _primaryDark,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
+              Semantics(
+                label: '${rating.toStringAsFixed(0)} stars',
+                excludeSemantics: true,
+                child: _Stars(rating: rating),
               ),
             ],
           ),
-          const SizedBox(height: 15),
-          Row(
-            children: List.generate(
-              5,
-              (index) => Padding(
-                padding: const EdgeInsets.only(right: 3),
-                child: Icon(
-                  index < rating.round()
-                      ? Icons.star_rounded
-                      : Icons.star_border_rounded,
-                  color: _primary,
-                  size: 19,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 13),
-          Text(
-            reviewText,
-            style: const TextStyle(
-              color: _textPrimary,
-              fontSize: 13.5,
-              height: 1.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 15),
-          const Divider(
-            height: 1,
-            color: _border,
-          ),
-          const SizedBox(height: 13),
-          Row(
-            children: [
-              const Icon(
-                Icons.verified_user_outlined,
-                color: Color(0xFF16A34A),
-                size: 15,
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                'Verified customer review',
-                style: TextStyle(
-                  color: Color(0xFF16A34A),
-                  fontSize: 10.8,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const Spacer(),
-              const Icon(
-                Icons.calendar_month_outlined,
-                color: _textSecondary,
-                size: 14,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                _formatDate(createdAt),
-                style: const TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10.8,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+          if (body.isNotEmpty) ...[
+            const SizedBox(height: SkillNovaSpacing.sm),
+            Text(body, style: text.bodyLarge),
+          ],
+          if (service.isNotEmpty) ...[
+            const SizedBox(height: SkillNovaSpacing.sm),
+            StatusBadge(label: service, icon: Icons.handyman_outlined),
+          ],
         ],
       ),
     );
-  }
-
-  Widget _customerPlaceholder(String name) {
-    final initial = name.trim().isEmpty
-        ? 'C'
-        : name.trim().substring(0, 1).toUpperCase();
-
-    return Container(
-      color: const Color(0xFFFFF7E8),
-      alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: const TextStyle(
-          color: _primaryDark,
-          fontSize: 21,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterReviews(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> reviews,
-  ) {
-    if (selectedFilter == 'All') return reviews;
-
-    final selectedRating =
-        int.tryParse(selectedFilter.split(' ').first) ?? 0;
-
-    return reviews.where((doc) {
-      final rating = _toDouble(doc.data()['rating']).round();
-      return rating == selectedRating;
-    }).toList();
-  }
-
-  _ReviewStats _calculateStats(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> reviews,
-  ) {
-    if (reviews.isEmpty) {
-      return const _ReviewStats(
-        average: 0,
-        totalReviews: 0,
-        satisfactionPercent: 0,
-        starCounts: {
-          1: 0,
-          2: 0,
-          3: 0,
-          4: 0,
-          5: 0,
-        },
-      );
-    }
-
-    double totalRating = 0;
-    int positiveReviews = 0;
-    final Map<int, int> starCounts = {
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-    };
-
-    for (final doc in reviews) {
-      final rating = _toDouble(doc.data()['rating']).clamp(0, 5);
-      totalRating += rating;
-
-      final roundedRating = rating.round().clamp(1, 5);
-      starCounts[roundedRating] =
-          (starCounts[roundedRating] ?? 0) + 1;
-
-      if (rating >= 4) {
-        positiveReviews++;
-      }
-    }
-
-    final average = totalRating / reviews.length;
-    final satisfaction =
-        (positiveReviews / reviews.length) * 100;
-
-    return _ReviewStats(
-      average: average,
-      totalReviews: reviews.length,
-      satisfactionPercent: satisfaction,
-      starCounts: starCounts,
-    );
-  }
-
-  Widget _emptyState() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 31),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _border),
-      ),
-      child: const Column(
-        children: [
-          CircleAvatar(
-            radius: 35,
-            backgroundColor: Color(0xFFFFF7E8),
-            child: Icon(
-              Icons.rate_review_outlined,
-              color: _primary,
-              size: 32,
-            ),
-          ),
-          SizedBox(height: 16),
-          Text(
-            'No reviews found',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          SizedBox(height: 7),
-          Text(
-            'Customer reviews will appear here after they rate your completed jobs.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _textSecondary,
-              fontSize: 12.5,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _loadingState() {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
-      children: [
-        Container(
-          height: 240,
-          decoration: BoxDecoration(
-            color: const Color(0xFFE2E8F0),
-            borderRadius: BorderRadius.circular(28),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          height: 220,
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: _border),
-          ),
-          child: const Center(
-            child: CircularProgressIndicator(
-              color: _primary,
-              strokeWidth: 2.3,
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        ...List.generate(
-          3,
-          (_) => Container(
-            height: 180,
-            margin: const EdgeInsets.only(bottom: 14),
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: _border),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _errorState(String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF7F7),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: const Color(0xFFFECACA),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                color: Color(0xFFDC2626),
-                size: 42,
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Unable to load reviews',
-                style: TextStyle(
-                  color: Color(0xFF991B1B),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                error,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFFB91C1C),
-                  fontSize: 11.5,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  static double _toDouble(dynamic value) {
-    if (value is double) return value;
-    if (value is num) return value.toDouble();
-    return double.tryParse(value?.toString() ?? '0') ?? 0;
-  }
-
-  static DateTime _extractDate(Map<String, dynamic> data) {
-    final possibleValues = [
-      data['createdAt'],
-      data['updatedAt'],
-    ];
-
-    for (final value in possibleValues) {
-      if (value is Timestamp) return value.toDate();
-      if (value is DateTime) return value;
-      if (value is String) {
-        final parsed = DateTime.tryParse(value);
-        if (parsed != null) return parsed;
-      }
-    }
-
-    return DateTime.fromMillisecondsSinceEpoch(0);
-  }
-
-  static String _formatDate(DateTime date) {
-    if (date.millisecondsSinceEpoch == 0) {
-      return 'Date unavailable';
-    }
-
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 }
 
-class _ReviewStats {
-  final double average;
-  final int totalReviews;
-  final double satisfactionPercent;
-  final Map<int, int> starCounts;
+class _ReviewsSkeleton extends StatelessWidget {
+  const _ReviewsSkeleton();
 
-  const _ReviewStats({
-    required this.average,
-    required this.totalReviews,
-    required this.satisfactionPercent,
-    required this.starCounts,
-  });
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Loading reviews',
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(SkillNovaSpacing.gutter),
+        children: const [
+          SkeletonCard(height: 150),
+          SizedBox(height: SkillNovaSpacing.xl),
+          SkeletonCard(height: 110),
+          SizedBox(height: SkillNovaSpacing.sm),
+          SkeletonCard(height: 110),
+        ],
+      ),
+    );
+  }
 }

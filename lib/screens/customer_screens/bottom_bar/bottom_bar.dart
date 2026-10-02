@@ -10,7 +10,7 @@ class CustomerBottomBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
 
-  static const List<NavigationDestination> _destinations = [
+  static const List<NavigationDestination> destinations = [
     NavigationDestination(
       icon: Icon(Icons.home_outlined),
       selectedIcon: Icon(Icons.home_rounded),
@@ -52,7 +52,7 @@ class CustomerBottomBar extends StatelessWidget {
         child: NavigationBar(
           selectedIndex: selectedIndex,
           onDestinationSelected: onDestinationSelected,
-          destinations: _destinations,
+          destinations: destinations,
           animationDuration: const Duration(milliseconds: 220),
         ),
       ),

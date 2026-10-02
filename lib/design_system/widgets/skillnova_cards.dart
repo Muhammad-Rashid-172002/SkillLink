@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_feedback.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
 
@@ -18,14 +20,24 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Centred so the 44px-tall action lines up with the title text rather
+    // than floating above its baseline.
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: subtitle == null
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
               if (subtitle != null) ...[
                 const SizedBox(height: SkillNovaSpacing.xxs),
                 Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
@@ -55,13 +67,16 @@ class ServiceCategoryCard extends StatelessWidget {
     super.key,
     required this.label,
     required this.icon,
-    required this.accent,
+    this.accent,
     required this.onTap,
   });
 
   final String label;
   final IconData icon;
-  final Color accent;
+
+  /// Ignored by default: categories share one brand tint so the grid reads
+  /// as one calm system instead of a rainbow. Pass to override deliberately.
+  final Color? accent;
   final VoidCallback onTap;
 
   @override
@@ -78,7 +93,7 @@ class ServiceCategoryCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
           child: Container(
-            width: 112,
+            constraints: const BoxConstraints(minWidth: 112),
             padding: const EdgeInsets.all(SkillNovaSpacing.sm),
             decoration: BoxDecoration(
               border: Border.all(color: colors.outlineVariant),
@@ -91,10 +106,12 @@ class ServiceCategoryCard extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.10),
+                    color:
+                        accent?.withValues(alpha: 0.10) ??
+                        colors.primaryContainer,
                     borderRadius: BorderRadius.circular(SkillNovaRadius.small),
                   ),
-                  child: Icon(icon, color: accent, size: 23),
+                  child: Icon(icon, color: accent ?? colors.primary, size: 23),
                 ),
                 const Spacer(),
                 Text(
@@ -217,22 +234,38 @@ class ProfessionalCard extends StatelessWidget {
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: SkillNovaSpacing.xs),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.star_rounded,
-                          color: SkillNovaColors.rating,
-                          size: 18,
+                    // A rating with zero reviews is meaningless; call new
+                    // professionals out honestly instead.
+                    if (reviewCount == 0)
+                      Text(
+                        'New on SkillNova',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: colors.primary,
                         ),
-                        const SizedBox(width: SkillNovaSpacing.xxs),
-                        Text(
-                          '${rating.toStringAsFixed(1)} ($reviewCount)',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: colors.onSurface,
-                          ),
+                      )
+                    else
+                      Semantics(
+                        label:
+                            'Rated ${rating.toStringAsFixed(1)} from '
+                            '$reviewCount review${reviewCount == 1 ? '' : 's'}',
+                        excludeSemantics: true,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: SkillNovaColors.rating,
+                              size: 18,
+                            ),
+                            const SizedBox(width: SkillNovaSpacing.xxs),
+                            Text(
+                              '${rating.toStringAsFixed(1)} ($reviewCount)',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colors.onSurface,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
@@ -248,7 +281,7 @@ class ProfessionalCard extends StatelessWidget {
               if (completedJobs != null && completedJobs! > 0)
                 _InfoChip(
                   icon: Icons.check_circle_outline_rounded,
-                  label: '$completedJobs jobs',
+                  label: '$completedJobs job${completedJobs == 1 ? '' : 's'}',
                 ),
               if (available == true)
                 const _InfoChip(
@@ -281,9 +314,17 @@ class ProfessionalCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: SecondaryButton(
+                // Short label: two equal buttons in a ~280px card leave no
+                // room for "View profile" without truncating.
+                child: Semantics(
+                  button: true,
                   label: 'View profile',
-                  onPressed: onViewProfile,
+                  onTap: onViewProfile,
+                  excludeSemantics: true,
+                  child: SecondaryButton(
+                    label: 'Profile',
+                    onPressed: onViewProfile,
+                  ),
                 ),
               ),
               const SizedBox(width: SkillNovaSpacing.xs),
@@ -357,7 +398,7 @@ class ActiveBookingCard extends StatelessWidget {
                   children: [
                     Text(
                       service,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium,
                     ),
@@ -368,25 +409,28 @@ class ActiveBookingCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: SkillNovaSpacing.sm,
-                  vertical: SkillNovaSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(SkillNovaRadius.pill),
-                ),
-                child: Text(
-                  statusLabel,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: colors.primary,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: SkillNovaSpacing.md),
+          // The status sits on its own line so the job title keeps the full
+          // width on narrow phones instead of truncating beside a pill.
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: SkillNovaSpacing.sm,
+              vertical: SkillNovaSpacing.xxs,
+            ),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(SkillNovaRadius.pill),
+            ),
+            child: Text(
+              statusLabel,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: colors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(height: SkillNovaSpacing.xs),
           Text(statusMessage, style: theme.textTheme.bodyMedium),
           const SizedBox(height: SkillNovaSpacing.sm),
           Semantics(
@@ -414,6 +458,7 @@ class ActiveBookingCard extends StatelessWidget {
   }
 }
 
+/// Purposeful empty / error state: what is empty, why, and what to do next.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -422,6 +467,7 @@ class EmptyState extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.tone = SkillNovaTone.info,
   });
 
   final IconData icon;
@@ -429,39 +475,54 @@ class EmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final SkillNovaTone tone;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(SkillNovaSpacing.xl),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border.all(color: colors.outlineVariant),
-        borderRadius: BorderRadius.circular(SkillNovaRadius.large),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 32, color: colors.primary),
-          const SizedBox(height: SkillNovaSpacing.sm),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: SkillNovaSpacing.xxs),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium,
-          ),
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: SkillNovaSpacing.sm),
-            GhostButton(label: actionLabel!, onPressed: onAction),
+    return Semantics(
+      container: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: SkillNovaSpacing.xl,
+          vertical: SkillNovaSpacing.xxl,
+        ),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          border: Border.all(color: colors.outlineVariant),
+          borderRadius: BorderRadius.circular(SkillNovaRadius.large),
+        ),
+        child: Column(
+          // Hug the content; inside a Center this must not fill the screen.
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconTile(icon: icon, tone: tone, size: 56),
+            const SizedBox(height: SkillNovaSpacing.md),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: SkillNovaSpacing.xxs),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: SkillNovaSpacing.lg),
+              FilledButton.tonal(
+                onPressed: onAction,
+                child: Text(actionLabel!),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -474,7 +535,7 @@ class ErrorState extends EmptyState {
     required super.message,
     super.actionLabel,
     super.onAction,
-  }) : super(icon: Icons.cloud_off_outlined);
+  }) : super(icon: Icons.cloud_off_outlined, tone: SkillNovaTone.neutral);
 }
 
 class SkeletonCard extends StatelessWidget {

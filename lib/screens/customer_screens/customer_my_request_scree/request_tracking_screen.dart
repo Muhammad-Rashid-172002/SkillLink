@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
+import 'package:skill_link/design_system/widgets/skillnova_map.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
@@ -144,13 +146,21 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
                               : () => _call(booking),
                         )
                       else
-                        BookingDetailSection(
-                          title: 'Professional',
-                          icon: Icons.person_search_outlined,
-                          child: Text(booking.status.description),
+                        // Nobody assigned yet: explain what happens next
+                        // instead of repeating the status line and showing an
+                        // empty map.
+                        const InfoBanner(
+                          icon: Icons.hourglass_top_rounded,
+                          title: 'What happens next',
+                          message:
+                              'Verified professionals nearby can see your '
+                              'request. We’ll notify you as soon as one '
+                              'accepts, and live tracking starts then.',
                         ),
-                      const SizedBox(height: SkillNovaSpacing.md),
-                      _mapArea(booking),
+                      if (booking.workerId.isNotEmpty) ...[
+                        const SizedBox(height: SkillNovaSpacing.md),
+                        _mapArea(booking),
+                      ],
                       const SizedBox(height: SkillNovaSpacing.md),
                       BookingDetailSection(
                         title: 'Status timeline',
@@ -191,7 +201,11 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(booking.service, style: theme.textTheme.headlineSmall),
+          Text(booking.title, style: theme.textTheme.headlineSmall),
+          if (booking.title != booking.service) ...[
+            const SizedBox(height: 2),
+            Text(booking.service, style: theme.textTheme.bodyMedium),
+          ],
           if (booking.location.isNotEmpty) ...[
             const SizedBox(height: SkillNovaSpacing.xs),
             Row(
@@ -247,22 +261,25 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
               borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
               child: SizedBox(
                 height: 240,
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: worker != null
-                        ? LatLng(worker.latitude, worker.longitude)
-                        : LatLng(customer!.latitude, customer.longitude),
-                    zoom: markers.length == 1 ? 14 : 12,
+                child: SkillNovaMap(
+                  label: 'Live map',
+                  builder: (_) => GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: worker != null
+                          ? LatLng(worker.latitude, worker.longitude)
+                          : LatLng(customer!.latitude, customer.longitude),
+                      zoom: markers.length == 1 ? 14 : 12,
+                    ),
+                    markers: markers,
+                    polylines: const {},
+                    myLocationButtonEnabled: false,
+                    mapToolbarEnabled: false,
+                    zoomControlsEnabled: false,
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                      _fitMarkers(markers);
+                    },
                   ),
-                  markers: markers,
-                  polylines: const {},
-                  myLocationButtonEnabled: false,
-                  mapToolbarEnabled: false,
-                  zoomControlsEnabled: false,
-                  onMapCreated: (controller) {
-                    _mapController = controller;
-                    _fitMarkers(markers);
-                  },
                 ),
               ),
             ),

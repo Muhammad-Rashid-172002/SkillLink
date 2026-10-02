@@ -126,15 +126,22 @@ class BookingCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // The customer's own words identify the job; the
+                    // category is supporting context.
                     Text(
-                      booking.service,
+                      booking.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium,
                     ),
                     const SizedBox(height: SkillNovaSpacing.xxs),
                     Text(
-                      bookingDateLabel(date, includeTime: true),
+                      booking.title == booking.service
+                          ? bookingDateLabel(date, includeTime: true)
+                          : '${booking.service} · '
+                                '${bookingDateLabel(date, includeTime: true)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
@@ -356,34 +363,52 @@ class BookingWorkerCard extends StatelessWidget {
           ),
           if (showProfileAction || showCommunicationActions) ...[
             const SizedBox(height: SkillNovaSpacing.md),
-            Wrap(
-              alignment: WrapAlignment.end,
-              spacing: SkillNovaSpacing.xs,
-              runSpacing: SkillNovaSpacing.xs,
-              children: [
-                if (showProfileAction)
-                  TextButton.icon(
-                    onPressed: onViewProfile,
-                    icon: const Icon(Icons.person_outline_rounded, size: 18),
-                    label: const Text('View profile'),
-                  ),
-                if (showCommunicationActions)
-                  OutlinedButton.icon(
-                    onPressed: onMessage,
-                    icon: const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 18,
+            // One clear primary action (message) with a compact call button;
+            // the profile is a quieter action underneath so nothing squeezes
+            // on narrow phones or with large text.
+            if (showCommunicationActions)
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: onMessage,
+                      icon: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 18,
+                      ),
+                      label: const Text('Message'),
                     ),
-                    label: const Text('Message'),
                   ),
-                if (showCommunicationActions && onCall != null)
-                  IconButton.outlined(
-                    tooltip: 'Call professional',
-                    onPressed: onCall,
-                    icon: const Icon(Icons.call_outlined),
-                  ),
-              ],
-            ),
+                  if (onCall != null) ...[
+                    const SizedBox(width: SkillNovaSpacing.xs),
+                    IconButton.outlined(
+                      tooltip: 'Call professional',
+                      onPressed: onCall,
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(52, 52),
+                      ),
+                      icon: const Icon(Icons.call_outlined),
+                    ),
+                  ],
+                ],
+              ),
+            if (showProfileAction)
+              SizedBox(
+                width: double.infinity,
+                child: showCommunicationActions
+                    ? TextButton(
+                        onPressed: onViewProfile,
+                        child: const Text('View profile'),
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: onViewProfile,
+                        icon: const Icon(
+                          Icons.person_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('View profile'),
+                      ),
+              ),
           ],
         ],
       ),

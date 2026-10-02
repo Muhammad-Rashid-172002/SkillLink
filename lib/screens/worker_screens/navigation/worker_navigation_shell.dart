@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_adaptive_nav.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_screen.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_jobs_screen.dart';
@@ -64,7 +65,10 @@ class _WorkerNavigationShellState extends State<WorkerNavigationShell> {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _selectedIndex != 0) _selectTab(0);
       },
-      child: Scaffold(
+      child: AdaptiveNavigationScaffold(
+        destinations: WorkerBottomBar.destinations,
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _selectTab,
         body: WorkerNavigationScope(
           child: IndexedStack(
             index: _selectedIndex,
@@ -73,7 +77,7 @@ class _WorkerNavigationShellState extends State<WorkerNavigationShell> {
                 .toList(growable: false),
           ),
         ),
-        bottomNavigationBar: WorkerBottomBar(
+        bottomBar: WorkerBottomBar(
           selectedIndex: _selectedIndex,
           onDestinationSelected: _selectTab,
         ),

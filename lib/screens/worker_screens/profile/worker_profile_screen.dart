@@ -256,12 +256,12 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                 icon: Icons.visibility_outlined,
                 title: 'Public profile preview',
                 subtitle: profile.publiclyVisible
-                    ? 'View the profile customers can currently open'
-                    : 'Unavailable until your profile is eligible and accepting jobs',
+                    ? 'See your profile the way customers do'
+                    : 'Available once you’re verified and accepting jobs',
                 onTap: () {
                   if (!profile.publiclyVisible) {
                     _showMessage(
-                      'Public preview is unavailable while the profile is ineligible or not accepting jobs.',
+                      'Your public profile appears once you’re verified and accepting jobs.',
                     );
                     return;
                   }
@@ -291,15 +291,16 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                 icon: Icons.toll_outlined,
                 title: 'Lead credits',
                 subtitle:
-                    '${profile.credits} available · required to accept a lead',
+                    '${profile.credits} available · 1 credit per accepted lead',
                 onTap: () => _runOrOpen(widget.onCredits, const WallatScreen()),
               ),
               const Divider(height: 1),
               ProfileMenuTile(
                 icon: Icons.star_outline_rounded,
                 title: 'Reviews',
-                subtitle:
-                    '${profile.reviewCount} maintained reviews · ${profile.rating > 0 ? profile.rating.toStringAsFixed(1) : 'No rating yet'}',
+                subtitle: profile.reviewCount == 0
+                    ? 'No reviews yet'
+                    : '${profile.rating.toStringAsFixed(1)} average · ${profile.reviewCount} review${profile.reviewCount == 1 ? '' : 's'}',
                 onTap: () =>
                     _runOrOpen(widget.onReviews, const ReviewsRatingsScreen()),
               ),
@@ -307,7 +308,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               ProfileMenuTile(
                 icon: Icons.history_rounded,
                 title: 'Completed jobs',
-                subtitle: 'Open the completed group in canonical Worker Jobs',
+                subtitle: 'Your finished work and history',
                 onTap: () => _runOrOpen(
                   widget.onCompletedJobs,
                   const WorkerJobsScreen(

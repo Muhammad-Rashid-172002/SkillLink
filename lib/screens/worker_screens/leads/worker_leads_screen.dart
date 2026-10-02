@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_map.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
@@ -419,17 +420,22 @@ class _WorkerLeadsScreenState extends State<WorkerLeadsScreen> {
                   color: Theme.of(context).colorScheme.outlineVariant,
                 ),
               ),
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: LatLng(firstPoint.latitude, firstPoint.longitude),
-                  zoom: 11.5,
+              child: SkillNovaMap(
+                label: 'Leads near you',
+                latitude: firstPoint.latitude,
+                longitude: firstPoint.longitude,
+                builder: (_) => GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(firstPoint.latitude, firstPoint.longitude),
+                    zoom: 11.5,
+                  ),
+                  markers: markers,
+                  compassEnabled: false,
+                  mapToolbarEnabled: false,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  onMapCreated: (controller) => _mapController = controller,
                 ),
-                markers: markers,
-                compassEnabled: false,
-                mapToolbarEnabled: false,
-                myLocationButtonEnabled: false,
-                zoomControlsEnabled: false,
-                onMapCreated: (controller) => _mapController = controller,
               ),
             ),
             const SizedBox(height: 10),

@@ -96,8 +96,9 @@ abstract final class SkillNovaRadius {
   static const double xsmall = 8;
   static const double small = 10;
   static const double medium = 16;
-  static const double large = 24;
-  static const double xlarge = 32;
+  /// Cards and sheets.
+  static const double large = 20;
+  static const double xlarge = 28;
   static const double pill = 999;
 }
 

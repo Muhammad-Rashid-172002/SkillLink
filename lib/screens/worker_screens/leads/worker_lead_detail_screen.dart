@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
 import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_detail_screen.dart';
@@ -661,7 +662,8 @@ class _LeadImageViewerState extends State<_LeadImageViewer> {
 
 String _fullDate(DateTime? value) {
   if (value == null) return 'Recently';
-  String two(int number) => number.toString().padLeft(2, '0');
-  return '${two(value.day)}/${two(value.month)}/${value.year} '
-      '${two(value.hour)}:${two(value.minute)}';
+  final hour = value.hour % 12 == 0 ? 12 : value.hour % 12;
+  final minute = value.minute.toString().padLeft(2, '0');
+  return '${workerJobDateLabel(value)}, $hour:$minute '
+      '${value.hour < 12 ? 'AM' : 'PM'}';
 }

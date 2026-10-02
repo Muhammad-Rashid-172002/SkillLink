@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_map.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
@@ -409,41 +410,48 @@ class _WorkerJobDetailV2ScreenState extends State<WorkerJobDetailV2Screen> {
               borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
               child: SizedBox(
                 height: 220,
-                child: GoogleMap(
-                  key: const ValueKey('worker-job-map'),
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(
-                      (service ?? workerCoordinate!).latitude,
-                      (service ?? workerCoordinate!).longitude,
+                child: SkillNovaMap(
+                  label: 'Service location',
+                  latitude: service?.latitude,
+                  longitude: service?.longitude,
+                  builder: (_) => GoogleMap(
+                    key: const ValueKey('worker-job-map'),
+                    initialCameraPosition: CameraPosition(
+                      target: LatLng(
+                        (service ?? workerCoordinate!).latitude,
+                        (service ?? workerCoordinate!).longitude,
+                      ),
+                      zoom: 13,
                     ),
-                    zoom: 13,
+                    markers: {
+                      if (service != null)
+                        Marker(
+                          markerId: const MarkerId('service-location'),
+                          position: LatLng(service.latitude, service.longitude),
+                          infoWindow: const InfoWindow(
+                            title: 'Service location',
+                          ),
+                        ),
+                      if (workerCoordinate != null)
+                        Marker(
+                          markerId: const MarkerId('worker-location'),
+                          position: LatLng(
+                            workerCoordinate.latitude,
+                            workerCoordinate.longitude,
+                          ),
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                            BitmapDescriptor.hueAzure,
+                          ),
+                          infoWindow: const InfoWindow(
+                            title: 'Your current location',
+                          ),
+                        ),
+                    },
+                    zoomControlsEnabled: false,
+                    myLocationButtonEnabled: false,
+                    mapToolbarEnabled: false,
+                    compassEnabled: false,
                   ),
-                  markers: {
-                    if (service != null)
-                      Marker(
-                        markerId: const MarkerId('service-location'),
-                        position: LatLng(service.latitude, service.longitude),
-                        infoWindow: const InfoWindow(title: 'Service location'),
-                      ),
-                    if (workerCoordinate != null)
-                      Marker(
-                        markerId: const MarkerId('worker-location'),
-                        position: LatLng(
-                          workerCoordinate.latitude,
-                          workerCoordinate.longitude,
-                        ),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(
-                          BitmapDescriptor.hueAzure,
-                        ),
-                        infoWindow: const InfoWindow(
-                          title: 'Your current location',
-                        ),
-                      ),
-                  },
-                  zoomControlsEnabled: false,
-                  myLocationButtonEnabled: false,
-                  mapToolbarEnabled: false,
-                  compassEnabled: false,
                 ),
               ),
             )

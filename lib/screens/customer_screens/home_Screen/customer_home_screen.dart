@@ -1,16 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/customer_screens/Explore/explore.dart';
 import 'package:skill_link/Notification_screen/notification_screen.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
 import 'package:skill_link/design_system/widgets/skillnova_inputs.dart';
 import 'package:skill_link/models/service_data.dart';
-import 'package:skill_link/screens/customer_screens/Request/Request.dart'
-    hide ServiceOption;
+import 'package:skill_link/screens/customer_screens/Request/Request.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/request_tracking_screen.dart';
 import 'package:skill_link/screens/customer_screens/home_Screen/AllServicesScreen.dart';
 import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_repository.dart';
-import 'package:skill_link/screens/customer_screens/home_Screen/top_rated_workers_screen.dart';
 import 'package:skill_link/screens/customer_screens/muneTile/edit_profile.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
 
@@ -374,7 +373,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
         final active = [...?snapshot.data].where((document) {
           return _isActiveStatus(document.data['status']);
-        }).toList()..sort((a, b) => _dateOf(b.data).compareTo(_dateOf(a.data)));
+        }).toList()
+          ..sort((a, b) {
+            // Work that is actually underway matters more than an open
+            // request, then newest first.
+            final byStage = _statusPresentation(b.data['status']).progress
+                .compareTo(_statusPresentation(a.data['status']).progress);
+            return byStage != 0
+                ? byStage
+                : _dateOf(b.data).compareTo(_dateOf(a.data));
+          });
 
         if (active.isEmpty) return const SizedBox.shrink();
 
@@ -384,8 +392,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         final workerId = _string(data, ['workerId']);
         final workerName = _string(data, ['workerName']);
         final service = _string(data, [
-          'category',
           'title',
+          'category',
         ], fallback: 'Service booking');
 
         return Padding(
@@ -441,24 +449,54 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           onAction: _openAllServices,
         ),
         const SizedBox(height: SkillNovaSpacing.sm),
-        SizedBox(
-          height: 120,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            clipBehavior: Clip.none,
-            itemCount: services.length,
-            separatorBuilder: (_, _) =>
-                const SizedBox(width: SkillNovaSpacing.sm),
-            itemBuilder: (context, index) {
-              final service = services[index];
-              return ServiceCategoryCard(
-                label: service.title,
-                icon: service.icon,
-                accent: service.color,
-                onTap: () => _openRequest(service.title),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Wide layouts show every card in a tidy grid; phones keep a
+            // swipeable row that hints there is more to the right.
+            final perRow = (constraints.maxWidth / 124).floor();
+            if (perRow >= services.length || constraints.maxWidth >= 600) {
+              final shown = services.take(perRow.clamp(1, services.length));
+              return SizedBox(
+                height: 120,
+                child: Row(
+                  children: [
+                    for (final service in shown) ...[
+                      Expanded(
+                        child: ServiceCategoryCard(
+                          label: service.title,
+                          icon: service.icon,
+                          onTap: () => _openRequest(service.title),
+                        ),
+                      ),
+                      if (service != shown.last)
+                        const SizedBox(width: SkillNovaSpacing.sm),
+                    ],
+                  ],
+                ),
               );
-            },
-          ),
+            }
+            return SizedBox(
+              height: 120,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                itemCount: services.length,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(width: SkillNovaSpacing.sm),
+                itemBuilder: (context, index) {
+                  final service = services[index];
+                  return SizedBox(
+                    width: 112,
+                    child: ServiceCategoryCard(
+                      label: service.title,
+                      icon: service.icon,
+                      onTap: () => _openRequest(service.title),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ],
     );
@@ -678,7 +716,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     }
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const TopRatedWorkersScreen()),
+      MaterialPageRoute(builder: (_) => const Explore()),
     );
   }
 

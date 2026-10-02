@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_map.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
@@ -9,8 +10,7 @@ import 'package:skill_link/models/service_data.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore_filter_sheets.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore_models.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore_repository.dart';
-import 'package:skill_link/screens/customer_screens/Request/Request.dart'
-    hide ServiceOption;
+import 'package:skill_link/screens/customer_screens/Request/Request.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
 
 class Explore extends StatefulWidget {
@@ -78,6 +78,11 @@ class _ExploreState extends State<Explore> {
     }
 
     return Scaffold(
+      // Shown only when pushed as its own page (e.g. "View all"); the Explore
+      // tab itself is a root and keeps its large in-content header.
+      appBar: Navigator.of(context).canPop()
+          ? AppBar(title: const Text('Professionals'))
+          : null,
       body: SafeArea(
         bottom: false,
         child: StreamBuilder<Map<String, dynamic>?>(
@@ -250,6 +255,9 @@ class _ExploreState extends State<Explore> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
                 onPressed: () => _openFilters(location),
                 icon: const Icon(Icons.tune_rounded, size: 19),
                 label: Text(
@@ -262,6 +270,9 @@ class _ExploreState extends State<Explore> {
             const SizedBox(width: SkillNovaSpacing.sm),
             Expanded(
               child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
                 onPressed: () => _openSort(location),
                 icon: const Icon(Icons.swap_vert_rounded, size: 19),
                 label: Text(_sort.label, overflow: TextOverflow.ellipsis),
@@ -545,18 +556,21 @@ class _ExploreState extends State<Explore> {
           child: Stack(
             children: [
               Positioned.fill(
-                child: GoogleMap(
-                  initialCameraPosition: initialCamera,
-                  markers: markers,
-                  myLocationEnabled: customerLocation != null,
-                  myLocationButtonEnabled: false,
-                  zoomControlsEnabled: false,
-                  mapToolbarEnabled: false,
-                  onCameraMove: (position) => _lastCamera = position,
-                  onMapCreated: (controller) {
-                    _mapController = controller;
-                    _fitMap(mapped, customerLocation);
-                  },
+                child: SkillNovaMap(
+                  label: 'Map view',
+                  builder: (_) => GoogleMap(
+                    initialCameraPosition: initialCamera,
+                    markers: markers,
+                    myLocationEnabled: customerLocation != null,
+                    myLocationButtonEnabled: false,
+                    zoomControlsEnabled: false,
+                    mapToolbarEnabled: false,
+                    onCameraMove: (position) => _lastCamera = position,
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                      _fitMap(mapped, customerLocation);
+                    },
+                  ),
                 ),
               ),
               Positioned(

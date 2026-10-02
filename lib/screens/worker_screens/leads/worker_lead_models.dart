@@ -1,3 +1,4 @@
+import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
 
 enum WorkerLeadsView { list, map }
@@ -148,12 +149,10 @@ class WorkerLead {
   String get customerId => workerText(data, const ['customerId']);
   DateTime? get createdAt => workerDate(data['createdAt']);
   double? get budgetValue => _moneyValue(data['budget']);
-  String get postedBudget {
-    final raw = workerText(data, const ['budget']);
-    if (raw.isEmpty) return 'Not provided';
-    if (raw.toLowerCase().startsWith('rs')) return raw;
-    return 'Rs. $raw';
-  }
+  /// Same money format as Jobs ("Rs 5,000") so a lead and the job it becomes
+  /// read identically.
+  String get postedBudget =>
+      formatWorkerJobBudget(workerText(data, const ['budget']));
 
   String get privateLocation => workerText(data, const [
     'location',

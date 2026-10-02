@@ -31,7 +31,8 @@ class SkillNovaButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final action = loading ? null : onPressed;
     final loadingColor = switch (variant) {
-      SkillNovaButtonVariant.primary ||
+      SkillNovaButtonVariant.primary =>
+        Theme.of(context).colorScheme.onPrimary,
       SkillNovaButtonVariant.destructive => Colors.white,
       SkillNovaButtonVariant.outline => Theme.of(context).colorScheme.onSurface,
       _ => Theme.of(context).colorScheme.primary,

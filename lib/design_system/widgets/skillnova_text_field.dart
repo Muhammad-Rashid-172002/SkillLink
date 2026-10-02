@@ -131,3 +131,34 @@ class _SkillNovaTextFieldState extends State<SkillNovaTextField> {
     );
   }
 }
+
+/// The label shown above every SkillNova form control (text fields,
+/// dropdowns, pickers) so all forms share one treatment.
+class SkillNovaFieldLabel extends StatelessWidget {
+  const SkillNovaFieldLabel(this.label, {super.key, this.optional = false});
+
+  final String label;
+  final bool optional;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: SkillNovaSpacing.xs),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          if (optional) ...[
+            const SizedBox(width: SkillNovaSpacing.xxs),
+            Text('(optional)', style: theme.textTheme.bodySmall),
+          ],
+        ],
+      ),
+    );
+  }
+}

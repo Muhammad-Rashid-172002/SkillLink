@@ -1,8 +1,6 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +8,15 @@ import 'package:skill_link/core/auth/session_router.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart';
+import 'package:skill_link/design_system/skillnova_tokens.dart';
+import 'package:skill_link/design_system/widgets/skillnova_brand.dart';
+import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
+import 'package:skill_link/design_system/widgets/skillnova_feedback.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
+import 'package:skill_link/design_system/widgets/skillnova_text_field.dart';
 import 'package:skill_link/models/service_data.dart';
+import 'package:skill_link/screens/auth_screens/verification_widgets.dart';
 
 class WorkerProfileSetupScreen extends StatefulWidget {
   const WorkerProfileSetupScreen({super.key});
@@ -21,16 +27,6 @@ class WorkerProfileSetupScreen extends StatefulWidget {
 }
 
 class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
-  static const Color _background = Color(0xFFF4F7FB);
-  static const Color _surface = Colors.white;
-  static const Color _primary = Color(0xFF16A34A);
-  static const Color _secondary = Color(0xFF14B8A6);
-  static const Color _textPrimary = Color(0xFF0F172A);
-  static const Color _textSecondary = Color(0xFF64748B);
-  static const Color _border = Color(0xFFE2E8F0);
-  static const Color _danger = Color(0xFFDC2626);
-  static const Color _warning = Color(0xFFF59E0B);
-
   final _formKey = GlobalKey<FormState>();
 
   final nameController = TextEditingController();
@@ -198,7 +194,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     final isValid = _formKey.currentState?.validate() ?? false;
 
     if (!isValid) {
-      _showMessage('Please complete all required fields.', isError: true);
+      _showMessage('Please check the highlighted fields.', isError: true);
       return;
     }
 
@@ -206,7 +202,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
         (_existingProfileImageUrl == null ||
             _existingProfileImageUrl!.trim().isEmpty)) {
       _showMessage(
-        'Please add a clear worker profile photo from camera or gallery.',
+        'Add a clear photo of yourself — customers trust profiles with a face.',
         isError: true,
       );
       return;
@@ -271,7 +267,8 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
       if (!mounted) return;
 
       _showMessage(
-        'Profile could not be saved. ${error.toString()}',
+        'Your profile couldn’t be saved. Check your connection and try '
+        'again.',
         isError: true,
       );
     } finally {
@@ -279,210 +276,6 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
         setState(() => _isSaving = false);
       }
     }
-  }
-
-  Future<void> _showProfileImageSourceSheet() async {
-    if (_isSaving) return;
-
-    FocusScope.of(context).unfocus();
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        final hasPhoto =
-            _selectedProfileImage != null ||
-            (_existingProfileImageUrl?.isNotEmpty ?? false);
-
-        return SafeArea(
-          child: Container(
-            margin: const EdgeInsets.all(14),
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x260F172A),
-                  blurRadius: 34,
-                  offset: Offset(0, 16),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 44,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: _border,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [_primary, _secondary],
-                    ),
-                    borderRadius: BorderRadius.circular(21),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _primary.withOpacity(0.22),
-                        blurRadius: 20,
-                        offset: const Offset(0, 9),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.add_a_photo_rounded,
-                    color: Colors.white,
-                    size: 29,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Add a professional photo',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.25,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Use a clear front-facing photo so customers can recognize and trust your profile.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _textSecondary,
-                    fontSize: 10.5,
-                    height: 1.45,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _photoSourceOption(
-                        icon: Icons.camera_alt_rounded,
-                        title: 'Camera',
-                        subtitle: 'Take a new photo',
-                        onTap: () {
-                          Navigator.pop(sheetContext);
-                          _pickProfileImage(ImageSource.camera);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _photoSourceOption(
-                        icon: Icons.photo_library_rounded,
-                        title: 'Gallery',
-                        subtitle: 'Choose existing photo',
-                        onTap: () {
-                          Navigator.pop(sheetContext);
-                          _pickProfileImage(ImageSource.gallery);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                if (hasPhoto) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(sheetContext);
-                        setState(() {
-                          _selectedProfileImage = null;
-                          _existingProfileImageUrl = null;
-                        });
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _danger,
-                        side: BorderSide(color: _danger.withOpacity(0.24)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                      label: const Text(
-                        'Remove current photo',
-                        style: TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _photoSourceOption({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(19),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(19),
-            border: Border.all(color: _border),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: _primary.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Icon(icon, color: _primary, size: 23),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: _textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: _textSecondary,
-                  fontSize: 8.7,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _pickProfileImage(ImageSource source) async {
@@ -515,7 +308,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     required String userId,
     required XFile image,
   }) async {
-    final String extension = _fileExtension(image.path);
+    final String extension = _fileExtension(image.name);
 
     final Reference reference = _storage
         .ref()
@@ -524,8 +317,9 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
         .child(userId)
         .child('profile.$extension');
 
-    final UploadTask uploadTask = reference.putFile(
-      File(image.path),
+    // Bytes work on every platform; `File` does not exist on the web.
+    final UploadTask uploadTask = reference.putData(
+      await image.readAsBytes(),
       SettableMetadata(
         contentType: _contentType(extension),
         customMetadata: {'userId': userId, 'type': 'worker_profile'},
@@ -566,401 +360,177 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     }
   }
 
-  Widget _workerProfileImage() {
-    if (_selectedProfileImage != null) {
-      return Image.file(
-        File(_selectedProfileImage!.path),
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _profilePlaceholder(),
-      );
-    }
-
-    if (_existingProfileImageUrl != null &&
-        _existingProfileImageUrl!.isNotEmpty) {
-      return Image.network(
-        _existingProfileImageUrl!,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-
-          return const Center(
-            child: CircularProgressIndicator(color: _primary, strokeWidth: 2),
-          );
-        },
-        errorBuilder: (_, __, ___) => _profilePlaceholder(),
-      );
-    }
-
-    return _profilePlaceholder();
-  }
-
-  Widget _profilePlaceholder() {
-    return const ColoredBox(
-      color: _surface,
-      child: Icon(Icons.person_rounded, color: Color(0xFF94A3B8), size: 48),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _background,
-      body: Stack(
-        children: [
-          Positioned(
-            top: -150,
-            right: -120,
-            child: _ambientCircle(size: 340, color: _primary.withOpacity(0.09)),
+  Future<void> _showLocationSettingsDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.location_off_outlined),
+        title: const Text('Turn on location'),
+        content: const Text(
+          'Location is off, so we can’t pin where you work. You can turn it '
+          'on, or just type your service area.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Not now'),
           ),
-          Positioned(
-            bottom: -170,
-            left: -140,
-            child: _ambientCircle(
-              size: 360,
-              color: _secondary.withOpacity(0.06),
-            ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Geolocator.openLocationSettings();
+            },
+            child: const Text('Open settings'),
           ),
-          SafeArea(
-            child: Form(
-              key: _formKey,
-              child: CustomScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 36),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        _topBar(),
-                        const SizedBox(height: 20),
-                        _heroCard(),
-                        const SizedBox(height: 18),
-                        _progressCard(),
-                        const SizedBox(height: 20),
-                        _profilePhoto(),
-                        const SizedBox(height: 24),
-                        _sectionHeader(
-                          icon: Icons.person_outline_rounded,
-                          title: 'Basic information',
-                          subtitle: 'Tell customers who you are',
-                        ),
-                        const SizedBox(height: 12),
-                        _formCard(
-                          children: [
-                            _professionalField(
-                              label: 'Full name',
-                              hint: 'Enter your full name',
-                              icon: Icons.person_outline_rounded,
-                              controller: nameController,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Full name is required';
-                                }
-
-                                if (value.trim().length < 3) {
-                                  return 'Enter a valid full name';
-                                }
-
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 15),
-                            _professionalField(
-                              label: 'Phone number',
-                              hint: '+92 300 0000000',
-                              icon: Icons.phone_outlined,
-                              controller: phoneController,
-                              keyboardType: TextInputType.phone,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                  RegExp(r'[0-9+\-\s]'),
-                                ),
-                              ],
-                              validator: (value) {
-                                final text = value?.trim() ?? '';
-
-                                if (text.isEmpty) {
-                                  return 'Phone number is required';
-                                }
-
-                                if (text.length < 10) {
-                                  return 'Enter a valid phone number';
-                                }
-
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 15),
-                            _skillDropdown(),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        _sectionHeader(
-                          icon: Icons.handyman_outlined,
-                          title: 'Work details',
-                          subtitle: 'Add your experience and service pricing',
-                        ),
-                        const SizedBox(height: 12),
-                        _formCard(
-                          children: [
-                            _professionalField(
-                              label: 'Work experience',
-                              hint: 'Example: 3 years',
-                              icon: Icons.work_outline_rounded,
-                              controller: experienceController,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Experience is required';
-                                }
-
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 15),
-                            _professionalField(
-                              label: 'Hourly rate',
-                              hint: 'Example: 800',
-                              icon: Icons.payments_outlined,
-                              controller: rateController,
-                              keyboardType: TextInputType.number,
-                              prefixText: 'Rs. ',
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              validator: (value) {
-                                final rate = int.tryParse(value?.trim() ?? '');
-
-                                if (rate == null || rate <= 0) {
-                                  return 'Enter a valid hourly rate';
-                                }
-
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        _sectionHeader(
-                          icon: Icons.location_on_outlined,
-                          title: 'Service location',
-                          subtitle: 'Help nearby customers discover you',
-                        ),
-                        const SizedBox(height: 12),
-                        _locationCard(),
-                        const SizedBox(height: 20),
-                        _sectionHeader(
-                          icon: Icons.description_outlined,
-                          title: 'Professional summary',
-                          subtitle: 'Describe your skills and work quality',
-                        ),
-                        const SizedBox(height: 12),
-                        _bioCard(),
-                        const SizedBox(height: 24),
-                        _privacyNote(),
-                        const SizedBox(height: 18),
-                        _submitButton(),
-                      ]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_isSaving) Positioned.fill(child: _savingOverlay()),
         ],
       ),
     );
   }
 
-  Widget _topBar() {
-    // Profile setup is a root screen during onboarding: there is nothing to
-    // pop back to, so offer a clear way out instead of a dead back arrow.
-    final canGoBack = Navigator.of(context).canPop();
-    return Row(
-      children: [
-        if (canGoBack) ...[
-          Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(15),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(15),
-              onTap: () => Navigator.maybePop(context),
-              child: Container(
-                height: 46,
-                width: 46,
-                decoration: BoxDecoration(
-                  color: _surface,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: _border),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x070F172A),
-                      blurRadius: 14,
-                      offset: Offset(0, 7),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: _textPrimary,
-                  size: 20,
-                ),
-              ),
+  void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
+    SkillNovaToast.show(
+      context,
+      message,
+      tone: isError ? SkillNovaTone.error : SkillNovaTone.success,
+    );
+  }
+
+  Future<void> _choosePhoto() async {
+    if (kIsWeb) return _pickProfileImage(ImageSource.gallery);
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
             ),
-          ),
-          const SizedBox(width: 12),
-        ],
-        const Expanded(
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+            const SizedBox(height: SkillNovaSpacing.xs),
+          ],
+        ),
+      ),
+    );
+    if (source != null) await _pickProfileImage(source);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return PopScope(
+      canPop: !_isSaving,
+      child: Scaffold(
+        body: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Worker profile',
-                style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.4,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  SkillNovaSpacing.gutter,
+                  SkillNovaSpacing.xs,
+                  SkillNovaSpacing.xs,
+                  0,
+                ),
+                child: _topBar(),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(
+                    SkillNovaSpacing.gutter,
+                    SkillNovaSpacing.md,
+                    SkillNovaSpacing.gutter,
+                    SkillNovaSpacing.xl,
+                  ),
+                  child: ContentWidth(
+                    maxWidth: 560,
+                    child: Form(
+                      key: _formKey,
+                      child: AbsorbPointer(
+                        absorbing: _isSaving,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const VerificationProgress(step: 3),
+                            const SizedBox(height: SkillNovaSpacing.xl),
+                            Text(
+                              'Set up your professional profile',
+                              style: text.headlineSmall,
+                            ),
+                            const SizedBox(height: SkillNovaSpacing.xs),
+                            Text(
+                              'This is what customers see before they hire '
+                              'you. Next, you’ll verify your identity.',
+                              style: text.bodyMedium,
+                            ),
+                            const SizedBox(height: SkillNovaSpacing.md),
+                            _progress(),
+                            const SizedBox(height: SkillNovaSpacing.xl),
+                            _photo(),
+                            const SizedBox(height: SkillNovaSpacing.xl),
+                            _section('About you'),
+                            ..._basicFields(),
+                            const SizedBox(height: SkillNovaSpacing.xl),
+                            _section('Your work'),
+                            ..._workFields(),
+                            const SizedBox(height: SkillNovaSpacing.xl),
+                            _section('Where you work'),
+                            ..._locationFields(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              SizedBox(height: 3),
-              Text(
-                'Complete your professional account',
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10.3,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              _saveBar(),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _topBar() {
+    // Root screen during onboarding: there is nothing to pop back to, so
+    // offer a clear way out instead of a dead back arrow.
+    final canGoBack = Navigator.of(context).canPop();
+    return Row(
+      children: [
+        if (canGoBack)
+          IconButton(
+            tooltip: 'Back',
+            onPressed: _isSaving ? null : () => Navigator.maybePop(context),
+            icon: const Icon(Icons.arrow_back_rounded),
+          )
+        else
+          const SkillNovaWordmark(size: 28),
+        const Spacer(),
         if (!canGoBack)
           TextButton(
             onPressed: _isSaving ? null : () => SessionRouter.signOut(context),
-            style: TextButton.styleFrom(foregroundColor: _primary),
             child: const Text('Sign out'),
           ),
       ],
     );
   }
 
-  Widget _heroCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 21, 20, 20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_primary, _secondary],
-        ),
-        borderRadius: BorderRadius.circular(29),
-        boxShadow: [
-          BoxShadow(
-            color: _primary.withOpacity(0.24),
-            blurRadius: 28,
-            offset: const Offset(0, 15),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -70,
-            right: -55,
-            child: Container(
-              height: 180,
-              width: 180,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.09),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -100,
-            left: -55,
-            child: Container(
-              height: 180,
-              width: 180,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.07),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.14),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'WORKER ONBOARDING',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8.8,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.7,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    const Text(
-                      'Build your professional profile',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 23,
-                        height: 1.18,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.55,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Add accurate work details so customers can discover and trust your services.',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.82),
-                        fontSize: 11,
-                        height: 1.45,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Container(
-                height: 88,
-                width: 76,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(23),
-                  border: Border.all(color: Colors.white.withOpacity(0.18)),
-                ),
-                child: const Icon(
-                  Icons.handyman_rounded,
-                  color: Colors.white,
-                  size: 39,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _section(String title) => Padding(
+    padding: const EdgeInsets.only(bottom: SkillNovaSpacing.sm),
+    child: Semantics(
+      header: true,
+      child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+    ),
+  );
 
   /// Share of the required profile items that are actually filled in.
   double get _completion {
@@ -974,11 +544,14 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
       filled(experienceController),
       filled(rateController),
       filled(locationController) || _locationCaptured,
+      bioController.text.trim().length >= 20,
     ];
     return items.where((done) => done).length / items.length;
   }
 
-  Widget _progressCard() {
+  Widget _progress() {
+    final text = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
     return ListenableBuilder(
       listenable: Listenable.merge([
         nameController,
@@ -986,935 +559,29 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
         experienceController,
         rateController,
         locationController,
+        bioController,
       ]),
-      builder: (context, _) => _progressCardBody(_completion),
-    );
-  }
-
-  Widget _progressCardBody(double completion) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x070F172A),
-            blurRadius: 14,
-            offset: Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 42,
-            width: 42,
-            decoration: BoxDecoration(
-              color: _primary.withOpacity(0.09),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              color: _primary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Profile setup progress',
-                  style: TextStyle(
-                    color: _textPrimary,
-                    fontSize: 11.4,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                ClipRRect(
-                  borderRadius: const BorderRadius.all(Radius.circular(10)),
+      builder: (context, _) {
+        final completion = _completion;
+        return Semantics(
+          label: 'Profile ${(completion * 100).round()} percent complete',
+          excludeSemantics: true,
+          child: Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: completion,
                     minHeight: 6,
-                    color: _primary,
-                    backgroundColor: Color(0xFFDCFCE7),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            '${(completion * 100).round()}%',
-            style: TextStyle(
-              color: _primary,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _profilePhoto() {
-    final hasPhoto =
-        _selectedProfileImage != null ||
-        (_existingProfileImageUrl?.isNotEmpty ?? false);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(
-          color: hasPhoto ? _primary.withOpacity(0.22) : _border,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x070F172A),
-            blurRadius: 18,
-            offset: Offset(0, 9),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: _primary.withOpacity(0.09),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.badge_outlined,
-                  color: _primary,
-                  size: 19,
-                ),
-              ),
-              const SizedBox(width: 11),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Worker profile photo',
-                      style: TextStyle(
-                        color: _textPrimary,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'A clear photo improves customer trust',
-                      style: TextStyle(
-                        color: _textSecondary,
-                        fontSize: 9.3,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                decoration: BoxDecoration(
-                  color: hasPhoto
-                      ? _primary.withOpacity(0.10)
-                      : _warning.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  hasPhoto ? 'READY' : 'REQUIRED',
-                  style: TextStyle(
-                    color: hasPhoto ? _primary : _warning,
-                    fontSize: 7.7,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.35,
+                    backgroundColor: colors.surfaceContainer,
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          GestureDetector(
-            onTap: _showProfileImageSourceSheet,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  height: 122,
-                  width: 122,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [_primary, _secondary],
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: _primary.withOpacity(0.22),
-                        blurRadius: 24,
-                        offset: const Offset(0, 12),
-                      ),
-                    ],
-                  ),
-                  child: Container(
-                    margin: const EdgeInsets.all(5),
-                    clipBehavior: Clip.antiAlias,
-                    decoration: const BoxDecoration(
-                      color: _surface,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _workerProfileImage(),
-                  ),
-                ),
-                Positioned(
-                  right: -2,
-                  bottom: 8,
-                  child: Container(
-                    height: 42,
-                    width: 42,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [_primary, _secondary],
-                      ),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _surface, width: 3),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x220F172A),
-                          blurRadius: 12,
-                          offset: Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.camera_alt_rounded,
-                      color: Colors.white,
-                      size: 19,
-                    ),
-                  ),
-                ),
-                if (hasPhoto)
-                  Positioned(
-                    left: -2,
-                    bottom: 8,
-                    child: Container(
-                      height: 35,
-                      width: 35,
-                      decoration: BoxDecoration(
-                        color: _primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _surface, width: 3),
-                      ),
-                      child: const Icon(
-                        Icons.check_rounded,
-                        color: Colors.white,
-                        size: 17,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            hasPhoto ? 'Photo ready to upload' : 'Add your profile photo',
-            style: const TextStyle(
-              color: _textPrimary,
-              fontSize: 11.7,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Tap the photo to use Camera or Gallery',
-            style: TextStyle(
-              color: _textSecondary,
-              fontSize: 9.2,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: OutlinedButton.icon(
-              onPressed: _showProfileImageSourceSheet,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _primary,
-                side: BorderSide(color: _primary.withOpacity(0.24)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
-              icon: Icon(
-                hasPhoto ? Icons.edit_rounded : Icons.add_a_photo_rounded,
-                size: 18,
-              ),
-              label: Text(
-                hasPhoto ? 'Change profile photo' : 'Choose profile photo',
-                style: const TextStyle(
-                  fontSize: 10.7,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionHeader({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Row(
-      children: [
-        Container(
-          height: 39,
-          width: 39,
-          decoration: BoxDecoration(
-            color: _primary.withOpacity(0.09),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: _primary, size: 19),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              const SizedBox(width: SkillNovaSpacing.sm),
               Text(
-                title,
-                style: const TextStyle(
-                  color: _textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: _textSecondary,
-                  fontSize: 9.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _formCard({required List<Widget> children}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(23),
-        border: Border.all(color: _border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x070F172A),
-            blurRadius: 15,
-            offset: Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Column(children: children),
-    );
-  }
-
-  Widget _professionalField({
-    required String label,
-    required String hint,
-    required IconData icon,
-    required TextEditingController controller,
-    String? Function(String?)? validator,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? inputFormatters,
-    String? prefixText,
-    int maxLines = 1,
-    int? maxLength,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _fieldLabel(label),
-        TextFormField(
-          controller: controller,
-          validator: validator,
-          keyboardType: keyboardType,
-          inputFormatters: inputFormatters,
-          maxLines: maxLines,
-          maxLength: maxLength,
-          style: const TextStyle(
-            color: _textPrimary,
-            fontSize: 11.2,
-            fontWeight: FontWeight.w700,
-          ),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-            ),
-            prefixIcon: Icon(icon, color: _primary, size: 20),
-            prefixText: prefixText,
-            prefixStyle: const TextStyle(
-              color: _textPrimary,
-              fontSize: 11.2,
-              fontWeight: FontWeight.w800,
-            ),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            counterStyle: const TextStyle(
-              color: _textSecondary,
-              fontSize: 8.5,
-              fontWeight: FontWeight.w600,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 15,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: _border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: _primary, width: 1.5),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: _danger),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: _danger, width: 1.5),
-            ),
-            errorStyle: const TextStyle(
-              color: _danger,
-              fontSize: 8.8,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _fieldLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 2, bottom: 7),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: _textPrimary,
-              fontSize: 10.4,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Text(
-            '*',
-            style: TextStyle(
-              color: _danger,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _skillDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _fieldLabel('Main skill'),
-
-        DropdownButtonFormField2<String>(
-          isExpanded: true,
-
-          // Version 3.x mein value ki jagah valueListenable use hota hai
-          valueListenable: ValueNotifier<String?>(selectedSkill),
-
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 14,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: _border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: _primary, width: 1.5),
-            ),
-          ),
-
-          items: allServices.map((service) {
-            return DropdownItem<String>(
-              value: service.title,
-              height: 58,
-              child: Row(
-                children: [
-                  Container(
-                    height: 36,
-                    width: 36,
-                    decoration: BoxDecoration(
-                      color: service.color.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Icon(service.icon, color: service.color, size: 19),
-                  ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Text(
-                      service.title,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _textPrimary,
-                        fontSize: 11.2,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-
-          onChanged: (value) {
-            if (value == null) return;
-
-            setState(() {
-              selectedSkill = value;
-            });
-          },
-
-          buttonStyleData: const FormFieldButtonStyleData(
-            height: 54,
-            padding: EdgeInsets.only(right: 8),
-          ),
-
-          iconStyleData: const IconStyleData(
-            icon: Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: _textSecondary,
-            ),
-          ),
-
-          dropdownStyleData: DropdownStyleData(
-            maxHeight: 370,
-            elevation: 8,
-            offset: const Offset(0, -4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: _border),
-            ),
-          ),
-
-          menuItemStyleData: const MenuItemStyleData(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _locationCard() {
-    return _formCard(
-      children: [
-        _professionalField(
-          label: 'Service area',
-          hint: 'City, area or neighborhood',
-          icon: Icons.location_on_outlined,
-          controller: locationController,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Service location is required';
-            }
-
-            return null;
-          },
-        ),
-        const SizedBox(height: 13),
-        Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: _isGettingLocation ? null : _captureLocation,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-              decoration: BoxDecoration(
-                color: _locationCaptured
-                    ? _primary.withOpacity(0.08)
-                    : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _locationCaptured
-                      ? _primary.withOpacity(0.28)
-                      : _border,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    height: 36,
-                    width: 36,
-                    decoration: BoxDecoration(
-                      color: _primary.withOpacity(0.10),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: _isGettingLocation
-                        ? const Padding(
-                            padding: EdgeInsets.all(10),
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: _primary,
-                            ),
-                          )
-                        : Icon(
-                            _locationCaptured
-                                ? Icons.check_circle_rounded
-                                : Icons.my_location_rounded,
-                            color: _primary,
-                            size: 18,
-                          ),
-                  ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _locationCaptured
-                              ? 'Location captured'
-                              : 'Use current location',
-                          style: const TextStyle(
-                            color: _textPrimary,
-                            fontSize: 10.8,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _locationCaptured
-                              ? 'GPS coordinates are ready'
-                              : 'Improve nearby job recommendations',
-                          style: const TextStyle(
-                            color: _textSecondary,
-                            fontSize: 8.8,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: Color(0xFF94A3B8),
-                    size: 13,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _bioCard() {
-    return _formCard(
-      children: [
-        _professionalField(
-          label: 'Short bio',
-          hint:
-              'Tell customers about your experience, specialties and work quality...',
-          icon: Icons.description_outlined,
-          controller: bioController,
-          maxLines: 5,
-          maxLength: 300,
-          validator: (value) {
-            final text = value?.trim() ?? '';
-
-            if (text.isNotEmpty && text.length < 20) {
-              return 'Write at least 20 characters';
-            }
-
-            return null;
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _privacyNote() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _primary.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _primary.withOpacity(0.13)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 34,
-            width: 34,
-            decoration: BoxDecoration(
-              color: _primary.withOpacity(0.10),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(
-              Icons.verified_user_outlined,
-              color: _primary,
-              size: 17,
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your information is protected',
-                  style: TextStyle(
-                    color: _textPrimary,
-                    fontSize: 10.4,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Your profile details are used to connect you with relevant customers and nearby jobs.',
-                  style: TextStyle(
-                    color: _textSecondary,
-                    fontSize: 8.8,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _submitButton() {
-    return SizedBox(
-      height: 58,
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isSaving ? null : _saveWorkerProfile,
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          backgroundColor: _primary,
-          disabledBackgroundColor: _primary.withOpacity(0.55),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.check_circle_outline_rounded, size: 19),
-            const SizedBox(width: 9),
-            Text(
-              _isSaving ? 'Saving profile...' : 'Save & continue',
-              style: const TextStyle(
-                fontSize: 12.2,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            if (!_isSaving) ...[
-              const SizedBox(width: 8),
-              const Icon(Icons.arrow_forward_rounded, size: 18),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _savingOverlay() {
-    return ColoredBox(
-      color: _textPrimary.withOpacity(0.28),
-      child: Center(
-        child: Container(
-          width: 245,
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(23),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x220F172A),
-                blurRadius: 30,
-                offset: Offset(0, 15),
-              ),
-            ],
-          ),
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: _primary, strokeWidth: 2.7),
-              SizedBox(height: 16),
-              Text(
-                'Creating your profile',
-                style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              SizedBox(height: 6),
-              Text(
-                'Please wait while we securely save your professional information.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10.2,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showLocationSettingsDialog() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                height: 58,
-                width: 58,
-                decoration: BoxDecoration(
-                  color: _warning.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(
-                  Icons.location_off_outlined,
-                  color: _warning,
-                  size: 29,
-                ),
-              ),
-              const SizedBox(height: 15),
-              const Text(
-                'Location permission required',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'Location permission is permanently disabled. Open app settings to enable it.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 10.5,
-                  height: 1.45,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                        side: const BorderSide(color: _border),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: _textPrimary,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await Geolocator.openAppSettings();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0,
-                        backgroundColor: _primary,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(0, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                      child: const Text(
-                        'Open settings',
-                        style: TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                  ),
-                ],
+                '${(completion * 100).round()}% complete',
+                style: text.labelMedium,
               ),
             ],
           ),
@@ -1923,49 +590,245 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     );
   }
 
-  void _showMessage(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(18),
-          backgroundColor: isError ? _danger : _textPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+  Widget _photo() {
+    final colors = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final image = _selectedProfileImage;
+    final existing = _existingProfileImageUrl;
+    final ImageProvider? provider = image != null
+        ? (kIsWeb
+              ? NetworkImage(image.path)
+              : FileImage(File(image.path)) as ImageProvider)
+        : (existing != null && existing.isNotEmpty)
+        ? NetworkImage(existing)
+        : null;
+    return SkillNovaCard(
+      onTap: _choosePhoto,
+      semanticLabel: provider == null
+          ? 'Add profile photo'
+          : 'Change profile photo',
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 36,
+            backgroundColor: colors.surfaceContainer,
+            foregroundImage: provider,
+            child: Icon(
+              Icons.person_rounded,
+              size: 36,
+              color: colors.onSurfaceVariant,
+            ),
           ),
-          content: Row(
-            children: [
-              Icon(
-                isError
-                    ? Icons.error_outline_rounded
-                    : Icons.check_circle_outline_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Text(
-                  message,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
+          const SizedBox(width: SkillNovaSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  provider == null ? 'Add a profile photo' : 'Profile photo',
+                  style: text.titleSmall,
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  'A clear, friendly photo of your face builds trust.',
+                  style: text.bodySmall,
+                ),
+              ],
+            ),
           ),
-        ),
-      );
+          const SizedBox(width: SkillNovaSpacing.xs),
+          Text(
+            provider == null ? 'Add' : 'Change',
+            style: text.labelLarge?.copyWith(color: colors.primary),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _ambientCircle({required double size, required Color color}) {
-    return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-      child: Container(
-        height: size,
-        width: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  List<Widget> _basicFields() => [
+    SkillNovaTextField(
+      label: 'Full name',
+      controller: nameController,
+      hint: 'As customers should see it',
+      prefixIcon: Icons.person_outline_rounded,
+      textCapitalization: TextCapitalization.words,
+      textInputAction: TextInputAction.next,
+      validator: (value) {
+        final name = value?.trim() ?? '';
+        if (name.isEmpty) return 'Enter your full name.';
+        if (name.length < 3) return 'Enter at least 3 characters.';
+        return null;
+      },
+    ),
+    const SizedBox(height: SkillNovaSpacing.md),
+    SkillNovaTextField(
+      label: 'Mobile number',
+      controller: phoneController,
+      hint: '0300 1234567',
+      prefixIcon: Icons.phone_outlined,
+      keyboardType: TextInputType.phone,
+      textInputAction: TextInputAction.next,
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]'))],
+      validator: (value) {
+        final phone = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+        if (phone.isEmpty) return 'Enter your mobile number.';
+        if (phone.length < 10) return 'Enter a valid mobile number.';
+        return null;
+      },
+    ),
+  ];
+
+  List<Widget> _workFields() => [
+    const SkillNovaFieldLabel('Main service'),
+    DropdownButtonFormField<String>(
+      initialValue: allServices.any((s) => s.title == selectedSkill)
+          ? selectedSkill
+          : allServices.first.title,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        prefixIcon: Icon(Icons.handyman_outlined),
+      ),
+      items: [
+        for (final service in allServices)
+          DropdownMenuItem(value: service.title, child: Text(service.title)),
+      ],
+      onChanged: (value) {
+        if (value != null) setState(() => selectedSkill = value);
+      },
+    ),
+    const SizedBox(height: SkillNovaSpacing.xs),
+    Text(
+      'You’ll receive leads for this service.',
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
+    const SizedBox(height: SkillNovaSpacing.md),
+    Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: SkillNovaTextField(
+            label: 'Experience (years)',
+            controller: experienceController,
+            hint: 'e.g. 3',
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            validator: (value) =>
+                (value?.trim().isEmpty ?? true) ? 'Add your experience.' : null,
+          ),
+        ),
+        const SizedBox(width: SkillNovaSpacing.sm),
+        Expanded(
+          child: SkillNovaTextField(
+            label: 'Rate per hour (Rs)',
+            controller: rateController,
+            hint: 'e.g. 800',
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            validator: (value) {
+              final rate = int.tryParse(value?.trim() ?? '');
+              if (rate == null || rate <= 0) return 'Enter an amount.';
+              return null;
+            },
+          ),
+        ),
+      ],
+    ),
+    const SizedBox(height: SkillNovaSpacing.md),
+    SkillNovaTextField(
+      label: 'Short bio',
+      controller: bioController,
+      hint: 'Your specialties, the kind of jobs you do best, certifications…',
+      textCapitalization: TextCapitalization.sentences,
+      minLines: 3,
+      maxLines: 5,
+      maxLength: 300,
+      validator: (value) => (value?.trim().length ?? 0) < 20
+          ? 'Write at least 20 characters so customers know your work.'
+          : null,
+    ),
+  ];
+
+  List<Widget> _locationFields() {
+    final text = Theme.of(context).textTheme;
+    return [
+      SkillNovaTextField(
+        label: 'Service area',
+        controller: locationController,
+        hint: 'e.g. University Town, Peshawar',
+        prefixIcon: Icons.place_outlined,
+        textCapitalization: TextCapitalization.words,
+        validator: (value) => (value?.trim().isEmpty ?? true)
+            ? 'Add the area you work in.'
+            : null,
+      ),
+      const SizedBox(height: SkillNovaSpacing.sm),
+      SkillNovaCard(
+        child: Row(
+          children: [
+            IconTile(
+              icon: _locationCaptured
+                  ? Icons.my_location_rounded
+                  : Icons.location_searching_rounded,
+              tone: _locationCaptured
+                  ? SkillNovaTone.success
+                  : SkillNovaTone.info,
+            ),
+            const SizedBox(width: SkillNovaSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _locationCaptured ? 'Location pinned' : 'Pin your location',
+                    style: text.titleSmall,
+                  ),
+                  Text(
+                    'Used to match you with jobs nearby.',
+                    style: text.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            _isGettingLocation
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : TextButton(
+                    onPressed: _isSaving ? null : _captureLocation,
+                    child: Text(_locationCaptured ? 'Update' : 'Use GPS'),
+                  ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  Widget _saveBar() {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.outlineVariant)),
+      ),
+      padding: const EdgeInsets.fromLTRB(
+        SkillNovaSpacing.gutter,
+        SkillNovaSpacing.sm,
+        SkillNovaSpacing.gutter,
+        SkillNovaSpacing.sm,
+      ),
+      child: ContentWidth(
+        maxWidth: 560,
+        child: PrimaryButton(
+          label: 'Save and continue',
+          icon: Icons.arrow_forward_rounded,
+          loading: _isSaving,
+          fullWidth: true,
+          onPressed: _saveWorkerProfile,
+        ),
       ),
     );
   }

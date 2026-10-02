@@ -127,13 +127,13 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('booking-tab-completed')));
     await tester.pump();
-    expect(find.text('Painting'), findsOneWidget);
+    expect(find.textContaining('Painting'), findsOneWidget);
     expect(find.text('Rate service'), findsOneWidget);
     expect(find.text('Your rating: 5 stars'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('booking-tab-cancelled')));
     await tester.pump();
-    expect(find.text('Gardener'), findsOneWidget);
+    expect(find.textContaining('Gardener'), findsOneWidget);
     expect(find.text('Cancelled'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
