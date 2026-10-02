@@ -31,7 +31,6 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
   static const Color _danger = Color(0xFFDC2626);
   static const Color _warning = Color(0xFFF59E0B);
 
-
   final _formKey = GlobalKey<FormState>();
 
   final nameController = TextEditingController();
@@ -292,7 +291,8 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (sheetContext) {
-        final hasPhoto = _selectedProfileImage != null ||
+        final hasPhoto =
+            _selectedProfileImage != null ||
             (_existingProfileImageUrl?.isNotEmpty ?? false);
 
         return SafeArea(
@@ -774,38 +774,43 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
   }
 
   Widget _topBar() {
+    // Profile setup is a root screen during onboarding: there is nothing to
+    // pop back to, so offer a clear way out instead of a dead back arrow.
+    final canGoBack = Navigator.of(context).canPop();
     return Row(
       children: [
-        Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(15),
-          child: InkWell(
+        if (canGoBack) ...[
+          Material(
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(15),
-            onTap: () => Navigator.maybePop(context),
-            child: Container(
-              height: 46,
-              width: 46,
-              decoration: BoxDecoration(
-                color: _surface,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: _border),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x070F172A),
-                    blurRadius: 14,
-                    offset: Offset(0, 7),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.arrow_back_rounded,
-                color: _textPrimary,
-                size: 20,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(15),
+              onTap: () => Navigator.maybePop(context),
+              child: Container(
+                height: 46,
+                width: 46,
+                decoration: BoxDecoration(
+                  color: _surface,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: _border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x070F172A),
+                      blurRadius: 14,
+                      offset: Offset(0, 7),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: _textPrimary,
+                  size: 20,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
+          const SizedBox(width: 12),
+        ],
         const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -831,28 +836,12 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
             ],
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: _primary.withOpacity(0.09),
-            borderRadius: BorderRadius.circular(13),
+        if (!canGoBack)
+          TextButton(
+            onPressed: _isSaving ? null : () => SessionRouter.signOut(context),
+            style: TextButton.styleFrom(foregroundColor: _primary),
+            child: const Text('Sign out'),
           ),
-          child: const Row(
-            children: [
-              Icon(Icons.shield_outlined, color: _primary, size: 13),
-              SizedBox(width: 5),
-              Text(
-                'SECURE',
-                style: TextStyle(
-                  color: _primary,
-                  fontSize: 8.4,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -973,7 +962,36 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     );
   }
 
+  /// Share of the required profile items that are actually filled in.
+  double get _completion {
+    bool filled(TextEditingController c) => c.text.trim().isNotEmpty;
+    final items = [
+      _selectedProfileImage != null ||
+          (_existingProfileImageUrl?.isNotEmpty ?? false),
+      filled(nameController),
+      filled(phoneController),
+      selectedSkill.isNotEmpty,
+      filled(experienceController),
+      filled(rateController),
+      filled(locationController) || _locationCaptured,
+    ];
+    return items.where((done) => done).length / items.length;
+  }
+
   Widget _progressCard() {
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        nameController,
+        phoneController,
+        experienceController,
+        rateController,
+        locationController,
+      ]),
+      builder: (context, _) => _progressCardBody(_completion),
+    );
+  }
+
+  Widget _progressCardBody(double completion) {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
@@ -1004,11 +1022,11 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Profile setup progress',
                   style: TextStyle(
                     color: _textPrimary,
@@ -1016,11 +1034,11 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 5),
                 ClipRRect(
-                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                  borderRadius: const BorderRadius.all(Radius.circular(10)),
                   child: LinearProgressIndicator(
-                    value: 0.75,
+                    value: completion,
                     minHeight: 6,
                     color: _primary,
                     backgroundColor: Color(0xFFDCFCE7),
@@ -1030,8 +1048,8 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
-            '75%',
+          Text(
+            '${(completion * 100).round()}%',
             style: TextStyle(
               color: _primary,
               fontSize: 12,
@@ -1044,7 +1062,8 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
   }
 
   Widget _profilePhoto() {
-    final hasPhoto = _selectedProfileImage != null ||
+    final hasPhoto =
+        _selectedProfileImage != null ||
         (_existingProfileImageUrl?.isNotEmpty ?? false);
 
     return Container(

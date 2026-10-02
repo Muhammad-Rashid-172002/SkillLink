@@ -55,7 +55,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!SkillNovaBreakpoints.isWide(context)) ...[
+          if (!AuthLayout.showsBrandPanel(context)) ...[
             const SkillNovaWordmark(size: 32),
             const SizedBox(height: SkillNovaSpacing.xxl),
           ],

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/core/auth/session_router.dart';
+import 'package:skill_link/design_system/widgets/skillnova_brand.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -15,6 +16,7 @@ class CustomerProfileSetupScreen extends StatefulWidget {
   State<CustomerProfileSetupScreen> createState() =>
       _CustomerProfileSetupScreenState();
 }
+
 class _CustomerProfileSetupScreenState
     extends State<CustomerProfileSetupScreen> {
   static const Color _background = Color(0xFFF5F7FB);
@@ -141,8 +143,7 @@ class _CustomerProfileSetupScreenState
       // Error aaye tab bhi form open hoga
     } finally {
       if (mounted) {
-        setState(() {
-        });
+        setState(() {});
       }
     }
   }
@@ -503,74 +504,15 @@ class _CustomerProfileSetupScreenState
   }
 
   Widget _topBar() {
+    // Root screen during onboarding: offer a way out instead of trapping the
+    // person here until the profile is saved.
     return Row(
       children: [
-        Container(
-          height: 43,
-          width: 43,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [_primary, _secondary]),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: _primary.withOpacity(0.22),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.handyman_rounded,
-            color: Colors.white,
-            size: 22,
-          ),
-        ),
-        const SizedBox(width: 11),
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'SkillNova',
-              style: TextStyle(
-                color: _textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.4,
-              ),
-            ),
-            Text(
-              'Customer onboarding',
-              style: TextStyle(
-                color: _textSecondary,
-                fontSize: 9.8,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
+        const SkillNovaWordmark(size: 28),
         const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-          decoration: BoxDecoration(
-            color: _primary.withOpacity(0.09),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: _primary.withOpacity(0.12)),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.person_search_rounded, color: _primary, size: 15),
-              SizedBox(width: 6),
-              Text(
-                'CUSTOMER',
-                style: TextStyle(
-                  color: _primary,
-                  fontSize: 10.2,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
+        TextButton(
+          onPressed: _isSaving ? null : () => SessionRouter.signOut(context),
+          child: const Text('Sign out'),
         ),
       ],
     );

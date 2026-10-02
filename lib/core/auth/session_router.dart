@@ -130,10 +130,19 @@ abstract final class SessionRouter {
 /// example via a stale deep link — they are re-routed to where they belong.
 /// Firestore security rules enforce the same boundary on the server.
 class RoleGate extends StatefulWidget {
-  const RoleGate({super.key, required this.role, required this.child});
+  const RoleGate({
+    super.key,
+    required this.role,
+    required this.child,
+    this.onRoleMismatch,
+  });
 
   final UserRole role;
   final Widget child;
+
+  /// Replaces the default re-route when the verified role doesn't match.
+  /// Only tests need this; the app always uses the default.
+  final Future<void> Function(BuildContext context)? onRoleMismatch;
 
   @override
   State<RoleGate> createState() => _RoleGateState();
@@ -158,8 +167,18 @@ class _RoleGateState extends State<RoleGate> {
 
   Future<void> _check() async {
     if (!mounted || _redirecting || _service.isSigningOut) return;
+    if (_service.verifiedRole.value == widget.role) return;
+    final override = widget.onRoleMismatch;
+    if (override != null) {
+      _redirecting = true;
+      await override(context);
+      return;
+    }
+    await _redirectToSession();
+  }
+
+  Future<void> _redirectToSession() async {
     final verified = _service.verifiedRole.value;
-    if (verified == widget.role) return;
     if (_service.currentUser == null && verified == null) {
       _redirecting = true;
       SessionRouter.replaceAll(context, const RoleSelectionScreen());

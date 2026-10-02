@@ -383,14 +383,14 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               ProfileMenuTile(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Privacy',
-                subtitle: 'Public professional fields and private account data',
+                subtitle: 'What customers can see and what stays private',
                 onTap: () => _open(const WorkerPrivacyScreen()),
               ),
               const Divider(height: 1),
               ProfileMenuTile(
                 icon: Icons.description_outlined,
                 title: 'Terms of Service',
-                subtitle: 'Document availability',
+                subtitle: 'The rules for using SkillNova',
                 onTap: () => _open(
                   const LegalDocumentScreen(
                     title: 'Terms of Service',

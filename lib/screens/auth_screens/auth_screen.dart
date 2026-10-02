@@ -33,9 +33,6 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-/// `GoogleSignIn.initialize` must only run once per app process.
-Future<void>? _googleInit;
-
 class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -172,7 +169,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       final google = GoogleSignIn.instance;
-      await (_googleInit ??= google.initialize());
+      await _session.ensureGoogleInitialized();
       final account = await google.authenticate();
       final idToken = account.authentication.idToken;
       if (idToken == null) {

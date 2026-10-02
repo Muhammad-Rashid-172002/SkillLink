@@ -28,9 +28,16 @@ class AuthLayout extends StatelessWidget {
   /// Blocks interaction (but keeps the form visible) while work is running.
   final bool busy;
 
+  /// Whether the two-pane layout (brand panel + form) is used. Landscape
+  /// phones are wide but short, so they keep the single scrolling column
+  /// instead of squeezing a brand panel into ~390px of height.
+  static bool showsBrandPanel(BuildContext context) =>
+      SkillNovaBreakpoints.isWide(context) &&
+      MediaQuery.sizeOf(context).height >= 560;
+
   @override
   Widget build(BuildContext context) {
-    final wide = SkillNovaBreakpoints.isWide(context);
+    final wide = showsBrandPanel(context);
     final topBar = (showBack || trailing != null)
         ? Padding(
             padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
@@ -106,7 +113,10 @@ class _BrandPanel extends StatelessWidget {
         ? const [
             (Icons.radar_rounded, 'Job leads from customers near you'),
             (Icons.verified_user_rounded, 'A verified profile customers trust'),
-            (Icons.account_balance_wallet_rounded, 'Jobs and earnings in one place'),
+            (
+              Icons.account_balance_wallet_rounded,
+              'Jobs and earnings in one place',
+            ),
           ]
         : const [
             (Icons.search_rounded, 'Find skilled professionals nearby'),
@@ -136,62 +146,81 @@ class _BrandPanel extends StatelessWidget {
             ),
           ),
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(48),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SkillNovaWordmark(size: 36, color: Colors.white),
-                  const Spacer(),
-                  AnimatedSwitcher(
-                    duration: SkillNovaMotion.medium,
-                    child: Text(
-                      headline,
-                      key: ValueKey(headline),
-                      style: theme.textTheme.displaySmall?.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: SkillNovaSpacing.xl),
-                  for (final (icon, text) in points)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: Row(
+            // Scrolls (instead of overflowing) on short windows while the
+            // Spacers still distribute free space on tall ones.
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Padding(
+                      padding: const EdgeInsets.all(48),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              icon,
-                              size: 19,
-                              color: const Color(0xFF7DD3FC),
+                          const SkillNovaWordmark(
+                            size: 36,
+                            color: Colors.white,
+                          ),
+                          const Spacer(),
+                          AnimatedSwitcher(
+                            duration: SkillNovaMotion.medium,
+                            child: Text(
+                              headline,
+                              key: ValueKey(headline),
+                              style: theme.textTheme.displaySmall?.copyWith(
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(
-                              text,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.85),
+                          const SizedBox(height: SkillNovaSpacing.xl),
+                          for (final (icon, text) in points)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.08,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      icon,
+                                      size: 19,
+                                      color: const Color(0xFF7DD3FC),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(
+                                      text,
+                                      style: theme.textTheme.bodyLarge
+                                          ?.copyWith(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.85,
+                                            ),
+                                          ),
+                                    ),
+                                  ),
+                                ],
                               ),
+                            ),
+                          const Spacer(),
+                          Text(
+                            '© SkillNova',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.45),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  const Spacer(),
-                  Text(
-                    '© SkillNova',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.45),
-                    ),
                   ),
-                ],
+                ),
               ),
             ),
           ),

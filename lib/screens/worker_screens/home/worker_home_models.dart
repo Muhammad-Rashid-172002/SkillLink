@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:skill_link/core/auth/user_role.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -241,7 +242,7 @@ abstract final class WorkerEligibilityAdapter {
         message: 'New work is unavailable while your account is inactive.',
       );
     }
-    if (worker.data['role'] != 'worker') {
+    if (UserRole.tryParse(worker.data['role']) != UserRole.worker) {
       return const WorkerReadiness(
         state: WorkerReadinessState.invalidRole,
         title: 'Worker account required',

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skill_link/core/auth/user_role.dart';
 
 DateTime? chatDate(dynamic value) {
   if (value is Timestamp) return value.toDate();
@@ -46,7 +47,7 @@ class CustomerChatWorker {
 
   /// This matches the strong public-worker verification used by Explore V2.
   bool get verified =>
-      data['role'] == 'worker' &&
+      UserRole.tryParse(data['role']) == UserRole.worker &&
       data['identityVerificationStatus'] == 'approved';
 }
 

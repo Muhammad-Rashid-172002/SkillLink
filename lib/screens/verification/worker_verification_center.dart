@@ -588,39 +588,44 @@ class _WorkerVerificationCenterScreenState
   }
 
   Widget _buildTopBar() {
+    // During onboarding this is a root screen (nothing to pop back to), so
+    // swap the dead back arrow for a sign-out action.
+    final canGoBack = Navigator.of(context).canPop();
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       child: Row(
         children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _submitting ? null : () => Navigator.maybePop(context),
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: _surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _border),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x080F172A),
-                      blurRadius: 16,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  size: 18,
-                  color: _textPrimary,
+          if (canGoBack) ...[
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _submitting ? null : () => Navigator.maybePop(context),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: _surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _border),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x080F172A),
+                        blurRadius: 16,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 18,
+                    color: _textPrimary,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 13),
+            const SizedBox(width: 13),
+          ],
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -646,19 +651,28 @@ class _WorkerVerificationCenterScreenState
               ],
             ),
           ),
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [_primary, _secondary]),
-              borderRadius: BorderRadius.circular(16),
+          if (canGoBack)
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [_primary, _secondary]),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.verified_user_rounded,
+                color: Colors.white,
+                size: 23,
+              ),
+            )
+          else
+            TextButton(
+              onPressed: _submitting
+                  ? null
+                  : () => SessionRouter.signOut(context),
+              style: TextButton.styleFrom(foregroundColor: _primary),
+              child: const Text('Sign out'),
             ),
-            child: const Icon(
-              Icons.verified_user_rounded,
-              color: Colors.white,
-              size: 23,
-            ),
-          ),
         ],
       ),
     );
@@ -817,11 +831,15 @@ class _WorkerVerificationCenterScreenState
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    CircularProgressIndicator(
-                      value: progress,
-                      strokeWidth: 8,
-                      color: Colors.white,
-                      backgroundColor: Colors.white.withOpacity(0.18),
+                    // Fill the 92px box; unsized it shrinks to 36px and the
+                    // label spills outside the ring.
+                    SizedBox.expand(
+                      child: CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 8,
+                        color: Colors.white,
+                        backgroundColor: Colors.white.withOpacity(0.18),
+                      ),
                     ),
                     Column(
                       mainAxisSize: MainAxisSize.min,
@@ -838,7 +856,7 @@ class _WorkerVerificationCenterScreenState
                           approved ? 'VERIFIED' : 'COMPLETE',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.72),
-                            fontSize: 6.8,
+                            fontSize: 9,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.4,
                           ),

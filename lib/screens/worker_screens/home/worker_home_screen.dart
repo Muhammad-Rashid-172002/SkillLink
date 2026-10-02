@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/skillnova_tokens.dart';
+import 'package:skill_link/design_system/widgets/skillnova_feedback.dart';
 import 'package:skill_link/Notification_screen/notification_screen.dart';
 import 'package:skill_link/screens/verification/worker_verification_center.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
@@ -250,11 +252,41 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
   }
 }
 
+/// Skeleton shaped like the card it stands in for, so content doesn't jump
+/// when it arrives.
 class _CardLoader extends StatelessWidget {
   const _CardLoader({super.key});
   @override
-  Widget build(BuildContext context) => const SizedBox(
-    height: 96,
-    child: Center(child: CircularProgressIndicator()),
-  );
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      label: 'Loading',
+      child: Container(
+        height: 96,
+        padding: const EdgeInsets.all(SkillNovaSpacing.md),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(SkillNovaRadius.large),
+          border: Border.all(color: colors.outlineVariant),
+        ),
+        child: const Row(
+          children: [
+            SkeletonBox(width: 40, height: 40, radius: 12),
+            SizedBox(width: SkillNovaSpacing.md),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SkeletonBox(width: 140, height: 14),
+                  SizedBox(height: SkillNovaSpacing.xs),
+                  SkeletonBox(height: 12),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

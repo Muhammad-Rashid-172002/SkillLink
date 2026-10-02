@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:skill_link/core/auth/user_role.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -88,7 +89,7 @@ class ExploreProfessional {
     final status = firstText(data, const ['accountStatus'], '').toLowerCase();
     final explicitlyBlocked =
         data['isBlocked'] == true || data['blocked'] == true;
-    return data['role'] == 'worker' &&
+    return UserRole.tryParse(data['role']) == UserRole.worker &&
         data['profileCompleted'] == true &&
         data['identityVerificationStatus'] == 'approved' &&
         data['canAcceptJobs'] == true &&

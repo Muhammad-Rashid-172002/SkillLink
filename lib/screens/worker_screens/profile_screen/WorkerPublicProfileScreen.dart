@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:skill_link/core/auth/user_role.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
@@ -284,7 +285,7 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
     final accountStatus = firstText(worker, const [
       'accountStatus',
     ], '').toLowerCase();
-    return worker['role'] == 'worker' &&
+    return UserRole.tryParse(worker['role']) == UserRole.worker &&
         worker['profileCompleted'] == true &&
         worker['identityVerificationStatus'] == 'approved' &&
         worker['canAcceptJobs'] == true &&
@@ -335,7 +336,7 @@ class _WorkerPublicProfileScreenState extends State<WorkerPublicProfileScreen> {
           'imageUrl',
         ], ''),
         workerVerified:
-            worker['role'] == 'worker' &&
+            UserRole.tryParse(worker['role']) == UserRole.worker &&
             worker['identityVerificationStatus'] == 'approved',
       );
       if (!mounted) return;

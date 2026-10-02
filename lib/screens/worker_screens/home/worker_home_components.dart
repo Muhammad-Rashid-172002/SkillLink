@@ -396,10 +396,20 @@ class LeadCreditCard extends StatelessWidget {
                   'Credits are used when accepting eligible leads.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                // Stacked under the copy so narrow phones and large text
+                // sizes never squeeze the balance column to zero width.
+                const SizedBox(height: 6),
+                TextButton(
+                  onPressed: onTap,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('View credits'),
+                ),
               ],
             ),
           ),
-          TextButton(onPressed: onTap, child: const Text('View credits')),
         ],
       ),
     );

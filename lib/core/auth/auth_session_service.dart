@@ -99,6 +99,19 @@ class AuthSessionService {
 
   bool _signingOut = false;
 
+  Future<void>? _googleInit;
+
+  /// `GoogleSignIn.initialize` must complete exactly once per process before
+  /// any other Google Sign-In call; every other call waits on it otherwise.
+  Future<void> ensureGoogleInitialized() {
+    return _googleInit ??= GoogleSignIn.instance.initialize().catchError((
+      Object error,
+    ) {
+      _googleInit = null; // Allow a retry on the next attempt.
+      throw error;
+    });
+  }
+
   /// True while [signOut] runs, so guards don't race the logout navigation.
   bool get isSigningOut => _signingOut;
 
@@ -409,10 +422,21 @@ class AuthSessionService {
         debugPrint('Push token cleanup skipped: $error');
       }
     }
-    try {
-      await GoogleSignIn.instance.signOut();
-    } catch (_) {
-      // Not signed in with Google or plugin unavailable on this platform.
+    // Only Google accounts need a Google sign-out. Calling it for email
+    // accounts (where GoogleSignIn was never initialised in this process)
+    // never completes, which used to leave logout spinning forever.
+    final usedGoogle =
+        user?.providerData.any((info) => info.providerId == 'google.com') ??
+        false;
+    if (usedGoogle) {
+      try {
+        await ensureGoogleInitialized().timeout(const Duration(seconds: 5));
+        await GoogleSignIn.instance.signOut().timeout(
+          const Duration(seconds: 5),
+        );
+      } catch (error) {
+        debugPrint('Google sign-out skipped: $error');
+      }
     }
     await _auth.signOut();
     verifiedRole.value = null;

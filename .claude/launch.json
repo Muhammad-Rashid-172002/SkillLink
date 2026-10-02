@@ -1,0 +1,22 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "skillnova-web-emulator",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port",
+        "5173",
+        "--web-hostname",
+        "localhost",
+        "--dart-define=USE_FIREBASE_EMULATOR=true",
+        "--dart-define=FIREBASE_AUTH_EMULATOR_PORT=10099",
+        "--dart-define=FIREBASE_FIRESTORE_EMULATOR_PORT=8180"
+      ],
+      "port": 5173
+    }
+  ]
+}

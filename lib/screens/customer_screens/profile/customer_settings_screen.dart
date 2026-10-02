@@ -161,14 +161,14 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                 ProfileMenuTile(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacy',
-                  subtitle: 'How current app features use your information',
+                  subtitle: 'How SkillNova uses and protects your data',
                   onTap: () => _open(const CustomerPrivacyScreen()),
                 ),
                 const Divider(height: 1),
                 ProfileMenuTile(
                   icon: Icons.no_accounts_outlined,
                   title: 'Delete account',
-                  subtitle: 'Review the current safe availability state',
+                  subtitle: 'How to permanently close your account',
                   danger: true,
                   onTap: () => _open(const DeleteAccountSafetyScreen()),
                 ),
@@ -181,7 +181,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                 ProfileMenuTile(
                   icon: Icons.support_agent_outlined,
                   title: 'Help & Support',
-                  subtitle: 'Guidance and the existing email channel',
+                  subtitle: 'Answers to common questions and how to reach us',
                   onTap: () => _open(const HelpSupportScreen()),
                 ),
                 const Divider(height: 1),
@@ -195,7 +195,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                 ProfileMenuTile(
                   icon: Icons.description_outlined,
                   title: 'Terms of Service',
-                  subtitle: 'Document availability',
+                  subtitle: 'The rules for using SkillNova',
                   onTap: () => _open(
                     const LegalDocumentScreen(
                       title: 'Terms of Service',
@@ -207,7 +207,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                 ProfileMenuTile(
                   icon: Icons.policy_outlined,
                   title: 'Privacy Policy',
-                  subtitle: 'Open the currently configured page',
+                  subtitle: 'How we collect and use your information',
                   onTap: () => _open(
                     LegalDocumentScreen(
                       title: 'Privacy Policy',

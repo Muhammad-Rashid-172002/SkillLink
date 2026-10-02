@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:skill_link/firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -60,6 +61,14 @@ const String _emulatorHost = String.fromEnvironment(
   'FIREBASE_EMULATOR_HOST',
   defaultValue: 'localhost',
 );
+const int _authEmulatorPort = int.fromEnvironment(
+  'FIREBASE_AUTH_EMULATOR_PORT',
+  defaultValue: 9099,
+);
+const int _firestoreEmulatorPort = int.fromEnvironment(
+  'FIREBASE_FIRESTORE_EMULATOR_PORT',
+  defaultValue: 8080,
+);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,8 +76,14 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   if (_useFirebaseEmulator && !kReleaseMode) {
-    await FirebaseAuth.instance.useAuthEmulator(_emulatorHost, 9099);
-    FirebaseFirestore.instance.useFirestoreEmulator(_emulatorHost, 8080);
+    await FirebaseAuth.instance.useAuthEmulator(
+      _emulatorHost,
+      _authEmulatorPort,
+    );
+    FirebaseFirestore.instance.useFirestoreEmulator(
+      _emulatorHost,
+      _firestoreEmulatorPort,
+    );
     FirebaseFunctions.instanceFor(
       region: 'us-central1',
     ).useFunctionsEmulator(_emulatorHost, 5001);
@@ -573,7 +588,7 @@ class _MyAppState extends State<MyApp> {
         workerPhone: workerPhone?.isEmpty == true ? null : workerPhone,
         workerImageUrl: workerImageUrl?.isEmpty == true ? null : workerImageUrl,
         workerVerified:
-            workerData['role'] == 'worker' &&
+            UserRole.tryParse(workerData['role']) == UserRole.worker &&
             workerData['identityVerificationStatus'] == 'approved',
       ),
     );

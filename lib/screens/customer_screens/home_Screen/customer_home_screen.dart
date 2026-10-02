@@ -168,8 +168,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Greeting as a caption keeps the name readable next to
+                  // the bell and avatar instead of truncating mid-word.
                   Text(
-                    '${_greeting()}, $firstName',
+                    _greeting(),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    firstName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.headlineSmall,
@@ -334,15 +342,24 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 
   Widget _buildActiveBooking() {
+    // Most visits have no active booking, so a large placeholder that then
+    // collapses makes the whole page jump. Reserve nothing while loading and
+    // grow smoothly only when there is a booking to show.
+    return AnimatedSize(
+      duration: SkillNovaMotion.of(context, SkillNovaMotion.medium),
+      curve: SkillNovaMotion.standard,
+      alignment: Alignment.topCenter,
+      child: _activeBookingContent(),
+    );
+  }
+
+  Widget _activeBookingContent() {
     return StreamBuilder<List<CustomerHomeRecord>>(
       stream: _requestsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting &&
             !snapshot.hasData) {
-          return const Padding(
-            padding: EdgeInsets.only(bottom: SkillNovaSpacing.xl),
-            child: SkeletonCard(height: 190),
-          );
+          return const SizedBox(width: double.infinity);
         }
         if (snapshot.hasError) {
           return const Padding(
