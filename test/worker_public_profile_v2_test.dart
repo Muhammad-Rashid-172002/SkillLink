@@ -45,7 +45,7 @@ void main() {
       expect(find.text('Identity verified'), findsOneWidget);
       expect(find.text('Phone verified'), findsOneWidget);
       expect(find.text('6 years'), findsOneWidget);
-      expect(find.text('Rs 2500/hr'), findsOneWidget);
+      expect(find.text('Rs 2,500/hr'), findsOneWidget);
       expect(find.text('2.4 km away'), findsOneWidget);
       expect(find.text('Excellent service and careful work.'), findsOneWidget);
       expect(find.text('Sara Ali'), findsOneWidget);

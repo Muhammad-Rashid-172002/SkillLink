@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:skill_link/core/auth/session_router.dart';
@@ -51,15 +53,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    for (final asset in const [
-      'assets/onboarding/pro_hero.jpg',
-      'assets/onboarding/pro_plumber.png',
-      'assets/onboarding/pro_electrician.png',
-      'assets/onboarding/pro_ac.png',
-      'assets/onboarding/pro_painter.png',
-    ]) {
-      precacheImage(AssetImage(asset), context);
-    }
+    precacheImage(const AssetImage('assets/onboarding/pro_hero.jpg'), context);
   }
 
   @override
@@ -89,7 +83,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= SkillNovaBreakpoints.tablet;
+    final wide =
+        MediaQuery.sizeOf(context).width >= SkillNovaBreakpoints.tablet;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: Theme.of(context).brightness == Brightness.dark
           ? SystemUiOverlayStyle.light
@@ -297,80 +292,130 @@ class _VisualFrame extends StatelessWidget {
       child: AspectRatio(
         aspectRatio: 1,
         child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(SkillNovaRadius.xlarge),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colors.primaryContainer,
-              colors.secondaryContainer.withValues(alpha: 0.8),
-            ],
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(SkillNovaRadius.xlarge),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colors.primaryContainer,
+                colors.secondaryContainer.withValues(alpha: 0.8),
+              ],
+            ),
           ),
+          clipBehavior: Clip.antiAlias,
+          child: child,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: child,
-      ),
       ),
     );
   }
 }
 
+/// Service categories around a "near you" pin, drawn with the same tiles the
+/// app uses later, instead of photos that repeat one face.
 class _NetworkVisual extends StatelessWidget {
   const _NetworkVisual();
 
+  static const _services = [
+    (Icons.plumbing_rounded, 'Plumber'),
+    (Icons.electrical_services_rounded, 'Electrician'),
+    (Icons.ac_unit_rounded, 'AC repair'),
+    (Icons.format_paint_rounded, 'Painter'),
+    (Icons.cleaning_services_rounded, 'Cleaner'),
+    (Icons.carpenter_rounded, 'Carpenter'),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return _VisualFrame(
       child: LayoutBuilder(
         builder: (context, c) {
-          final s = c.maxWidth;
+          final size = c.maxWidth;
+          final center = size / 2;
+          final radius = size * 0.34;
+          final tile = size * 0.22;
           return Stack(
             children: [
-              Positioned.fill(child: CustomPaint(painter: _GridPainter())),
-              Center(
+              // Soft range rings around the customer.
+              for (final r in [radius * 1.25, radius * 0.7])
+                Positioned(
+                  left: center - r,
+                  top: center - r,
+                  child: Container(
+                    width: r * 2,
+                    height: r * 2,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: colors.primary.withValues(alpha: 0.14),
+                      ),
+                    ),
+                  ),
+                ),
+              for (var k = 0; k < _services.length; k++)
+                Builder(
+                  builder: (context) {
+                    final angle = -math.pi / 2 + k * 2 * math.pi / 6;
+                    final (icon, label) = _services[k];
+                    return Positioned(
+                      left: center + radius * math.cos(angle) - tile / 2,
+                      top: center + radius * math.sin(angle) - tile / 2,
+                      width: tile,
+                      height: tile,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: colors.surface,
+                          borderRadius: BorderRadius.circular(tile * 0.26),
+                          boxShadow: SkillNovaElevation.subtle,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              icon,
+                              color: colors.primary,
+                              size: tile * 0.34,
+                            ),
+                            SizedBox(height: tile * 0.05),
+                            FittedBox(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: Text(
+                                  label,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: colors.onSurface,
+                                    letterSpacing: 0,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              Positioned(
+                left: center - tile * 0.42,
+                top: center - tile * 0.42,
                 child: Container(
-                  width: s * 0.26,
-                  height: s * 0.26,
+                  width: tile * 0.84,
+                  height: tile * 0.84,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
+                    color: colors.primary,
                     shape: BoxShape.circle,
                     boxShadow: SkillNovaElevation.floating,
                   ),
                   child: Icon(
                     Icons.my_location_rounded,
-                    size: s * 0.11,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: colors.onPrimary,
+                    size: tile * 0.36,
                   ),
                 ),
-              ),
-              _ProBubble(
-                left: s * 0.08,
-                top: s * 0.1,
-                size: s * 0.24,
-                asset: 'assets/onboarding/pro_plumber.png',
-                label: 'Plumber',
-              ),
-              _ProBubble(
-                right: s * 0.08,
-                top: s * 0.14,
-                size: s * 0.22,
-                asset: 'assets/onboarding/pro_electrician.png',
-                label: 'Electrician',
-              ),
-              _ProBubble(
-                left: s * 0.12,
-                bottom: s * 0.1,
-                size: s * 0.22,
-                asset: 'assets/onboarding/pro_ac.png',
-                label: 'AC Technician',
-              ),
-              _ProBubble(
-                right: s * 0.1,
-                bottom: s * 0.12,
-                size: s * 0.24,
-                asset: 'assets/onboarding/pro_painter.png',
-                label: 'Painter',
               ),
             ],
           );
@@ -378,101 +423,6 @@ class _NetworkVisual extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ProBubble extends StatelessWidget {
-  const _ProBubble({
-    this.left,
-    this.right,
-    this.top,
-    this.bottom,
-    required this.size,
-    required this.asset,
-    required this.label,
-  });
-
-  final double? left;
-  final double? right;
-  final double? top;
-  final double? bottom;
-  final double size;
-  final String asset;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Positioned(
-      left: left,
-      right: right,
-      top: top,
-      bottom: bottom,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              shape: BoxShape.circle,
-              boxShadow: SkillNovaElevation.subtle,
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                asset,
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-                cacheWidth: (size * 3).round(),
-                excludeFromSemantics: true,
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(SkillNovaRadius.pill),
-              boxShadow: SkillNovaElevation.subtle,
-            ),
-            child: Text(
-              label,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF155EEF).withValues(alpha: 0.08)
-      ..strokeWidth = 1;
-    const step = 28.0;
-    for (var x = 0.0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (var y = 0.0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-    final ring = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..color = const Color(0xFF155EEF).withValues(alpha: 0.18);
-    final center = size.center(Offset.zero);
-    canvas.drawCircle(center, size.width * 0.24, ring);
-    canvas.drawCircle(center, size.width * 0.38, ring);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _RequestVisual extends StatelessWidget {
@@ -516,8 +466,10 @@ class _RequestVisual extends StatelessWidget {
     return _VisualFrame(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Center(
+        // Scale the mock card down on short frames instead of overflowing.
+        child: FittedBox(
           child: Container(
+            width: 300,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: colors.surface,
@@ -547,15 +499,23 @@ class _RequestVisual extends StatelessWidget {
                             : colors.surfaceContainer,
                         side: BorderSide.none,
                         labelStyle: theme.textTheme.labelMedium?.copyWith(
-                          color: selected ? Colors.white : colors.onSurface,
+                          color: selected ? colors.onPrimary : colors.onSurface,
                         ),
                       ),
                   ],
                 ),
                 const Divider(height: 24),
-                row(Icons.edit_note_rounded, 'What needs doing', 'Kitchen tap is leaking'),
+                row(
+                  Icons.edit_note_rounded,
+                  'What needs doing',
+                  'Kitchen tap is leaking',
+                ),
                 row(Icons.place_outlined, 'Where', 'Your saved address'),
-                row(Icons.schedule_rounded, 'When', 'Today, as soon as possible'),
+                row(
+                  Icons.schedule_rounded,
+                  'When',
+                  'Today, as soon as possible',
+                ),
                 const SizedBox(height: 10),
                 Container(
                   height: 44,
@@ -567,7 +527,7 @@ class _RequestVisual extends StatelessWidget {
                   child: Text(
                     'Send request',
                     style: theme.textTheme.labelLarge?.copyWith(
-                      color: Colors.white,
+                      color: colors.onPrimary,
                     ),
                   ),
                 ),

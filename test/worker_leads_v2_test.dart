@@ -467,7 +467,7 @@ void main() {
       expect(find.text('Lead cost'), findsOneWidget);
       expect(find.text('1 credit'), findsOneWidget);
       expect(
-        find.textContaining('exact service address is kept private'),
+        find.textContaining('contact options unlock'),
         findsOneWidget,
       );
 

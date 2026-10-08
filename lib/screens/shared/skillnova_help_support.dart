@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:skill_link/config/skillnova_support_config.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
@@ -150,25 +151,36 @@ class SkillNovaHelpSupportScreen extends StatelessWidget {
           const SizedBox(height: 22),
           _QuickSupportCard(onEmail: () => _email(context)),
           const SizedBox(height: 26),
-          Text(
-            _isWorker ? 'Worker help topics' : 'Customer help topics',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
+          Semantics(
+            header: true,
+            child: Text(
+              _isWorker ? 'Worker help topics' : 'Customer help topics',
+              style: theme.textTheme.titleMedium,
             ),
           ),
           const SizedBox(height: 10),
-          ..._categories.map(
-            (category) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _HelpCategory(data: category),
+          // One grouped card of questions rather than a stack of cards.
+          Material(
+            color: theme.colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(SkillNovaRadius.large),
+              side: BorderSide(color: theme.colorScheme.outlineVariant),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var i = 0; i < _categories.length; i++) ...[
+                  _HelpCategory(data: _categories[i]),
+                  if (i != _categories.length - 1)
+                    const Divider(height: 1, indent: 64),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 14),
-          Text(
-            'Support information',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+          const SizedBox(height: 24),
+          Semantics(
+            header: true,
+            child: Text('More help', style: theme.textTheme.titleMedium),
           ),
           const SizedBox(height: 10),
           _SupportActions(
@@ -301,16 +313,12 @@ class _HelpCategory extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Material(
-      color: colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
-        side: BorderSide(color: colors.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
+    return Theme(
+      // No divider lines inside the expanded tile; the group draws them.
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
-        leading: Icon(data.icon, size: 22, color: colors.primary),
-        title: Text(data.title),
+        leading: IconTile(icon: data.icon, size: 36),
+        title: Text(data.title, style: Theme.of(context).textTheme.titleSmall),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -355,7 +363,7 @@ class _SupportActions extends StatelessWidget {
     return Material(
       color: colors.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
+        borderRadius: BorderRadius.circular(SkillNovaRadius.large),
         side: BorderSide(color: colors.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,

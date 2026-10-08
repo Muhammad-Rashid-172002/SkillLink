@@ -210,7 +210,7 @@ class CreditManagementService {
     }
 
     if (amount > currentBalance) {
-      throw StateError('Worker ke paas itne credits available nahi hain.');
+      throw StateError('This worker doesn’t have enough credits.');
     }
 
     final transactionRef = _transactions.doc();
@@ -243,7 +243,7 @@ class CreditManagementService {
     required String reason,
   }) async {
     if (newBalance < 0) {
-      throw ArgumentError('Credit balance negative nahi ho sakta.');
+      throw ArgumentError('A credit balance can’t be negative.');
     }
 
     final difference = newBalance - oldBalance;

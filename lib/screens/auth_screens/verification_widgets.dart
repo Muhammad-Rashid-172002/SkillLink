@@ -15,7 +15,8 @@ class VerificationProgress extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     return Semantics(
-      label: 'Account setup, step $step of ${_labels.length}: '
+      label:
+          'Account setup, step $step of ${_labels.length}: '
           '${_labels[step - 1]}',
       excludeSemantics: true,
       child: Row(

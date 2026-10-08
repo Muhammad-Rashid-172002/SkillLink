@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/design_system/widgets/skillnova_map.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
@@ -153,7 +154,7 @@ class _WorkerJobDetailV2ScreenState extends State<WorkerJobDetailV2Screen> {
         }
         return Scaffold(
           appBar: AppBar(title: const Text('Job details')),
-          body: body,
+          body: ContentWidth(maxWidth: 760, child: body),
           bottomNavigationBar: bottom,
         );
       },
@@ -220,7 +221,8 @@ class _WorkerJobDetailV2ScreenState extends State<WorkerJobDetailV2Screen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: WorkerJobStatusBadge(status: job.status)),
+              // Hug the label instead of stretching across the card.
+              Flexible(child: WorkerJobStatusBadge(status: job.status)),
             ],
           ),
           const SizedBox(height: SkillNovaSpacing.md),
@@ -636,18 +638,22 @@ class _WorkerJobDetailV2ScreenState extends State<WorkerJobDetailV2Screen> {
       ),
       child: SafeArea(
         top: false,
-        child: PrimaryButton(
-          key: const ValueKey('worker-job-primary-action'),
-          label: workerJobPrimaryAction(job.status.status),
-          icon: switch (job.status.status) {
-            WorkerJobStatus.accepted => Icons.navigation_rounded,
-            WorkerJobStatus.onTheWay => Icons.handyman_rounded,
-            WorkerJobStatus.inProgress => Icons.task_alt_rounded,
-            _ => Icons.arrow_forward_rounded,
-          },
-          loading: _isUpdating,
-          fullWidth: true,
-          onPressed: _isUpdating ? null : () => _advance(job),
+        child: ContentWidth(
+          // Line the action up with the centred content on wide screens.
+          maxWidth: 728,
+          child: PrimaryButton(
+            key: const ValueKey('worker-job-primary-action'),
+            label: workerJobPrimaryAction(job.status.status),
+            icon: switch (job.status.status) {
+              WorkerJobStatus.accepted => Icons.navigation_rounded,
+              WorkerJobStatus.onTheWay => Icons.handyman_rounded,
+              WorkerJobStatus.inProgress => Icons.task_alt_rounded,
+              _ => Icons.arrow_forward_rounded,
+            },
+            loading: _isUpdating,
+            fullWidth: true,
+            onPressed: _isUpdating ? null : () => _advance(job),
+          ),
         ),
       ),
     );

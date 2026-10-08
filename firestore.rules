@@ -37,6 +37,16 @@ service cloud.firestore {
     function isCustomer() { return signedIn() && myRole() == 'customer'; }
     function isWorker() { return signedIn() && myRole() == 'worker'; }
 
+    // Fields only an admin or a Cloud Function may set on a profile. Includes
+    // legacy spellings the apps still fall back to when reading.
+    function protectedProfileKeys() {
+      return ['credits', 'leadCredits', 'rating', 'averageRating', 'avgRating',
+        'totalReviews', 'completedJobs', 'completedJobCount', 'jobsCompleted',
+        'statsUpdatedAt', 'isVerified', 'verified', 'workerVerified',
+        'verificationStatus', 'verifiedAt', 'verificationReason',
+        'isBlocked', 'blocked', 'isDisabled', 'backgroundVerificationStatus'];
+    }
+
     function newData() { return request.resource.data; }
     function oldData() { return resource.data; }
     function unchanged(field) {
@@ -61,14 +71,12 @@ service cloud.firestore {
              in ['not_submitted', 'not_required']
         && newData().get('verificationLevel', 'unverified') in ['unverified', 'basic']
         && newData().get('canAcceptJobs', false) == false
-        && !('credits' in newData())
-        && !('rating' in newData())
-        && !('totalReviews' in newData())
-        && !('completedJobs' in newData());
+        && !newData().keys().hasAny(protectedProfileKeys());
 
+      // Ratings and job counts are recomputed by Cloud Functions
+      // (syncWorkerRating, syncWorkerCompletedJobs); no client writes them.
       allow update: if isAdmin()
-        || (isOwner(userId) && ownerUpdateIsSafe())
-        || reviewAggregateUpdate();
+        || (isOwner(userId) && ownerUpdateIsSafe());
 
       allow delete: if isAdmin();
 
@@ -115,20 +123,10 @@ service cloud.firestore {
           && availabilityUpdateIsSafe()
           && creditsUpdateIsSafe()
           && unchanged('accountStatus')
-          && unchanged('backgroundVerificationStatus')
-          && unchanged('rating')
-          && unchanged('totalReviews')
-          && unchanged('completedJobs')
-          && unchanged('uid');
-      }
-
-      // A customer who reviewed a job may refresh the worker's aggregate.
-      function reviewAggregateUpdate() {
-        return isCustomer()
-          && oldData().get('role', '') == 'worker'
-          && changedKeys().hasOnly(['rating', 'totalReviews', 'updatedAt'])
-          && newData().rating is number
-          && newData().rating >= 0 && newData().rating <= 5;
+          && unchanged('uid')
+          // Spending credits is checked above; everything else protected
+          // must not change at all.
+          && !changedKeys().hasAny(protectedProfileKeys().removeAll(['credits']));
       }
     }
 
@@ -151,16 +149,52 @@ service cloud.firestore {
         || isAssignedWorker()
         || (isWorker() && isOpenLead());
 
+      // What the customer entered; only the customer's create sets it.
+      function customerContentKeys() {
+        return ['customerId', 'title', 'description', 'category', 'location',
+          'budget', 'urgency', 'isDirectRequest', 'requestType', 'imageUrls',
+          'imageCount', 'latitude', 'longitude', 'createdAt'];
+      }
+      function cancellable() {
+        return resource.data.get('status', '')
+          in ['searching', 'pending', 'requested', 'waiting_worker'];
+      }
+      function noWorkerOrMe() {
+        return resource.data.get('workerId', null) in [null, '', uid()];
+      }
+
       allow create: if isCustomer()
         && newData().customerId == uid()
-        && newData().status == 'searching';
+        && newData().status == 'searching'
+        && newData().get('reviewed', false) == false
+        && !newData().keys().hasAny(['acceptedAt', 'completedAt', 'reviewedAt']);
 
+      // Customers: cancel while unassigned, link a chat, record that they
+      // reviewed a completed job, and raise SOS. Never assign a worker or
+      // move a job forward (that would allow fake completions and reviews).
       allow update: if isAdmin()
-        || (isRequestCustomer() && newData().customerId == uid())
+        || (isRequestCustomer()
+            && changedKeys().hasOnly(['status', 'cancelledAt', 'chatId',
+                 'reviewed', 'reviewPending', 'reviewedAt',
+                 'hasActiveEmergency', 'activeEmergencyAlertId',
+                 'lastEmergencyAt', 'updatedAt'])
+            && (unchanged('status')
+                || (newData().status == 'cancelled' && cancellable()))
+            && (unchanged('reviewed')
+                || (newData().reviewed == true
+                    && resource.data.get('status', '') == 'completed'
+                    && existsAfter(/databases/$(database)/documents/reviews/$(requestId)))))
+        // Workers: accept an open lead (or one sent to them) and progress
+        // their own job. They cannot rewrite the customer's request or its
+        // review state.
         || (isWorker()
-            && (isAssignedWorker() || isOpenLead())
+            && (isAssignedWorker() || (isOpenLead() && noWorkerOrMe()))
             && newData().get('workerId', '') == uid()
-            && unchanged('customerId'));
+            && !changedKeys().hasAny(customerContentKeys())
+            && !changedKeys().hasAny(['reviewedAt'])
+            // Completing a job resets the review flag to false; only the
+            // customer can set it to true.
+            && newData().get('reviewed', false) == false);
 
       allow delete: if isAdmin();
     }
@@ -194,23 +228,37 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read, delete: if isAdmin()
         || (signedIn() && resource.data.get('userId', '') == uid());
-      // Customers notify workers about requests; never forge another sender.
-      allow create: if signedIn()
-        && newData().userId is string
-        && newData().get('customerId', uid()) == uid()
-        && newData().get('isRead', false) == false;
+      // Written by Cloud Functions (job alerts, status updates) and the
+      // admin console. Clients never fan out notifications to other users.
+      allow create: if isAdmin();
       allow update: if isAdmin()
         || (signedIn() && resource.data.get('userId', '') == uid()
             && changedKeys().hasOnly(['isRead', 'readAt', 'updatedAt']));
     }
 
     // ---------------------------------------------------------------- reviews
+    // One review per completed request (the doc id is the request id), by
+    // that request's customer, for the worker who did the job. Reviews are
+    // immutable for clients; worker aggregates are computed server-side.
     match /reviews/{reviewId} {
+      function reviewedRequest() {
+        return get(/databases/$(database)/documents/requests/$(reviewId)).data;
+      }
       allow read: if signedIn();
       allow create: if isCustomer()
-        && newData().get('customerId', '') == uid()
+        && newData().customerId == uid()
+        && newData().requestId == reviewId
         && newData().rating is number
-        && newData().rating >= 1 && newData().rating <= 5;
+        && newData().rating == math.floor(newData().rating)
+        && newData().rating >= 1 && newData().rating <= 5
+        && newData().get('review', '') is string
+        && newData().get('review', '').size() <= 2000
+        && newData().keys().hasOnly(['workerId', 'customerId', 'requestId',
+             'rating', 'review', 'createdAt'])
+        && exists(/databases/$(database)/documents/requests/$(reviewId))
+        && reviewedRequest().get('customerId', '') == uid()
+        && reviewedRequest().get('status', '') == 'completed'
+        && reviewedRequest().get('workerId', '') == newData().workerId;
       allow update, delete: if isAdmin();
     }
 

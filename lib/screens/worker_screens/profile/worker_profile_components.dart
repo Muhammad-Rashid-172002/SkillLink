@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/core/format/money.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
 
@@ -315,7 +316,7 @@ class WorkerProfessionalSnapshot extends StatelessWidget {
           label: 'Starting service rate',
           value: profile.hourlyRate.isEmpty
               ? 'Not added'
-              : 'Rs ${profile.hourlyRate}/hr',
+              : formatHourlyRate(profile.hourlyRate),
         ),
         const Divider(height: 1),
         _DetailRow(

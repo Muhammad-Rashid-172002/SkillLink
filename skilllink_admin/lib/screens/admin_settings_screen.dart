@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -121,10 +122,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       dateFormat: _dateFormat,
       defaultWorkerCredits:
           int.tryParse(_defaultCreditsController.text.trim()) ?? 0,
-      creditsPerLead:
-          int.tryParse(_creditsPerLeadController.text.trim()) ?? 0,
-      lowCreditWarning:
-          int.tryParse(_lowCreditsController.text.trim()) ?? 0,
+      creditsPerLead: int.tryParse(_creditsPerLeadController.text.trim()) ?? 0,
+      lowCreditWarning: int.tryParse(_lowCreditsController.text.trim()) ?? 0,
       autoCreditDeduction: _autoCreditDeduction,
       pushNotifications: _pushNotifications,
       emailNotifications: _emailNotifications,
@@ -145,13 +144,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       _settings = updated;
 
       if (!mounted) return;
-      _showMessage('Settings successfully save ho gayi.');
+      _showMessage('Settings saved.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Settings save nahi ho saki: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t save settings. Please try again.', isError: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -170,15 +166,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           title: Text(
             'Reset settings?',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           content: Text(
-            'Saari settings default values par reset ho jayengi.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF64748B),
-            ),
+            'All settings will go back to their default values.',
+            style: GoogleFonts.inter(color: const Color(0xFF64748B)),
           ),
           actions: [
             TextButton(
@@ -210,26 +204,19 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       _loadIntoForm(defaults);
 
       if (!mounted) return;
-      _showMessage('Settings reset ho gayi.');
+      _showMessage('Settings reset to defaults.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Settings reset nahi ho saki: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t reset settings. Please try again.', isError: true);
     }
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+        backgroundColor: isError ? kAdminDanger : kAdminSuccess,
         content: Text(message),
       ),
     );
@@ -243,7 +230,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         if (snapshot.hasError) {
           return Center(
             child: Text(
-              'Settings load nahi ho saki.\n${snapshot.error}',
+              'We couldn’t load settings. Refresh to try again.',
               textAlign: TextAlign.center,
             ),
           );
@@ -251,9 +238,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF16A34A),
-            ),
+            child: CircularProgressIndicator(color: kAdminBrand),
           );
         }
 
@@ -281,7 +266,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       children: [
                         _SectionCard(
                           title: 'General Settings',
-                          subtitle: 'App ki basic information aur localization.',
+                          subtitle: 'Basic app information and localization.',
                           icon: Icons.tune_rounded,
                           child: Column(
                             children: [
@@ -340,15 +325,22 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         const SizedBox(height: 18),
                         _SectionCard(
                           title: 'Support & Legal',
-                          subtitle: 'Support contact aur policy links.',
+                          subtitle: 'Support contact details and policy links.',
                           icon: Icons.support_agent_rounded,
                           child: Column(
                             children: [
+                              // Read-only: the apps show the official
+                              // address from code, not from this setting.
                               _TextField(
                                 controller: _supportEmailController,
                                 label: 'Support Email',
                                 icon: Icons.email_outlined,
                                 validator: _emailValidator,
+                                readOnly: true,
+                                helper:
+                                    'The official address shown in the '
+                                    'customer and worker apps. Changing it '
+                                    'requires an app update.',
                               ),
                               const SizedBox(height: 14),
                               _TextField(
@@ -375,7 +367,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         _SectionCard(
                           title: 'Credits Configuration',
                           subtitle:
-                              'Worker lead credits ke rules control karein.',
+                              'How workers get and spend lead credits today.',
                           icon: Icons.toll_rounded,
                           child: Column(
                             children: [
@@ -387,6 +379,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                                       label: 'Default Credits',
                                       icon: Icons.wallet_giftcard_rounded,
                                       numberOnly: true,
+                                      readOnly: true,
+                                      helper:
+                                          'New workers start with 0; credits '
+                                          'are added by approving payments.',
                                       validator: _numberValidator,
                                     ),
                                   ),
@@ -397,6 +393,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                                       label: 'Credits per Lead',
                                       icon: Icons.remove_circle_outline_rounded,
                                       numberOnly: true,
+                                      readOnly: true,
+                                      helper: 'Fixed at 1 in the worker app.',
                                       validator: _numberValidator,
                                     ),
                                   ),
@@ -408,20 +406,20 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                                 label: 'Low Credit Warning',
                                 icon: Icons.warning_amber_rounded,
                                 numberOnly: true,
+                                helper:
+                                    'Saved for reference; the worker app does '
+                                    'not read it yet.',
                                 validator: _numberValidator,
                               ),
                               const SizedBox(height: 8),
                               _SwitchTile(
                                 title: 'Automatic Credit Deduction',
                                 subtitle:
-                                    'Lead accept karte waqt credits deduct hon.',
-                                value: _autoCreditDeduction,
+                                    'Always on: accepting a lead uses 1 credit in the worker app.',
+                                value: true,
                                 icon: Icons.autorenew_rounded,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _autoCreditDeduction = value;
-                                  });
-                                },
+                                onChanged: null,
+                                status: 'Always on',
                               ),
                             ],
                           ),
@@ -433,54 +431,54 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       children: [
                         _SectionCard(
                           title: 'Notifications',
-                          subtitle: 'Admin alerts aur delivery preferences.',
+                          subtitle: 'Admin alerts and how they’re delivered.',
                           icon: Icons.notifications_active_rounded,
                           child: Column(
                             children: [
                               _SwitchTile(
                                 title: 'Push Notifications',
-                                subtitle: 'Mobile push notifications enable.',
-                                value: _pushNotifications,
+                                subtitle:
+                                    'Not connected: push alerts are not sent from this setting.',
+                                value: false,
                                 icon: Icons.phone_android_rounded,
-                                onChanged: (value) {
-                                  setState(() => _pushNotifications = value);
-                                },
+                                onChanged: null,
+                                status: 'Not available yet',
                               ),
                               _SwitchTile(
                                 title: 'Email Notifications',
-                                subtitle: 'Important alerts email par bhejein.',
-                                value: _emailNotifications,
+                                subtitle:
+                                    'Not connected: no alert emails are sent from this setting.',
+                                value: false,
                                 icon: Icons.mark_email_read_outlined,
-                                onChanged: (value) {
-                                  setState(() => _emailNotifications = value);
-                                },
+                                onChanged: null,
+                                status: 'Not available yet',
                               ),
                               _SwitchTile(
                                 title: 'New Job Alerts',
-                                subtitle: 'Nayi job request par alert.',
-                                value: _newJobAlerts,
+                                subtitle:
+                                    'Not connected: new requests appear in Jobs; no alert is sent.',
+                                value: false,
                                 icon: Icons.work_outline_rounded,
-                                onChanged: (value) {
-                                  setState(() => _newJobAlerts = value);
-                                },
+                                onChanged: null,
+                                status: 'Not available yet',
                               ),
                               _SwitchTile(
                                 title: 'New User Alerts',
-                                subtitle: 'Naye signup par alert.',
-                                value: _newUserAlerts,
+                                subtitle:
+                                    'Not connected: new sign-ups appear in Users; no alert is sent.',
+                                value: false,
                                 icon: Icons.person_add_alt_rounded,
-                                onChanged: (value) {
-                                  setState(() => _newUserAlerts = value);
-                                },
+                                onChanged: null,
+                                status: 'Not available yet',
                               ),
                               _SwitchTile(
                                 title: 'Complaint Alerts',
-                                subtitle: 'Nayi complaint par instant alert.',
-                                value: _complaintAlerts,
+                                subtitle:
+                                    'Not connected: complaints appear in Reports; no alert is sent.',
+                                value: false,
                                 icon: Icons.report_problem_outlined,
-                                onChanged: (value) {
-                                  setState(() => _complaintAlerts = value);
-                                },
+                                onChanged: null,
+                                status: 'Not available yet',
                               ),
                             ],
                           ),
@@ -488,20 +486,18 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         const SizedBox(height: 18),
                         _SectionCard(
                           title: 'Security',
-                          subtitle: 'Admin access aur session controls.',
+                          subtitle: 'Admin access and session controls.',
                           icon: Icons.security_rounded,
                           child: Column(
                             children: [
                               _SwitchTile(
                                 title: 'Two-Factor Authentication',
-                                subtitle: 'Admin login ki extra security.',
-                                value: _twoFactorAuthentication,
+                                subtitle:
+                                    'Not enforced: admins sign in with email and password only.',
+                                value: false,
                                 icon: Icons.phonelink_lock_rounded,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _twoFactorAuthentication = value;
-                                  });
-                                },
+                                onChanged: null,
+                                status: 'Not available yet',
                               ),
                               const SizedBox(height: 8),
                               _DropdownField(
@@ -509,12 +505,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                                 value: _sessionTimeoutMinutes.toString(),
                                 items: const ['15', '30', '60', '120'],
                                 displayBuilder: (value) => '$value minutes',
-                                onChanged: (value) {
-                                  setState(() {
-                                    _sessionTimeoutMinutes =
-                                        int.tryParse(value) ?? 30;
-                                  });
-                                },
+                                helper:
+                                    'Not enforced yet: admins stay signed in until they sign out.',
+                                onChanged: null,
                               ),
                             ],
                           ),
@@ -522,28 +515,26 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         const SizedBox(height: 18),
                         _SectionCard(
                           title: 'Appearance',
-                          subtitle: 'Admin panel ka visual experience.',
+                          subtitle: 'How the admin console looks.',
                           icon: Icons.palette_outlined,
                           child: Column(
                             children: [
                               _SwitchTile(
                                 title: 'Dark Mode',
-                                subtitle: 'Dashboard dark appearance use kare.',
-                                value: _darkMode,
+                                subtitle: 'The console is light-only for now.',
+                                value: false,
                                 icon: Icons.dark_mode_outlined,
-                                onChanged: (value) {
-                                  setState(() => _darkMode = value);
-                                },
+                                onChanged: null,
+                                status: 'Not available yet',
                               ),
                               _SwitchTile(
                                 title: 'Compact Sidebar',
                                 subtitle:
-                                    'Sidebar ko compact navigation mein show kare.',
-                                value: _compactSidebar,
+                                    'Automatic: the sidebar turns compact on medium-width screens.',
+                                value: false,
                                 icon: Icons.view_sidebar_outlined,
-                                onChanged: (value) {
-                                  setState(() => _compactSidebar = value);
-                                },
+                                onChanged: null,
+                                status: 'Automatic',
                               ),
                             ],
                           ),
@@ -556,11 +547,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                           child: _DangerSwitchTile(
                             title: 'Maintenance Mode',
                             subtitle:
-                                'Users ke liye app temporarily disable karein.',
-                            value: _maintenanceMode,
-                            onChanged: (value) {
-                              setState(() => _maintenanceMode = value);
-                            },
+                                'Not enforced: switching this on would not stop the apps, so it is locked off.',
+                            value: false,
+                            onChanged: null,
+                            status: 'Not available yet',
                           ),
                         ),
                       ],
@@ -578,20 +568,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     }
 
                     return Column(
-                      children: [
-                        left,
-                        const SizedBox(height: 18),
-                        right,
-                      ],
+                      children: [left, const SizedBox(height: 18), right],
                     );
                   },
                 ),
                 const SizedBox(height: 24),
-                _BottomSaveBar(
-                  saving: _saving,
-                  onSave: _save,
-                  onReset: _reset,
-                ),
+                _BottomSaveBar(saving: _saving, onSave: _save, onReset: _reset),
               ],
             ),
           ),
@@ -602,19 +584,19 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
   String? _requiredValidator(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Ye field required hai.';
+      return 'This field is required.';
     }
     return null;
   }
 
   String? _emailValidator(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Email required hai.';
+      return 'Email is required.';
     }
 
     final emailRegExp = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!emailRegExp.hasMatch(value.trim())) {
-      return 'Valid email enter karein.';
+      return 'Enter a valid email address.';
     }
 
     return null;
@@ -623,7 +605,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   String? _numberValidator(String? value) {
     final number = int.tryParse(value?.trim() ?? '');
     if (number == null || number < 0) {
-      return 'Valid number enter karein.';
+      return 'Enter a valid number.';
     }
     return null;
   }
@@ -653,17 +635,55 @@ class _SettingsHeader extends StatelessWidget {
               'Settings',
               style: GoogleFonts.inter(
                 fontSize: 25,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
                 letterSpacing: -0.7,
                 color: const Color(0xFF0F172A),
               ),
             ),
             const SizedBox(height: 7),
             Text(
-              'SkillNova admin panel aur app configuration manage karein.',
+              'Manage the SkillNova admin console and app configuration.',
               style: GoogleFonts.inter(
                 fontSize: 13,
                 color: const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Honest status: nothing in the app, console or Cloud Functions
+            // reads these values yet, so no admin should assume a security
+            // or maintenance setting is in force.
+            Container(
+              constraints: const BoxConstraints(maxWidth: 760),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF4E6),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFF7C68F)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: kAdminWarning,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Only the values you can edit here are saved, and they '
+                      'are for reference: the apps don’t read them yet. '
+                      'Controls marked “Not available yet” are locked because '
+                      'turning them on would not change anything; each one '
+                      'says what actually happens today.',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        height: 1.45,
+                        color: const Color(0xFF7A2E0E),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -698,7 +718,7 @@ class _SettingsHeader extends StatelessWidget {
                   : const Icon(Icons.save_rounded),
               label: Text(saving ? 'Saving...' : 'Save Changes'),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF16A34A),
+                backgroundColor: kAdminBrand,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -773,14 +793,10 @@ class _SectionCard extends StatelessWidget {
                 height: 46,
                 width: 46,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withOpacity(0.10),
+                  color: kAdminBrand.withOpacity(0.10),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  icon,
-                  color: const Color(0xFF16A34A),
-                  size: 22,
-                ),
+                child: Icon(icon, color: kAdminBrand, size: 22),
               ),
               const SizedBox(width: 13),
               Expanded(
@@ -791,7 +807,7 @@ class _SectionCard extends StatelessWidget {
                       title,
                       style: GoogleFonts.inter(
                         fontSize: 15,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         color: const Color(0xFF0F172A),
                       ),
                     ),
@@ -823,6 +839,8 @@ class _TextField extends StatelessWidget {
     required this.icon,
     this.validator,
     this.numberOnly = false,
+    this.readOnly = false,
+    this.helper,
   });
 
   final TextEditingController controller;
@@ -830,31 +848,32 @@ class _TextField extends StatelessWidget {
   final IconData icon;
   final String? Function(String?)? validator;
   final bool numberOnly;
+  final bool readOnly;
+  final String? helper;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
       validator: validator,
+      readOnly: readOnly,
       keyboardType: numberOnly ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
+        helperText: helper,
+        helperMaxLines: 2,
+        suffixIcon: readOnly ? const Icon(Icons.lock_outline_rounded) : null,
         prefixIcon: Icon(icon),
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
           borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(
-            color: Color(0xFF16A34A),
-            width: 1.6,
-          ),
+          borderSide: const BorderSide(color: kAdminBrand, width: 1.6),
         ),
       ),
     );
@@ -868,13 +887,17 @@ class _DropdownField extends StatelessWidget {
     required this.items,
     required this.onChanged,
     this.displayBuilder,
+    this.helper,
   });
 
   final String label;
   final String value;
   final List<String> items;
-  final ValueChanged<String> onChanged;
+
+  /// Null shows the field disabled (the setting is not enforced).
+  final ValueChanged<String>? onChanged;
   final String Function(String)? displayBuilder;
+  final String? helper;
 
   @override
   Widget build(BuildContext context) {
@@ -884,11 +907,11 @@ class _DropdownField extends StatelessWidget {
       value: safeValue,
       decoration: InputDecoration(
         labelText: label,
+        helperText: helper,
+        helperMaxLines: 3,
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
           borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -897,14 +920,14 @@ class _DropdownField extends StatelessWidget {
       items: items.map((item) {
         return DropdownMenuItem(
           value: item,
-          child: Text(
-            displayBuilder?.call(item) ?? item,
-          ),
+          child: Text(displayBuilder?.call(item) ?? item),
         );
       }).toList(),
-      onChanged: (newValue) {
-        if (newValue != null) onChanged(newValue);
-      },
+      onChanged: onChanged == null
+          ? null
+          : (newValue) {
+              if (newValue != null) onChanged!(newValue);
+            },
     );
   }
 }
@@ -916,13 +939,19 @@ class _SwitchTile extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.onChanged,
+    this.status,
   });
 
   final String title;
   final String subtitle;
   final bool value;
   final IconData icon;
-  final ValueChanged<bool> onChanged;
+
+  /// Null disables the switch: the setting does not change app behavior.
+  final ValueChanged<bool>? onChanged;
+
+  /// Short label such as "Not available yet", shown next to the title.
+  final String? status;
 
   @override
   Widget build(BuildContext context) {
@@ -940,27 +969,31 @@ class _SwitchTile extends StatelessWidget {
             height: 40,
             width: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFF16A34A).withOpacity(0.09),
+              color: kAdminBrand.withOpacity(0.09),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              size: 19,
-              color: const Color(0xFF16A34A),
-            ),
+            child: Icon(icon, size: 19, color: kAdminBrand),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF334155),
-                  ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF334155),
+                      ),
+                    ),
+                    if (status != null) _StatusPill(status!),
+                  ],
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -973,11 +1006,7 @@ class _SwitchTile extends StatelessWidget {
               ],
             ),
           ),
-          Switch(
-            value: value,
-            activeColor: const Color(0xFF16A34A),
-            onChanged: onChanged,
-          ),
+          Switch(value: value, activeColor: kAdminBrand, onChanged: onChanged),
         ],
       ),
     );
@@ -990,12 +1019,16 @@ class _DangerSwitchTile extends StatelessWidget {
     required this.subtitle,
     required this.value,
     required this.onChanged,
+    this.status,
   });
 
   final String title;
   final String subtitle;
   final bool value;
-  final ValueChanged<bool> onChanged;
+
+  /// Null disables the switch: the setting does not change app behavior.
+  final ValueChanged<bool>? onChanged;
+  final String? status;
 
   @override
   Widget build(BuildContext context) {
@@ -1008,22 +1041,27 @@ class _DangerSwitchTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.warning_amber_rounded,
-            color: Color(0xFFDC2626),
-          ),
+          const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFF991B1B),
-                  ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF991B1B),
+                      ),
+                    ),
+                    if (status != null) _StatusPill(status!),
+                  ],
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -1047,6 +1085,33 @@ class _DangerSwitchTile extends StatelessWidget {
   }
 }
 
+/// Marks a control whose saved value does not (yet) change app behavior.
+class _StatusPill extends StatelessWidget {
+  const _StatusPill(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF475569),
+        ),
+      ),
+    );
+  }
+}
+
 class _BottomSaveBar extends StatelessWidget {
   const _BottomSaveBar({
     required this.saving,
@@ -1065,10 +1130,7 @@ class _BottomSaveBar extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF0F172A),
-            Color(0xFF1E293B),
-          ],
+          colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
         ),
         borderRadius: BorderRadius.circular(20),
       ),
@@ -1083,17 +1145,14 @@ class _BottomSaveBar extends StatelessWidget {
                 'Ready to apply changes?',
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Save karne ke baad settings Firestore mein update hongi.',
-                style: GoogleFonts.inter(
-                  fontSize: 10.5,
-                  color: Colors.white60,
-                ),
+                'Saves the editable reference values.',
+                style: GoogleFonts.inter(fontSize: 10.5, color: Colors.white60),
               ),
             ],
           );
@@ -1103,12 +1162,9 @@ class _BottomSaveBar extends StatelessWidget {
             icon: const Icon(Icons.save_rounded),
             label: Text(saving ? 'Saving...' : 'Save All Settings'),
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF16A34A),
+              backgroundColor: kAdminBrand,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 15,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             ),
           );
 
@@ -1118,10 +1174,7 @@ class _BottomSaveBar extends StatelessWidget {
               children: [
                 message,
                 const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: button,
-                ),
+                SizedBox(width: double.infinity, child: button),
               ],
             );
           }

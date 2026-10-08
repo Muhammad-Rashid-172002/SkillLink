@@ -184,14 +184,16 @@ class ProfileMenuTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.onTap,
+    this.onTap,
     this.danger = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+
+  /// Null renders an informational row without a chevron.
+  final VoidCallback? onTap;
   final bool danger;
 
   @override
@@ -212,7 +214,7 @@ class ProfileMenuTile extends StatelessWidget {
       ),
       title: Text(title, style: Theme.of(context).textTheme.titleMedium),
       subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-      trailing: const Icon(Icons.chevron_right_rounded),
+      trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
       onTap: onTap,
     );
   }
@@ -244,6 +246,9 @@ class SettingsSection extends StatelessWidget {
           ),
         ),
         Container(
+          // Every section card spans the full width, even when its content
+          // (e.g. the theme selector) is narrower.
+          width: double.infinity,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: colors.surface,

@@ -604,10 +604,7 @@ class _CustomerProfileSetupScreenState
   Widget _cityDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SkillNovaFieldLabel('City'),
-        _cityField(),
-      ],
+      children: [const SkillNovaFieldLabel('City'), _cityField()],
     );
   }
 

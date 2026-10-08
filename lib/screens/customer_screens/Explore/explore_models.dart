@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:skill_link/core/format/money.dart';
 import 'package:skill_link/core/auth/user_role.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -128,12 +129,7 @@ double? parseRate(String value) {
   return double.tryParse(match?.group(0) ?? '');
 }
 
-String formatRate(String value) {
-  final rate = value.trim();
-  if (rate.isEmpty) return '';
-  if (rate.toLowerCase().contains('rs')) return rate;
-  return 'Rs $rate/hr';
-}
+String formatRate(String value) => formatHourlyRate(value);
 
 SkillNovaCoordinate? customerCoordinate(Map<String, dynamic>? profile) {
   if (profile == null) return null;

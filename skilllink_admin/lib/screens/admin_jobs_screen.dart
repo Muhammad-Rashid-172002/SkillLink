@@ -1,17 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
+import 'package:skilllink_admin/services/participant_directory.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../services/job_management_service.dart';
 
-enum JobFilter {
-  all,
-  pending,
-  active,
-  completed,
-  cancelled,
-}
+enum JobFilter { all, pending, active, completed, cancelled }
 
 class AdminJobsScreen extends StatefulWidget {
   const AdminJobsScreen({super.key});
@@ -22,6 +17,10 @@ class AdminJobsScreen extends StatefulWidget {
 
 class _AdminJobsScreenState extends State<AdminJobsScreen> {
   final JobManagementService _service = JobManagementService();
+
+  // Created once (not per build) and joined with participant names.
+  late final Stream<List<(String, Map<String, dynamic>)>> _stream =
+      ParticipantDirectory().join(_service.jobsStream());
   final TextEditingController _searchController = TextEditingController();
 
   JobFilter _selectedFilter = JobFilter.all;
@@ -38,7 +37,8 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
     final query = _searchQuery.trim().toLowerCase();
 
     return jobs.where((job) {
-      final matchesSearch = query.isEmpty ||
+      final matchesSearch =
+          query.isEmpty ||
           job.title.toLowerCase().contains(query) ||
           job.category.toLowerCase().contains(query) ||
           job.customerName.toLowerCase().contains(query) ||
@@ -54,12 +54,11 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
       };
 
       return matchesSearch && matchesFilter;
-    }).toList()
-      ..sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      });
+    }).toList()..sort((a, b) {
+      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
   }
 
   Future<void> _changeStatus(ManagedJob job) async {
@@ -89,7 +88,7 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
               title: Text(
                 'Update job status',
                 style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -102,7 +101,7 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                     Text(
                       job.title,
                       style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         color: const Color(0xFF334155),
                       ),
                     ),
@@ -139,7 +138,7 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                 FilledButton(
                   onPressed: () => Navigator.pop(dialogContext, value),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF16A34A),
+                    backgroundColor: kAdminBrand,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Update status'),
@@ -154,19 +153,13 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
     if (selectedStatus == null || selectedStatus == job.status) return;
 
     try {
-      await _service.updateJobStatus(
-        jobId: job.id,
-        status: selectedStatus,
-      );
+      await _service.updateJobStatus(jobId: job.id, status: selectedStatus);
 
       if (!mounted) return;
-      _showMessage('${job.title} ka status update ho gaya.');
+      _showMessage('Status updated for ${job.title}.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Status update nahi ho saka: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t update status. Please try again.', isError: true);
     }
   }
 
@@ -185,7 +178,7 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
           title: Text(
             'Cancel job',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -196,7 +189,7 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${job.title} cancel karne ka reason enter karein.',
+                  'Enter a reason for cancelling ${job.title}.',
                   style: GoogleFonts.inter(
                     height: 1.5,
                     color: const Color(0xFF64748B),
@@ -207,7 +200,8 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                   controller: reasonController,
                   maxLines: 4,
                   decoration: InputDecoration(
-                    hintText: 'Example: Suspicious request or policy violation...',
+                    hintText:
+                        'Example: Suspicious request or policy violation...',
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
                     border: OutlineInputBorder(
@@ -245,19 +239,13 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
     if (reason == null || reason.isEmpty) return;
 
     try {
-      await _service.cancelJob(
-        jobId: job.id,
-        reason: reason,
-      );
+      await _service.cancelJob(jobId: job.id, reason: reason);
 
       if (!mounted) return;
-      _showMessage('${job.title} cancel ho gaya.');
+      _showMessage('${job.title} was cancelled.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Job cancel nahi ho saka: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t cancel job. Please try again.', isError: true);
     }
   }
 
@@ -274,12 +262,12 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
           title: Text(
             'Delete job document?',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           content: Text(
-            'Ye action Firestore se job permanently delete karega. Isay undo nahi kiya ja sakta.',
+            'This permanently deletes the job. It can’t be undone.',
             style: GoogleFonts.inter(
               height: 1.5,
               color: const Color(0xFF64748B),
@@ -309,13 +297,10 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
       await _service.deleteJob(job.id);
 
       if (!mounted) return;
-      _showMessage('${job.title} delete ho gaya.');
+      _showMessage('${job.title} was deleted.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Job delete nahi ho saka: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t delete job. Please try again.', isError: true);
     }
   }
 
@@ -346,10 +331,7 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                           width: 58,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF16A34A),
-                                Color(0xFF0D9488),
-                              ],
+                              colors: [kAdminBrand, kAdminBrandDark],
                             ),
                             borderRadius: BorderRadius.circular(18),
                           ),
@@ -368,7 +350,7 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                                 job.title,
                                 style: GoogleFonts.inter(
                                   fontSize: 23,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w700,
                                   color: const Color(0xFF0F172A),
                                 ),
                               ),
@@ -376,7 +358,7 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                               Text(
                                 job.category,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF16A34A),
+                                  color: kAdminBrand,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -398,9 +380,7 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: const Color(0xFFE2E8F0),
-                        ),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: Text(
                         job.description,
@@ -452,7 +432,7 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                       'Document ID',
                       style: GoogleFonts.inter(
                         fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         color: const Color(0xFF94A3B8),
                       ),
                     ),
@@ -477,12 +457,8 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                             label: const Text('Cancel job'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFDC2626),
-                              side: const BorderSide(
-                                color: Color(0xFFDC2626),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 15,
-                              ),
+                              side: const BorderSide(color: Color(0xFFDC2626)),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
                             ),
                           ),
                         ),
@@ -496,11 +472,9 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                             icon: const Icon(Icons.sync_alt_rounded),
                             label: const Text('Update status'),
                             style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFF16A34A),
+                              backgroundColor: kAdminBrand,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 15,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
                             ),
                           ),
                         ),
@@ -516,17 +490,13 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
     );
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+        backgroundColor: isError ? kAdminDanger : kAdminSuccess,
         content: Text(message),
       ),
     );
@@ -534,25 +504,23 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _service.jobsStream(),
+    return StreamBuilder<List<(String, Map<String, dynamic>)>>(
+      stream: _stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _JobsErrorState(
-            message: 'Jobs load nahi ho sake.\n${snapshot.error}',
+            message: 'We couldn’t load jobs. Refresh to try again.',
           );
         }
 
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF16A34A),
-            ),
+            child: CircularProgressIndicator(color: kAdminBrand),
           );
         }
 
-        final allJobs = snapshot.data!.docs
-            .map(ManagedJob.fromDocument)
+        final allJobs = snapshot.data!
+            .map((entry) => ManagedJob.fromMap(entry.$1, entry.$2))
             .toList();
 
         final filteredJobs = _applyFilters(allJobs);
@@ -564,14 +532,10 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
             children: [
               _JobsHeader(
                 total: allJobs.length,
-                pending:
-                    allJobs.where((job) => job.isPending).length,
-                active:
-                    allJobs.where((job) => job.isActive).length,
-                completed:
-                    allJobs.where((job) => job.isCompleted).length,
-                cancelled:
-                    allJobs.where((job) => job.isCancelled).length,
+                pending: allJobs.where((job) => job.isPending).length,
+                active: allJobs.where((job) => job.isActive).length,
+                completed: allJobs.where((job) => job.isCompleted).length,
+                cancelled: allJobs.where((job) => job.isCancelled).length,
               ),
               const SizedBox(height: 22),
               _JobsToolbar(
@@ -656,7 +620,7 @@ class _JobsHeader extends StatelessWidget {
         title: 'Completed',
         value: '$completed',
         icon: Icons.task_alt_rounded,
-        color: const Color(0xFF16A34A),
+        color: kAdminSuccess,
       ),
       _JobStatCard(
         title: 'Cancelled',
@@ -673,7 +637,7 @@ class _JobsHeader extends StatelessWidget {
           'Jobs Management',
           style: GoogleFonts.inter(
             fontSize: 25,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             letterSpacing: -0.7,
             color: const Color(0xFF0F172A),
           ),
@@ -692,10 +656,10 @@ class _JobsHeader extends StatelessWidget {
             final columns = constraints.maxWidth >= 1180
                 ? 5
                 : constraints.maxWidth >= 760
-                    ? 3
-                    : constraints.maxWidth >= 520
-                        ? 2
-                        : 1;
+                ? 3
+                : constraints.maxWidth >= 520
+                ? 2
+                : 1;
 
             final width =
                 (constraints.maxWidth - ((columns - 1) * 14)) / columns;
@@ -755,7 +719,7 @@ class _JobStatCard extends StatelessWidget {
                 value,
                 style: GoogleFonts.inter(
                   fontSize: 21,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -828,20 +792,15 @@ class _JobsToolbar extends StatelessWidget {
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF16A34A),
-                    width: 1.6,
-                  ),
+                  borderSide: const BorderSide(color: kAdminBrand, width: 1.6),
                 ),
               ),
             ),
@@ -857,20 +816,15 @@ class _JobsToolbar extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_jobFilterLabel(filter)),
-                selectedColor:
-                    const Color(0xFF16A34A).withOpacity(0.12),
+                selectedColor: kAdminBrand.withOpacity(0.12),
                 backgroundColor: const Color(0xFFF8FAFC),
                 side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFE2E8F0),
+                  color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
                 ),
                 labelStyle: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFF64748B),
+                  color: selected ? kAdminBrand : const Color(0xFF64748B),
                 ),
               );
             }).toList(),
@@ -910,10 +864,7 @@ class _JobsToolbar extends StatelessWidget {
                 const SizedBox(height: 14),
                 filters,
                 const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: controls,
-                ),
+                Align(alignment: Alignment.centerRight, child: controls),
               ],
             );
           }
@@ -953,14 +904,10 @@ class _ViewButton extends StatelessWidget {
         height: 38,
         width: 38,
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF16A34A)
-              : const Color(0xFFF8FAFC),
+          color: selected ? kAdminBrand : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF16A34A)
-                : const Color(0xFFE2E8F0),
+            color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
           ),
         ),
         child: Icon(
@@ -998,138 +945,142 @@ class _JobsTable extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE6ECF2)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            const Color(0xFFF8FAFC),
-          ),
-          dataRowMinHeight: 74,
-          dataRowMaxHeight: 82,
-          horizontalMargin: 20,
-          columnSpacing: 28,
-          columns: const [
-            DataColumn(label: _TableHeading('JOB')),
-            DataColumn(label: _TableHeading('CUSTOMER')),
-            DataColumn(label: _TableHeading('WORKER')),
-            DataColumn(label: _TableHeading('BUDGET')),
-            DataColumn(label: _TableHeading('STATUS')),
-            DataColumn(label: _TableHeading('CREATED')),
-            DataColumn(label: _TableHeading('ACTIONS')),
-          ],
-          rows: jobs.map((job) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 230,
-                    child: Row(
-                      children: [
-                        Container(
-                          height: 43,
-                          width: 43,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F7ED),
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          child: const Icon(
-                            Icons.handyman_rounded,
-                            color: Color(0xFF16A34A),
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                job.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF0F172A),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                job.category,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  color: const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 130,
-                    child: Text(
-                      job.customerName,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 130,
-                    child: Text(
-                      job.workerName,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  Text(
-                    _formatBudget(job.budget),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF334155),
-                    ),
-                  ),
-                ),
-                DataCell(_StatusBadge(status: job.status)),
-                DataCell(
-                  Text(
-                    _formatDate(job.createdAt),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF475569),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  _JobActions(
-                    job: job,
-                    onView: onView,
-                    onStatus: onStatus,
-                    onCancel: onCancel,
-                    onDelete: onDelete,
-                  ),
-                ),
+      child: LayoutBuilder(
+        // Fill the card on wide screens; scroll sideways on narrow ones.
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              dataRowMinHeight: 74,
+              dataRowMaxHeight: 82,
+              horizontalMargin: 20,
+              columnSpacing: 28,
+              columns: const [
+                DataColumn(label: _TableHeading('JOB')),
+                DataColumn(label: _TableHeading('CUSTOMER')),
+                DataColumn(label: _TableHeading('WORKER')),
+                DataColumn(label: _TableHeading('BUDGET')),
+                DataColumn(label: _TableHeading('STATUS')),
+                DataColumn(label: _TableHeading('CREATED')),
+                DataColumn(label: _TableHeading('ACTIONS')),
               ],
-            );
-          }).toList(),
+              rows: jobs.map((job) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      SizedBox(
+                        width: 230,
+                        child: Row(
+                          children: [
+                            Container(
+                              height: 43,
+                              width: 43,
+                              decoration: BoxDecoration(
+                                color: kAdminBrandSoft,
+                                borderRadius: BorderRadius.circular(13),
+                              ),
+                              child: const Icon(
+                                Icons.handyman_rounded,
+                                color: kAdminBrand,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    job.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    job.category,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 130,
+                        child: Text(
+                          job.customerName,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 130,
+                        child: Text(
+                          job.workerName,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        _formatBudget(job.budget),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF334155),
+                        ),
+                      ),
+                    ),
+                    DataCell(_StatusBadge(status: job.status)),
+                    DataCell(
+                      Text(
+                        _formatDate(job.createdAt),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      _JobActions(
+                        job: job,
+                        onView: onView,
+                        onStatus: onStatus,
+                        onCancel: onCancel,
+                        onDelete: onDelete,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );
@@ -1158,13 +1109,12 @@ class _JobsGrid extends StatelessWidget {
         final columns = constraints.maxWidth >= 1180
             ? 4
             : constraints.maxWidth >= 820
-                ? 3
-                : constraints.maxWidth >= 540
-                    ? 2
-                    : 1;
+            ? 3
+            : constraints.maxWidth >= 540
+            ? 2
+            : 1;
 
-        final width =
-            (constraints.maxWidth - ((columns - 1) * 16)) / columns;
+        final width = (constraints.maxWidth - ((columns - 1) * 16)) / columns;
 
         return Wrap(
           spacing: 16,
@@ -1228,10 +1178,7 @@ class _JobCard extends StatelessWidget {
                 width: 46,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF16A34A),
-                      Color(0xFF0D9488),
-                    ],
+                    colors: [kAdminBrand, kAdminBrandDark],
                   ),
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -1258,7 +1205,7 @@ class _JobCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               fontSize: 15,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -1268,7 +1215,7 @@ class _JobCard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF16A34A),
+              color: kAdminBrand,
             ),
           ),
           const SizedBox(height: 13),
@@ -1279,15 +1226,9 @@ class _JobCard extends StatelessWidget {
             value: job.customerName,
           ),
           const SizedBox(height: 9),
-          _CardInfoRow(
-            icon: Icons.engineering_outlined,
-            value: job.workerName,
-          ),
+          _CardInfoRow(icon: Icons.engineering_outlined, value: job.workerName),
           const SizedBox(height: 9),
-          _CardInfoRow(
-            icon: Icons.location_on_outlined,
-            value: job.address,
-          ),
+          _CardInfoRow(icon: Icons.location_on_outlined, value: job.address),
           const SizedBox(height: 16),
           const Divider(color: Color(0xFFF1F5F9)),
           const SizedBox(height: 10),
@@ -1315,8 +1256,8 @@ class _JobCard extends StatelessWidget {
               icon: const Icon(Icons.visibility_outlined, size: 18),
               label: const Text('View details'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF16A34A),
-                side: const BorderSide(color: Color(0xFF16A34A)),
+                foregroundColor: kAdminBrand,
+                side: const BorderSide(color: kAdminBrand),
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),
             ),
@@ -1348,9 +1289,7 @@ class _JobActions extends StatelessWidget {
       tooltip: 'Job actions',
       color: Colors.white,
       surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       onSelected: (value) {
         switch (value) {
           case 'view':
@@ -1432,8 +1371,7 @@ class _ActionMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
+    final color = danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
 
     return Row(
       children: [
@@ -1462,10 +1400,7 @@ class _StatusBadge extends StatelessWidget {
     final color = _statusColor(status);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.10),
         borderRadius: BorderRadius.circular(20),
@@ -1474,7 +1409,7 @@ class _StatusBadge extends StatelessWidget {
         _statusLabel(status).toUpperCase(),
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -1483,10 +1418,7 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _CardInfoRow extends StatelessWidget {
-  const _CardInfoRow({
-    required this.icon,
-    required this.value,
-  });
+  const _CardInfoRow({required this.icon, required this.value});
 
   final IconData icon;
   final String value;
@@ -1495,11 +1427,7 @@ class _CardInfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 17,
-          color: const Color(0xFF94A3B8),
-        ),
+        Icon(icon, size: 17, color: const Color(0xFF94A3B8)),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -1518,10 +1446,7 @@ class _CardInfoRow extends StatelessWidget {
 }
 
 class _Metric extends StatelessWidget {
-  const _Metric({
-    required this.label,
-    required this.value,
-  });
+  const _Metric({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -1545,7 +1470,7 @@ class _Metric extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.inter(
             fontSize: 11.5,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             color: const Color(0xFF334155),
           ),
         ),
@@ -1581,14 +1506,10 @@ class _InfoTile extends StatelessWidget {
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFF16A34A).withOpacity(0.10),
+              color: kAdminBrand.withOpacity(0.10),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              size: 19,
-              color: const Color(0xFF16A34A),
-            ),
+            child: Icon(icon, size: 19, color: kAdminBrand),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -1610,7 +1531,7 @@ class _InfoTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF334155),
                   ),
                 ),
@@ -1634,7 +1555,7 @@ class _TableHeading extends StatelessWidget {
       text,
       style: GoogleFonts.inter(
         fontSize: 9,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w700,
         letterSpacing: 0.7,
         color: const Color(0xFF64748B),
       ),
@@ -1667,13 +1588,13 @@ class _EmptyJobsState extends StatelessWidget {
             'No jobs found',
             style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Search ya selected filter ke mutabiq koi job nahi mili.',
+            'No jobs match your search or filters.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: const Color(0xFF64748B),
@@ -1714,9 +1635,7 @@ class _JobsErrorState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF991B1B),
-              ),
+              style: GoogleFonts.inter(color: const Color(0xFF991B1B)),
             ),
           ],
         ),
@@ -1766,7 +1685,7 @@ String _statusLabel(String status) {
 Color _statusColor(String status) {
   switch (status.toLowerCase()) {
     case 'completed':
-      return const Color(0xFF16A34A);
+      return kAdminSuccess;
     case 'accepted':
     case 'on_the_way':
     case 'in_progress':

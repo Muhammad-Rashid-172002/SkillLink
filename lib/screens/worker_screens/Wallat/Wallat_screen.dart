@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
 import 'package:skill_link/design_system/widgets/skillnova_feedback.dart';
@@ -83,7 +84,7 @@ class _WallatScreenState extends State<WallatScreen> {
       MaterialPageRoute(
         builder: (_) => PaymentMethodScreen(
           credits: package.credits.toString(),
-          price: 'Rs. ${package.price}',
+          price: formatWorkerJobBudget('${package.price}'),
         ),
       ),
     );
@@ -233,7 +234,8 @@ class _WallatScreenState extends State<WallatScreen> {
       'approved' => InfoBanner(
         tone: SkillNovaTone.success,
         title: 'Payment approved',
-        message: '$credits credits were added for Rs. $amount.',
+        message:
+            '$credits credits were added for ${formatWorkerJobBudget('$amount')}.',
       ),
       'rejected' => InfoBanner(
         tone: SkillNovaTone.error,
@@ -247,7 +249,7 @@ class _WallatScreenState extends State<WallatScreen> {
         icon: Icons.hourglass_top_rounded,
         title: 'Payment under review',
         message:
-            'We’re checking your Rs. $amount payment for $credits credits. '
+            'We’re checking your ${formatWorkerJobBudget('$amount')} payment for $credits credits. '
             'You can buy more once it’s reviewed.',
       ),
     };
@@ -341,7 +343,7 @@ class _PackageCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${package.description} · Rs. ${package.pricePerCredit} '
+                  '${package.description} · ${formatWorkerJobBudget('${package.pricePerCredit}')} '
                   'per lead',
                   style: text.bodySmall,
                 ),
@@ -352,11 +354,11 @@ class _PackageCard extends StatelessWidget {
           package.recommended
               ? FilledButton(
                   onPressed: enabled ? onBuy : null,
-                  child: Text('Rs. ${package.price}'),
+                  child: Text(formatWorkerJobBudget('${package.price}')),
                 )
               : OutlinedButton(
                   onPressed: enabled ? onBuy : null,
-                  child: Text('Rs. ${package.price}'),
+                  child: Text(formatWorkerJobBudget('${package.price}')),
                 ),
         ],
       ),
@@ -379,7 +381,7 @@ class _PaymentRow extends StatelessWidget {
     return ListRow(
       icon: Icons.receipt_outlined,
       title:
-          '${_toInt(data['credits'])} credits · Rs. ${_toInt(data['amount'])}',
+          '${_toInt(data['credits'])} credits · ${formatWorkerJobBudget('${_toInt(data['amount'])}')}',
       subtitle: _date(data['createdAt']),
       trailing: StatusBadge(label: label, tone: tone, icon: icon),
     );

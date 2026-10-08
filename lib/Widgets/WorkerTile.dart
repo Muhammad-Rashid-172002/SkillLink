@@ -22,17 +22,13 @@ class WorkerTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
       ),
       child: ListTile(
-        leading: const CircleAvatar(
-          radius: 24,
-          child: Icon(Icons.person),
-        ),
+        leading: const CircleAvatar(radius: 24, child: Icon(Icons.person)),
         title: Text(name),
         subtitle: Text(skill),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.star,
-                color: Colors.orange, size: 18),
+            const Icon(Icons.star, color: Colors.orange, size: 18),
             Text(rating),
           ],
         ),

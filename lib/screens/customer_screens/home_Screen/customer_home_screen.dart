@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
+import 'package:skill_link/core/format/money.dart';
 import 'package:flutter/material.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore.dart';
 import 'package:skill_link/Notification_screen/notification_screen.dart';
@@ -371,18 +372,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           );
         }
 
-        final active = [...?snapshot.data].where((document) {
-          return _isActiveStatus(document.data['status']);
-        }).toList()
-          ..sort((a, b) {
-            // Work that is actually underway matters more than an open
-            // request, then newest first.
-            final byStage = _statusPresentation(b.data['status']).progress
-                .compareTo(_statusPresentation(a.data['status']).progress);
-            return byStage != 0
-                ? byStage
-                : _dateOf(b.data).compareTo(_dateOf(a.data));
-          });
+        final active =
+            [...?snapshot.data].where((document) {
+              return _isActiveStatus(document.data['status']);
+            }).toList()..sort((a, b) {
+              // Work that is actually underway matters more than an open
+              // request, then newest first.
+              final byStage = _statusPresentation(b.data['status']).progress
+                  .compareTo(_statusPresentation(a.data['status']).progress);
+              return byStage != 0
+                  ? byStage
+                  : _dateOf(b.data).compareTo(_dateOf(a.data));
+            });
 
         if (active.isEmpty) return const SizedBox.shrink();
 
@@ -714,10 +715,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       widget.onSelectTab!(1);
       return;
     }
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const Explore()),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const Explore()));
   }
 
   void _openLocationProfile() {
@@ -820,11 +818,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  String _formatRate(String rate) {
-    final compact = rate.trim();
-    if (compact.toLowerCase().contains('rs')) return compact;
-    return 'Rs $compact/hr';
-  }
+  String _formatRate(String rate) => formatHourlyRate(rate);
 }
 
 class _CustomerAvatar extends StatelessWidget {

@@ -102,13 +102,13 @@ void main() {
       ),
     );
 
-    expect(SkillNovaSupportConfig.supportEmail, 'support@korvennzatech');
-    expect(find.text('support@korvennzatech'), findsOneWidget);
+    expect(SkillNovaSupportConfig.supportEmail, 'support@korvenzatech.com');
+    expect(find.text('support@korvenzatech.com'), findsOneWidget);
     expect(find.textContaining('muhammadrashid172002@gmail.com'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('email-support')));
     await tester.pump();
     expect(launched?.scheme, 'mailto');
-    expect(launched?.path, 'support@korvennzatech');
+    expect(launched?.path, 'support@korvenzatech.com');
     expect(launched?.queryParameters['subject'], 'SkillNova Support Request');
   });
 
@@ -302,6 +302,8 @@ Future<void> _tapSupportAction(WidgetTester tester, int index) async {
     300,
     scrollable: find.byType(Scrollable).first,
   );
+  await tester.ensureVisible(target);
+  await tester.pumpAndSettle();
   await tester.tap(target);
   await tester.pumpAndSettle();
 }

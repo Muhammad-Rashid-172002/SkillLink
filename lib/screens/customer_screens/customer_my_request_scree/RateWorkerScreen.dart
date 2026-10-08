@@ -103,7 +103,9 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
           throw Exception('Worker information does not match');
         }
 
-        if (reviewed) {
+        // A review is stored once per job (its id is the request id).
+        final existingReview = await transaction.get(reviewRef);
+        if (reviewed || existingReview.exists) {
           throw Exception('You have already reviewed this worker');
         }
 
@@ -126,30 +128,8 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
         });
       });
 
-      final reviewsSnapshot = await firestore
-          .collection('reviews')
-          .where('workerId', isEqualTo: assignedWorkerId)
-          .get();
-
-      double totalRating = 0;
-
-      for (final doc in reviewsSnapshot.docs) {
-        final rating = doc.data()['rating'];
-
-        if (rating is num) {
-          totalRating += rating.toDouble();
-        }
-      }
-
-      final reviewCount = reviewsSnapshot.docs.length;
-
-      final averageRating = reviewCount == 0 ? 0 : totalRating / reviewCount;
-
-      await firestore.collection('users').doc(assignedWorkerId).update({
-        'rating': double.parse(averageRating.toStringAsFixed(1)),
-        'totalReviews': reviewCount,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // The worker's rating and review count are recalculated by the
+      // syncWorkerRating Cloud Function; clients cannot write them.
 
       if (!mounted) return;
 
@@ -166,8 +146,11 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
       // Our own guard messages are written for people; anything else
       // (network, permissions) gets a calm generic message.
       final message = error is FirebaseException
-          ? 'Your review couldn’t be sent. Check your connection and try '
-                'again.'
+          ? error.code == 'permission-denied'
+                ? 'This review can’t be posted. Reviews can only be left once, '
+                      'for a completed job you booked.'
+                : 'Your review couldn’t be sent. Check your connection and '
+                      'try again.'
           : error.toString().replaceFirst('Exception: ', '');
       _showMessage(message, isError: true);
     } finally {

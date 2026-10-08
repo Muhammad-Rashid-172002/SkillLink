@@ -11,11 +11,9 @@ class AdminEmergencyServiceException implements Exception {
 }
 
 class AdminEmergencyService {
-  AdminEmergencyService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  AdminEmergencyService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
@@ -115,22 +113,21 @@ class AdminEmergencyService {
     });
 
     if (requestId.trim().isNotEmpty) {
-      batch.set(
-        requestRef,
-        {
-          'hasActiveEmergency': false,
-          'activeEmergencyAlertId': FieldValue.delete(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(requestRef, {
+        'hasActiveEmergency': false,
+        'activeEmergencyAlertId': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     await batch.commit();
   }
 
   Future<void> deleteResolvedAlert(String alertId) async {
-    final doc = await _firestore.collection('emergency_alerts').doc(alertId).get();
+    final doc = await _firestore
+        .collection('emergency_alerts')
+        .doc(alertId)
+        .get();
     final status = doc.data()?['status']?.toString().toLowerCase() ?? '';
 
     if (status != 'resolved' && status != 'false_alarm') {

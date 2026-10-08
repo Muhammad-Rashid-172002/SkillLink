@@ -1,4 +1,5 @@
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
+import 'package:skill_link/core/format/money.dart';
 
 enum WorkerJobGroup {
   active('Active'),
@@ -392,20 +393,8 @@ String workerJobPrimaryAction(WorkerJobStatus status) => switch (status) {
   _ => '',
 };
 
-String formatWorkerJobBudget(String value) {
-  final clean = value.trim();
-  if (clean.isEmpty) return 'Not provided';
-  if (RegExp(r'[a-zA-Z]').hasMatch(clean)) return clean;
-  final number = double.tryParse(clean.replaceAll(RegExp(r'[^0-9.]'), ''));
-  if (number == null) return clean;
-  final whole = number.round().toString();
-  final buffer = StringBuffer();
-  for (var index = 0; index < whole.length; index++) {
-    if (index > 0 && (whole.length - index) % 3 == 0) buffer.write(',');
-    buffer.write(whole[index]);
-  }
-  return 'Rs ${buffer.toString()}';
-}
+String formatWorkerJobBudget(String value) =>
+    formatRupees(value, empty: 'Not provided');
 
 String workerJobDateLabel(DateTime? date) {
   if (date == null) return 'Date unavailable';

@@ -24,10 +24,18 @@ class _SplashScreenState extends State<SplashScreen>
     vsync: this,
     duration: const Duration(milliseconds: 900),
   );
-  late final Animation<double> _logoScale = CurvedAnimation(
+  // A short fade + slight scale reads calmer than growing from nothing.
+  late final Animation<double> _logoFade = CurvedAnimation(
     parent: _intro,
-    curve: const Interval(0, 0.7, curve: Curves.easeOutBack),
+    curve: const Interval(0, 0.5, curve: Curves.easeOut),
   );
+  late final Animation<double> _logoScale = Tween<double>(begin: 0.86, end: 1)
+      .animate(
+        CurvedAnimation(
+          parent: _intro,
+          curve: const Interval(0, 0.7, curve: Curves.easeOutCubic),
+        ),
+      );
   late final Animation<double> _textFade = CurvedAnimation(
     parent: _intro,
     curve: const Interval(0.35, 1, curve: Curves.easeOut),
@@ -61,6 +69,13 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Respect the OS "reduce motion" setting: show the final frame at once.
+    if (SkillNovaMotion.reduced(context)) _intro.value = 1;
+  }
+
+  @override
   void dispose() {
     _statusTimer?.cancel();
     _intro.dispose();
@@ -90,23 +105,26 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 children: [
                   const Spacer(flex: 5),
-                  ScaleTransition(
-                    scale: _logoScale,
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(
-                              0xFF1E7BFF,
-                            ).withValues(alpha: 0.35),
-                            blurRadius: 60,
-                            spreadRadius: 4,
-                          ),
-                        ],
+                  FadeTransition(
+                    opacity: _logoFade,
+                    child: ScaleTransition(
+                      scale: _logoScale,
+                      child: Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFF1E7BFF,
+                              ).withValues(alpha: 0.35),
+                              blurRadius: 60,
+                              spreadRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: const SkillNovaLogo(size: 88),
                       ),
-                      child: const SkillNovaLogo(size: 88),
                     ),
                   ),
                   const SizedBox(height: SkillNovaSpacing.lg),

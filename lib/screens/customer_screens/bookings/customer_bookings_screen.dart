@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/RateWorkerScreen.dart';
@@ -55,9 +56,10 @@ class _CustomerBookingsScreenState extends State<CustomerBookingsScreen> {
       );
     }
     return Scaffold(
-      appBar: AppBar(
+      appBar: tabRootAppBar(
+        context,
+        'Bookings',
         automaticallyImplyLeading: !widget.embedded,
-        title: const Text('Bookings'),
       ),
       body: SafeArea(
         top: false,

@@ -1,5 +1,4 @@
-
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -19,6 +18,8 @@ class _AdminVerificationRequestsScreenState
     extends State<AdminVerificationRequestsScreen> {
   final VerificationManagementService _service =
       VerificationManagementService();
+  late final Stream<List<VerificationRequestModel>> _requestsStream = _service
+      .requestModelsStream();
   final TextEditingController _searchController = TextEditingController();
 
   VerificationFilter _filter = VerificationFilter.all;
@@ -75,7 +76,7 @@ class _AdminVerificationRequestsScreenState
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         title: Text(
           title,
-          style: GoogleFonts.inter(fontWeight: FontWeight.w900),
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
         ),
         content: SizedBox(
           width: 440,
@@ -103,9 +104,7 @@ class _AdminVerificationRequestsScreenState
               if (requiredValue && text.isEmpty) return;
               Navigator.pop(dialogContext, text);
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF16A34A),
-            ),
+            style: FilledButton.styleFrom(backgroundColor: kAdminBrand),
             child: const Text('Continue'),
           ),
         ],
@@ -145,7 +144,7 @@ class _AdminVerificationRequestsScreenState
   Future<void> _requestAgain(VerificationRequestModel request) async {
     final reason = await _askText(
       'Request new documents',
-      'Example: CNIC image blurred hai.',
+      'Example: The CNIC photo is blurred.',
     );
     if (reason == null) return;
     await _run(
@@ -168,7 +167,7 @@ class _AdminVerificationRequestsScreenState
       _message(success);
     } catch (error) {
       if (!mounted) return;
-      _message('Action failed: $error', error: true);
+      _message('That action didn’t go through. Please try again.', error: true);
     } finally {
       if (mounted) setState(() => _busyId = null);
     }
@@ -180,9 +179,7 @@ class _AdminVerificationRequestsScreenState
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: error
-              ? const Color(0xFFDC2626)
-              : const Color(0xFF16A34A),
+          backgroundColor: error ? const Color(0xFFDC2626) : kAdminBrand,
           content: Text(message),
         ),
       );
@@ -212,13 +209,14 @@ class _AdminVerificationRequestsScreenState
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _service.requestsStream(),
+    return StreamBuilder<List<VerificationRequestModel>>(
+      stream: _requestsStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
             child: Text(
-              'Verification requests load nahi ho sake.\n${snapshot.error}',
+              'We couldn’t load verification requests. Refresh to try '
+              'again.',
               textAlign: TextAlign.center,
             ),
           );
@@ -226,13 +224,11 @@ class _AdminVerificationRequestsScreenState
 
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF16A34A)),
+            child: CircularProgressIndicator(color: kAdminBrand),
           );
         }
 
-        final all = snapshot.data!.docs
-            .map(VerificationRequestModel.fromDocument)
-            .toList();
+        final all = snapshot.data!;
         final requests = _applyFilters(all);
 
         return SingleChildScrollView(
@@ -244,7 +240,7 @@ class _AdminVerificationRequestsScreenState
                 'Verification Requests',
                 style: GoogleFonts.inter(
                   fontSize: 25,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -320,7 +316,7 @@ class _Stats extends StatelessWidget {
         'Approved',
         requests.where((e) => e.status == 'approved').length,
         Icons.verified_rounded,
-        const Color(0xFF16A34A),
+        kAdminSuccess,
       ),
       (
         'Rejected',
@@ -366,7 +362,7 @@ class _Stats extends StatelessWidget {
                           '${item.$2}',
                           style: GoogleFonts.inter(
                             fontSize: 21,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         Text(item.$1, style: GoogleFonts.inter(fontSize: 11)),
@@ -474,14 +470,14 @@ class _RequestCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: const Color(0xFFE8F7ED),
+                backgroundColor: kAdminBrandSoft,
                 child: Text(
                   request.workerName.isEmpty
                       ? 'W'
                       : request.workerName[0].toUpperCase(),
                   style: const TextStyle(
-                    color: Color(0xFF16A34A),
-                    fontWeight: FontWeight.w900,
+                    color: kAdminBrand,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -492,7 +488,7 @@ class _RequestCard extends StatelessWidget {
                   children: [
                     Text(
                       request.workerName,
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w900),
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w700),
                     ),
                     Text(
                       request.skill,
@@ -545,9 +541,7 @@ class _RequestCard extends StatelessWidget {
                 Expanded(
                   child: FilledButton(
                     onPressed: busy ? null : onApprove,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF16A34A),
-                    ),
+                    style: FilledButton.styleFrom(backgroundColor: kAdminBrand),
                     child: busy
                         ? const SizedBox(
                             height: 18,
@@ -606,7 +600,7 @@ class _VerificationDialog extends StatelessWidget {
                       '${request.workerName} verification',
                       style: GoogleFonts.inter(
                         fontSize: 21,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -664,7 +658,7 @@ class _VerificationDialog extends StatelessWidget {
                     FilledButton.icon(
                       onPressed: onApprove,
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF16A34A),
+                        backgroundColor: kAdminBrand,
                       ),
                       icon: const Icon(Icons.verified_rounded),
                       label: const Text('Approve worker'),
@@ -713,7 +707,7 @@ class _PrivateImageCard extends StatelessWidget {
                   const SizedBox(width: 7),
                   Text(
                     title,
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w900),
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -728,7 +722,7 @@ class _PrivateImageCard extends StatelessWidget {
                             ConnectionState.waiting) {
                           return const Center(
                             child: CircularProgressIndicator(
-                              color: Color(0xFF16A34A),
+                              color: kAdminBrand,
                             ),
                           );
                         }
@@ -738,7 +732,7 @@ class _PrivateImageCard extends StatelessWidget {
                             padding: const EdgeInsets.all(16),
                             child: Center(
                               child: Text(
-                                'Image load nahi hui.\n${snapshot.error}',
+                                'This image couldn’t be loaded.',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   color: Color(0xFFDC2626),
@@ -767,7 +761,7 @@ class _PrivateImageCard extends StatelessWidget {
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: Text(
-                                    'Image display nahi ho saki.\n$error',
+                                    'This image couldn’t be displayed.',
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                       color: Color(0xFFDC2626),
@@ -806,7 +800,7 @@ class _StatusBadge extends StatelessWidget {
         style: GoogleFonts.inter(
           color: color,
           fontSize: 8.2,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -828,11 +822,7 @@ class _EmptyState extends StatelessWidget {
       ),
       child: const Column(
         children: [
-          Icon(
-            Icons.verified_user_outlined,
-            size: 56,
-            color: Color(0xFF16A34A),
-          ),
+          Icon(Icons.verified_user_outlined, size: 56, color: kAdminBrand),
           SizedBox(height: 14),
           Text('No verification requests found'),
         ],
@@ -852,7 +842,7 @@ String _filterLabel(VerificationFilter filter) => switch (filter) {
 Color _statusColor(String status) {
   switch (status.toLowerCase()) {
     case 'approved':
-      return const Color(0xFF16A34A);
+      return kAdminSuccess;
     case 'rejected':
       return const Color(0xFFDC2626);
     case 'more_information_required':

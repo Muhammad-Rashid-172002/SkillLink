@@ -164,11 +164,11 @@ void main() {
       );
       expect(find.byType(Image), findsOneWidget);
       await tester.scrollUntilVisible(
-        find.text('Customer posted budget: Rs. 1800'),
+        find.text('Posted budget: Rs 1,800'),
         300,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.text('Customer posted budget: Rs. 1800'), findsOneWidget);
+      expect(find.text('Posted budget: Rs 1,800'), findsOneWidget);
       expect(find.text('5 available'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('4.9'),
@@ -220,6 +220,11 @@ void main() {
     await tester.pumpWidget(_app(WorkerHomeScreen(repository: repository)));
     await tester.pumpAndSettle();
     expect(find.text('Add lead credits to accept jobs'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('No new leads'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('No new leads'), findsOneWidget);
     expect(repository.leadWatchCount, 1);
     await tester.scrollUntilVisible(

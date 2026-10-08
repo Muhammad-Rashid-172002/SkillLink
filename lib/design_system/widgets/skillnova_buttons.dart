@@ -31,8 +31,7 @@ class SkillNovaButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final action = loading ? null : onPressed;
     final loadingColor = switch (variant) {
-      SkillNovaButtonVariant.primary =>
-        Theme.of(context).colorScheme.onPrimary,
+      SkillNovaButtonVariant.primary => Theme.of(context).colorScheme.onPrimary,
       SkillNovaButtonVariant.destructive => Colors.white,
       SkillNovaButtonVariant.outline => Theme.of(context).colorScheme.onSurface,
       _ => Theme.of(context).colorScheme.primary,
@@ -99,10 +98,7 @@ class SkillNovaButton extends StatelessWidget {
       enabled: action != null,
       label: loading ? '$label, loading' : null,
       excludeSemantics: loading,
-      child: SizedBox(
-        width: fullWidth ? double.infinity : null,
-        child: button,
-      ),
+      child: SizedBox(width: fullWidth ? double.infinity : null, child: button),
     );
   }
 }

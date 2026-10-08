@@ -1,18 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:skilllink_admin/services/report_management_service.dart';
 
-
-enum ReportFilter {
-  all,
-  open,
-  investigating,
-  resolved,
-  rejected,
-  highPriority,
-}
+enum ReportFilter { all, open, investigating, resolved, rejected, highPriority }
 
 class AdminReportsScreen extends StatefulWidget {
   const AdminReportsScreen({super.key});
@@ -39,7 +32,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     final query = _searchQuery.trim().toLowerCase();
 
     return reports.where((report) {
-      final matchesSearch = query.isEmpty ||
+      final matchesSearch =
+          query.isEmpty ||
           report.title.toLowerCase().contains(query) ||
           report.description.toLowerCase().contains(query) ||
           report.reporterName.toLowerCase().contains(query) ||
@@ -56,12 +50,11 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       };
 
       return matchesSearch && matchesFilter;
-    }).toList()
-      ..sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      });
+    }).toList()..sort((a, b) {
+      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
   }
 
   Future<void> _changeStatus(ManagedReport report) async {
@@ -87,7 +80,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               title: Text(
                 'Update report status',
                 style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -123,7 +116,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 FilledButton(
                   onPressed: () => Navigator.pop(dialogContext, value),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF16A34A),
+                    backgroundColor: kAdminBrand,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Update'),
@@ -138,19 +131,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     if (selected == null || selected == report.status) return;
 
     try {
-      await _service.updateReportStatus(
-        reportId: report.id,
-        status: selected,
-      );
+      await _service.updateReportStatus(reportId: report.id, status: selected);
 
       if (!mounted) return;
-      _showMessage('Report status update ho gaya.');
+      _showMessage('Report status updated.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Status update nahi ho saka: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t update status. Please try again.', isError: true);
     }
   }
 
@@ -169,7 +156,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           title: Text(
             'Resolve complaint',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -214,7 +201,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 Navigator.pop(dialogContext, value);
               },
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF16A34A),
+                backgroundColor: kAdminBrand,
                 foregroundColor: Colors.white,
               ),
               icon: const Icon(Icons.task_alt_rounded),
@@ -237,11 +224,11 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       );
 
       if (!mounted) return;
-      _showMessage('Complaint resolve ho gayi.');
+      _showMessage('Complaint resolved.');
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Complaint resolve nahi ho saki: $error',
+        'Couldn’t resolve complaint. Please try again.',
         isError: true,
       );
     }
@@ -265,7 +252,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               title: Text(
                 'Set priority',
                 style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -301,7 +288,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 FilledButton(
                   onPressed: () => Navigator.pop(dialogContext, value),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF16A34A),
+                    backgroundColor: kAdminBrand,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Save priority'),
@@ -316,17 +303,14 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     if (selected == null || selected == report.priority) return;
 
     try {
-      await _service.assignPriority(
-        reportId: report.id,
-        priority: selected,
-      );
+      await _service.assignPriority(reportId: report.id, priority: selected);
 
       if (!mounted) return;
-      _showMessage('Report priority update ho gayi.');
+      _showMessage('Report priority updated.');
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Priority update nahi ho saki: $error',
+        'Couldn’t update priority. Please try again.',
         isError: true,
       );
     }
@@ -345,12 +329,12 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           title: Text(
             'Delete report?',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           content: Text(
-            'Ye report Firestore se permanently delete ho jayegi.',
+            'This permanently deletes the report.',
             style: GoogleFonts.inter(
               color: const Color(0xFF64748B),
               height: 1.5,
@@ -380,13 +364,10 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       await _service.deleteReport(report.id);
 
       if (!mounted) return;
-      _showMessage('Report delete ho gayi.');
+      _showMessage('Report deleted.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Report delete nahi ho saki: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t delete report. Please try again.', isError: true);
     }
   }
 
@@ -434,7 +415,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                                 report.title,
                                 style: GoogleFonts.inter(
                                   fontSize: 22,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w700,
                                   color: const Color(0xFF0F172A),
                                 ),
                               ),
@@ -464,9 +445,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: const Color(0xFFE2E8F0),
-                        ),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: Text(
                         report.description,
@@ -510,7 +489,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                         'Resolution note',
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                           color: const Color(0xFF0F172A),
                         ),
                       ),
@@ -521,9 +500,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFEAF8EF),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: const Color(0xFFBBE4C8),
-                          ),
+                          border: Border.all(color: const Color(0xFFBBE4C8)),
                         ),
                         child: Text(
                           report.resolutionNote,
@@ -547,12 +524,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                             label: const Text('Change priority'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFD97706),
-                              side: const BorderSide(
-                                color: Color(0xFFD97706),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 15,
-                              ),
+                              side: const BorderSide(color: Color(0xFFD97706)),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
                             ),
                           ),
                         ),
@@ -572,11 +545,9 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                                   : 'Resolve complaint',
                             ),
                             style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFF16A34A),
+                              backgroundColor: kAdminBrand,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 15,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
                             ),
                           ),
                         ),
@@ -592,17 +563,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+        backgroundColor: isError ? kAdminDanger : kAdminSuccess,
         content: Text(message),
       ),
     );
@@ -615,15 +582,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _ReportsErrorState(
-            message: 'Reports load nahi ho sake.\n${snapshot.error}',
+            message: 'We couldn’t load reports. Refresh to try again.',
           );
         }
 
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF16A34A),
-            ),
+            child: CircularProgressIndicator(color: kAdminBrand),
           );
         }
 
@@ -641,12 +606,15 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               _ReportsHeader(
                 total: allReports.length,
                 open: allReports.where((report) => report.isOpen).length,
-                investigating:
-                    allReports.where((report) => report.isInvestigating).length,
-                resolved:
-                    allReports.where((report) => report.isResolved).length,
-                highPriority:
-                    allReports.where((report) => report.priority == 'high').length,
+                investigating: allReports
+                    .where((report) => report.isInvestigating)
+                    .length,
+                resolved: allReports
+                    .where((report) => report.isResolved)
+                    .length,
+                highPriority: allReports
+                    .where((report) => report.priority == 'high')
+                    .length,
               ),
               const SizedBox(height: 22),
               _ReportsToolbar(
@@ -733,7 +701,7 @@ class _ReportsHeader extends StatelessWidget {
         title: 'Resolved',
         value: '$resolved',
         icon: Icons.task_alt_rounded,
-        color: const Color(0xFF16A34A),
+        color: kAdminSuccess,
       ),
       _ReportStatCard(
         title: 'High Priority',
@@ -750,7 +718,7 @@ class _ReportsHeader extends StatelessWidget {
           'Reports & Complaints',
           style: GoogleFonts.inter(
             fontSize: 25,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             letterSpacing: -0.7,
             color: const Color(0xFF0F172A),
           ),
@@ -769,10 +737,10 @@ class _ReportsHeader extends StatelessWidget {
             final columns = constraints.maxWidth >= 1180
                 ? 5
                 : constraints.maxWidth >= 760
-                    ? 3
-                    : constraints.maxWidth >= 520
-                        ? 2
-                        : 1;
+                ? 3
+                : constraints.maxWidth >= 520
+                ? 2
+                : 1;
 
             final width =
                 (constraints.maxWidth - ((columns - 1) * 14)) / columns;
@@ -832,7 +800,7 @@ class _ReportStatCard extends StatelessWidget {
                 value,
                 style: GoogleFonts.inter(
                   fontSize: 21,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -905,20 +873,15 @@ class _ReportsToolbar extends StatelessWidget {
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF16A34A),
-                    width: 1.6,
-                  ),
+                  borderSide: const BorderSide(color: kAdminBrand, width: 1.6),
                 ),
               ),
             ),
@@ -934,20 +897,15 @@ class _ReportsToolbar extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_filterLabel(filter)),
-                selectedColor:
-                    const Color(0xFF16A34A).withOpacity(0.12),
+                selectedColor: kAdminBrand.withOpacity(0.12),
                 backgroundColor: const Color(0xFFF8FAFC),
                 side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFE2E8F0),
+                  color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
                 ),
                 labelStyle: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFF64748B),
+                  color: selected ? kAdminBrand : const Color(0xFF64748B),
                 ),
               );
             }).toList(),
@@ -987,10 +945,7 @@ class _ReportsToolbar extends StatelessWidget {
                 const SizedBox(height: 14),
                 filters,
                 const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: controls,
-                ),
+                Align(alignment: Alignment.centerRight, child: controls),
               ],
             );
           }
@@ -1030,14 +985,10 @@ class _ViewButton extends StatelessWidget {
         height: 38,
         width: 38,
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF16A34A)
-              : const Color(0xFFF8FAFC),
+          color: selected ? kAdminBrand : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF16A34A)
-                : const Color(0xFFE2E8F0),
+            color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
           ),
         ),
         child: Icon(
@@ -1077,111 +1028,115 @@ class _ReportsTable extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE6ECF2)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            const Color(0xFFF8FAFC),
-          ),
-          dataRowMinHeight: 80,
-          dataRowMaxHeight: 94,
-          horizontalMargin: 20,
-          columnSpacing: 28,
-          columns: const [
-            DataColumn(label: _TableHeading('REPORT')),
-            DataColumn(label: _TableHeading('REPORTER')),
-            DataColumn(label: _TableHeading('REPORTED USER')),
-            DataColumn(label: _TableHeading('PRIORITY')),
-            DataColumn(label: _TableHeading('STATUS')),
-            DataColumn(label: _TableHeading('DATE')),
-            DataColumn(label: _TableHeading('ACTIONS')),
-          ],
-          rows: reports.map((report) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 270,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          report.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          report.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 10.5,
-                            height: 1.35,
-                            color: const Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 130,
-                    child: Text(
-                      report.reporterName,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 130,
-                    child: Text(
-                      report.reportedUserName,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(_PriorityBadge(priority: report.priority)),
-                DataCell(_StatusBadge(status: report.status)),
-                DataCell(
-                  Text(
-                    _formatDate(report.createdAt),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF475569),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  _ReportActions(
-                    report: report,
-                    onView: onView,
-                    onStatus: onStatus,
-                    onResolve: onResolve,
-                    onPriority: onPriority,
-                    onDelete: onDelete,
-                  ),
-                ),
+      child: LayoutBuilder(
+        // Fill the card on wide screens; scroll sideways on narrow ones.
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              dataRowMinHeight: 80,
+              dataRowMaxHeight: 94,
+              horizontalMargin: 20,
+              columnSpacing: 28,
+              columns: const [
+                DataColumn(label: _TableHeading('REPORT')),
+                DataColumn(label: _TableHeading('REPORTER')),
+                DataColumn(label: _TableHeading('REPORTED USER')),
+                DataColumn(label: _TableHeading('PRIORITY')),
+                DataColumn(label: _TableHeading('STATUS')),
+                DataColumn(label: _TableHeading('DATE')),
+                DataColumn(label: _TableHeading('ACTIONS')),
               ],
-            );
-          }).toList(),
+              rows: reports.map((report) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      SizedBox(
+                        width: 270,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              report.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              report.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 10.5,
+                                height: 1.35,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 130,
+                        child: Text(
+                          report.reporterName,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 130,
+                        child: Text(
+                          report.reportedUserName,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(_PriorityBadge(priority: report.priority)),
+                    DataCell(_StatusBadge(status: report.status)),
+                    DataCell(
+                      Text(
+                        _formatDate(report.createdAt),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      _ReportActions(
+                        report: report,
+                        onView: onView,
+                        onStatus: onStatus,
+                        onResolve: onResolve,
+                        onPriority: onPriority,
+                        onDelete: onDelete,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );
@@ -1212,11 +1167,10 @@ class _ReportsGrid extends StatelessWidget {
         final columns = constraints.maxWidth >= 1180
             ? 3
             : constraints.maxWidth >= 760
-                ? 2
-                : 1;
+            ? 2
+            : 1;
 
-        final width =
-            (constraints.maxWidth - ((columns - 1) * 16)) / columns;
+        final width = (constraints.maxWidth - ((columns - 1) * 16)) / columns;
 
         return Wrap(
           spacing: 16,
@@ -1309,7 +1263,7 @@ class _ReportCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               fontSize: 15,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -1356,8 +1310,8 @@ class _ReportCard extends StatelessWidget {
               icon: const Icon(Icons.visibility_outlined, size: 18),
               label: const Text('View complaint'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF16A34A),
-                side: const BorderSide(color: Color(0xFF16A34A)),
+                foregroundColor: kAdminBrand,
+                side: const BorderSide(color: kAdminBrand),
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),
             ),
@@ -1391,9 +1345,7 @@ class _ReportActions extends StatelessWidget {
       tooltip: 'Report actions',
       color: Colors.white,
       surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       onSelected: (value) {
         switch (value) {
           case 'view':
@@ -1484,8 +1436,7 @@ class _ActionMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
+    final color = danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
 
     return Row(
       children: [
@@ -1523,7 +1474,7 @@ class _StatusBadge extends StatelessWidget {
         _statusLabel(status).toUpperCase(),
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -1540,7 +1491,7 @@ class _PriorityBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = switch (priority.toLowerCase()) {
       'high' => const Color(0xFFDC2626),
-      'low' => const Color(0xFF16A34A),
+      'low' => kAdminBrand,
       _ => const Color(0xFFD97706),
     };
 
@@ -1554,7 +1505,7 @@ class _PriorityBadge extends StatelessWidget {
         priority.toUpperCase(),
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -1579,7 +1530,7 @@ class _TypeBadge extends StatelessWidget {
         type.toUpperCase(),
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: const Color(0xFF7C3AED),
         ),
       ),
@@ -1656,14 +1607,10 @@ class _InfoTile extends StatelessWidget {
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFF16A34A).withOpacity(0.10),
+              color: kAdminBrand.withOpacity(0.10),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              size: 19,
-              color: const Color(0xFF16A34A),
-            ),
+            child: Icon(icon, size: 19, color: kAdminBrand),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -1685,7 +1632,7 @@ class _InfoTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF334155),
                   ),
                 ),
@@ -1709,7 +1656,7 @@ class _TableHeading extends StatelessWidget {
       text,
       style: GoogleFonts.inter(
         fontSize: 9,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w700,
         letterSpacing: 0.7,
         color: const Color(0xFF64748B),
       ),
@@ -1742,13 +1689,13 @@ class _EmptyReportsState extends StatelessWidget {
             'No reports found',
             style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Search ya selected filter ke mutabiq koi report nahi mili.',
+            'No reports match your search or filters.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: const Color(0xFF64748B),
@@ -1789,9 +1736,7 @@ class _ReportsErrorState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF991B1B),
-              ),
+              style: GoogleFonts.inter(color: const Color(0xFF991B1B)),
             ),
           ],
         ),
@@ -1840,7 +1785,7 @@ Color _statusColor(String status) {
     case 'reviewing':
       return const Color(0xFF0891B2);
     case 'resolved':
-      return const Color(0xFF16A34A);
+      return kAdminSuccess;
     case 'rejected':
     case 'dismissed':
       return const Color(0xFF64748B);

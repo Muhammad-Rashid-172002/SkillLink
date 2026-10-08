@@ -1,4 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/config/support_config.dart';
+
+/// New workers start with no credits (security rules forbid granting them at
+/// sign-up); credits are added when an admin approves a payment.
+const int kFixedDefaultWorkerCredits = 0;
+
+/// Accepting a lead always costs one credit in the worker app.
+const int kFixedCreditsPerLead = 1;
 
 class SettingsManagementService {
   SettingsManagementService({FirebaseFirestore? firestore})
@@ -84,15 +92,15 @@ class AdminSettings {
   factory AdminSettings.defaults() {
     return const AdminSettings(
       appName: 'SkillNova',
-      supportEmail: 'support@skillnova.com',
+      supportEmail: kSkillNovaSupportEmail,
       supportPhone: '',
       privacyPolicyUrl: 'https://skilllinkprivacypolicy.vercel.app',
       termsUrl: '',
       currency: 'PKR',
       timeZone: 'Asia/Karachi',
       dateFormat: 'dd MMM yyyy',
-      defaultWorkerCredits: 5,
-      creditsPerLead: 1,
+      defaultWorkerCredits: kFixedDefaultWorkerCredits,
+      creditsPerLead: kFixedCreditsPerLead,
       lowCreditWarning: 3,
       autoCreditDeduction: true,
       pushNotifications: true,
@@ -114,7 +122,9 @@ class AdminSettings {
 
     return AdminSettings(
       appName: _string(data['appName'], defaults.appName),
-      supportEmail: _string(data['supportEmail'], defaults.supportEmail),
+      // The app shows the official constant, so the console does too;
+      // a stale stored value must not suggest a different address.
+      supportEmail: kSkillNovaSupportEmail,
       supportPhone: _string(data['supportPhone'], defaults.supportPhone),
       privacyPolicyUrl: _string(
         data['privacyPolicyUrl'],
@@ -124,19 +134,15 @@ class AdminSettings {
       currency: _string(data['currency'], defaults.currency),
       timeZone: _string(data['timeZone'], defaults.timeZone),
       dateFormat: _string(data['dateFormat'], defaults.dateFormat),
-      defaultWorkerCredits: _integer(
-        data['defaultWorkerCredits'],
-        defaults.defaultWorkerCredits,
-      ),
-      creditsPerLead: _integer(data['creditsPerLead'], defaults.creditsPerLead),
+      // Behavior fixed in the apps/rules; show what really happens rather
+      // than a stored value nothing reads.
+      defaultWorkerCredits: kFixedDefaultWorkerCredits,
+      creditsPerLead: kFixedCreditsPerLead,
       lowCreditWarning: _integer(
         data['lowCreditWarning'],
         defaults.lowCreditWarning,
       ),
-      autoCreditDeduction: _boolean(
-        data['autoCreditDeduction'],
-        defaults.autoCreditDeduction,
-      ),
+      autoCreditDeduction: true,
       pushNotifications: _boolean(
         data['pushNotifications'],
         defaults.pushNotifications,
@@ -151,20 +157,15 @@ class AdminSettings {
         data['complaintAlerts'],
         defaults.complaintAlerts,
       ),
-      maintenanceMode: _boolean(
-        data['maintenanceMode'],
-        defaults.maintenanceMode,
-      ),
-      twoFactorAuthentication: _boolean(
-        data['twoFactorAuthentication'],
-        defaults.twoFactorAuthentication,
-      ),
+      // Not implemented anywhere, so never reported as on.
+      maintenanceMode: false,
+      twoFactorAuthentication: false,
       sessionTimeoutMinutes: _integer(
         data['sessionTimeoutMinutes'],
         defaults.sessionTimeoutMinutes,
       ),
-      darkMode: _boolean(data['darkMode'], defaults.darkMode),
-      compactSidebar: _boolean(data['compactSidebar'], defaults.compactSidebar),
+      darkMode: false,
+      compactSidebar: false,
     );
   }
 

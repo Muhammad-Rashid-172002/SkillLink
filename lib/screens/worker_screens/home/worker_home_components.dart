@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
 
@@ -332,7 +333,7 @@ class WorkerLeadPreviewCard extends StatelessWidget {
             children: [
               if (lead.budget.isNotEmpty)
                 Text(
-                  'Customer posted budget: ${formatWorkerBudget(lead.budget)}',
+                  'Posted budget: ${formatWorkerBudget(lead.budget)}',
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
               if (lead.distanceKm != null)
@@ -717,11 +718,8 @@ String workerJobStatusLabel(String value) => switch (value) {
   _ => value.replaceAll('_', ' '),
 };
 
-String formatWorkerBudget(String value) {
-  final text = value.trim();
-  if (text.toLowerCase().startsWith('rs')) return text;
-  return 'Rs. $text';
-}
+/// Same money format everywhere a worker sees a budget ("Rs 5,000").
+String formatWorkerBudget(String value) => formatWorkerJobBudget(value);
 
 String formatWorkerDistance(double value) =>
     value < 10 ? '${value.toStringAsFixed(1)} km' : '${value.round()} km';

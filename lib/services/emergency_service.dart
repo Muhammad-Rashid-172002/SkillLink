@@ -12,11 +12,9 @@ class EmergencyServiceException implements Exception {
 }
 
 class EmergencyService {
-  EmergencyService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  EmergencyService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
@@ -47,8 +45,9 @@ class EmergencyService {
 
     final requestRef = _firestore.collection('requests').doc(requestId);
     final alertRef = _firestore.collection('emergency_alerts').doc();
-    final adminNotificationRef =
-        _firestore.collection('admin_notifications').doc();
+    final adminNotificationRef = _firestore
+        .collection('admin_notifications')
+        .doc();
 
     await _firestore.runTransaction((transaction) async {
       final freshRequest = await transaction.get(requestRef);
@@ -64,24 +63,22 @@ class EmergencyService {
           freshData['status']?.toString().trim().toLowerCase() ?? '';
 
       if (!_isActiveJobStatus(currentStatus)) {
-        throw const EmergencyServiceException(
-          'This job is no longer active.',
-        );
+        throw const EmergencyServiceException('This job is no longer active.');
       }
 
       final existingAlertId =
           freshData['activeEmergencyAlertId']?.toString().trim() ?? '';
 
       if (existingAlertId.isNotEmpty) {
-        final existingAlertRef =
-            _firestore.collection('emergency_alerts').doc(existingAlertId);
+        final existingAlertRef = _firestore
+            .collection('emergency_alerts')
+            .doc(existingAlertId);
         final existingAlert = await transaction.get(existingAlertRef);
         final existingStatus =
             existingAlert.data()?['status']?.toString().toLowerCase() ?? '';
 
         if (existingAlert.exists &&
-            (existingStatus == 'active' ||
-                existingStatus == 'investigating')) {
+            (existingStatus == 'active' || existingStatus == 'investigating')) {
           throw const EmergencyServiceException(
             'An active SOS alert already exists for this job.',
           );
@@ -90,13 +87,13 @@ class EmergencyService {
 
       final customerId =
           freshData['customerId']?.toString().trim() ??
-              requestData['customerId']?.toString().trim() ??
-              '';
+          requestData['customerId']?.toString().trim() ??
+          '';
 
       final resolvedWorkerId =
           freshData['workerId']?.toString().trim().isNotEmpty == true
-              ? freshData['workerId'].toString().trim()
-              : workerId;
+          ? freshData['workerId'].toString().trim()
+          : workerId;
 
       final raisedByName = _firstNonEmpty([
         freshData['customerName'],

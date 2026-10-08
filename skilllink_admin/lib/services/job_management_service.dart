@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class JobManagementService {
   JobManagementService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -77,95 +77,93 @@ class ManagedJob {
   final Map<String, dynamic> rawData;
 
   bool get isPending => const {
-        'pending',
-        'waiting_worker',
-        'searching',
-        'requested',
-      }.contains(status);
+    'pending',
+    'waiting_worker',
+    'searching',
+    'requested',
+  }.contains(status);
 
   bool get isActive => const {
-        'accepted',
-        'on_the_way',
-        'in_progress',
-        'started',
-      }.contains(status);
+    'accepted',
+    'on_the_way',
+    'in_progress',
+    'started',
+  }.contains(status);
 
   bool get isCompleted => status == 'completed';
 
-  bool get isCancelled => const {
-        'cancelled',
-        'rejected',
-      }.contains(status);
+  bool get isCancelled => const {'cancelled', 'rejected'}.contains(status);
 
   factory ManagedJob.fromDocument(
     QueryDocumentSnapshot<Map<String, dynamic>> document,
-  ) {
-    final data = document.data();
+  ) => ManagedJob.fromMap(document.id, document.data());
 
+  factory ManagedJob.fromMap(String id, Map<String, dynamic> data) {
     return ManagedJob(
-      id: document.id,
-      title: _firstString(
-        data,
-        const ['serviceName', 'title', 'jobTitle', 'category'],
-        fallback: 'Service Job',
-      ),
-      category: _firstString(
-        data,
-        const ['category', 'serviceName', 'serviceCategory'],
-        fallback: 'General Service',
-      ),
-      description: _firstString(
-        data,
-        const ['description', 'details', 'jobDescription', 'issue'],
-        fallback: 'No description provided',
-      ),
-      status: _firstString(
-        data,
-        const ['status'],
-        fallback: 'pending',
-      ).toLowerCase(),
-      customerName: _firstString(
-        data,
-        const ['customerName', 'userName', 'clientName', 'name'],
-        fallback: 'Customer',
-      ),
-      customerEmail: _firstString(
-        data,
-        const ['customerEmail', 'userEmail', 'clientEmail'],
-        fallback: 'No email',
-      ),
-      customerPhone: _firstString(
-        data,
-        const ['customerPhone', 'phone', 'phoneNumber', 'mobile'],
-        fallback: 'Not provided',
-      ),
-      workerName: _firstString(
-        data,
-        const ['workerName', 'providerName'],
-        fallback: 'Not assigned',
-      ),
-      workerEmail: _firstString(
-        data,
-        const ['workerEmail', 'providerEmail'],
-        fallback: 'No email',
-      ),
-      address: _firstString(
-        data,
-        const ['address', 'locationAddress', 'location', 'jobAddress'],
-        fallback: 'Location not provided',
-      ),
-      budget: _firstDouble(
-        data,
-        const ['budget', 'price', 'amount', 'estimatedPrice'],
-      ),
-      createdAt: _firstDate(
-        data,
-        const ['createdAt', 'requestedAt', 'date'],
-      ),
-      updatedAt: _firstDate(
-        data,
-        const ['updatedAt', 'acceptedAt', 'completedAt'],
-      ),
+      id: id,
+      title: _firstString(data, const [
+        'serviceName',
+        'title',
+        'jobTitle',
+        'category',
+      ], fallback: 'Service Job'),
+      category: _firstString(data, const [
+        'category',
+        'serviceName',
+        'serviceCategory',
+      ], fallback: 'General Service'),
+      description: _firstString(data, const [
+        'description',
+        'details',
+        'jobDescription',
+        'issue',
+      ], fallback: 'No description provided'),
+      status: _firstString(data, const [
+        'status',
+      ], fallback: 'pending').toLowerCase(),
+      customerName: _firstString(data, const [
+        'customerName',
+        'userName',
+        'clientName',
+        'name',
+      ], fallback: 'Customer'),
+      customerEmail: _firstString(data, const [
+        'customerEmail',
+        'userEmail',
+        'clientEmail',
+      ], fallback: 'No email'),
+      customerPhone: _firstString(data, const [
+        'customerPhone',
+        'phone',
+        'phoneNumber',
+        'mobile',
+      ], fallback: 'Not provided'),
+      workerName: _firstString(data, const [
+        'workerName',
+        'providerName',
+      ], fallback: 'Not assigned'),
+      workerEmail: _firstString(data, const [
+        'workerEmail',
+        'providerEmail',
+      ], fallback: 'No email'),
+      address: _firstString(data, const [
+        'address',
+        'locationAddress',
+        'location',
+        'jobAddress',
+      ], fallback: 'Location not provided'),
+      budget: _firstDouble(data, const [
+        'budget',
+        'price',
+        'amount',
+        'estimatedPrice',
+      ]),
+      createdAt: _firstDate(data, const ['createdAt', 'requestedAt', 'date']),
+      updatedAt: _firstDate(data, const [
+        'updatedAt',
+        'acceptedAt',
+        'completedAt',
+      ]),
       rawData: data,
     );
   }
@@ -190,10 +188,7 @@ class ManagedJob {
     return fallback;
   }
 
-  static double _firstDouble(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static double _firstDouble(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
 
@@ -211,10 +206,7 @@ class ManagedJob {
     return 0;
   }
 
-  static DateTime? _firstDate(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static DateTime? _firstDate(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
 

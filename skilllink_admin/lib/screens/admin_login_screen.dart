@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skilllink_admin/screens/admin_dashboard_screen.dart';
 
@@ -83,7 +84,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
           title: Text(
             'Reset password',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -113,7 +114,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 Navigator.pop(dialogContext, controller.text.trim());
               },
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF16A34A),
+                backgroundColor: kAdminBrand,
                 foregroundColor: Colors.white,
               ),
               icon: const Icon(Icons.send_rounded, size: 18),
@@ -145,9 +146,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isError
-            ? const Color(0xFFDC2626)
-            : const Color(0xFF16A34A),
+        backgroundColor: isError ? const Color(0xFFDC2626) : kAdminBrand,
         content: Row(
           children: [
             Icon(
@@ -302,7 +301,7 @@ class _DesktopBrandPanel extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF16A34A), Color(0xFF0D9488), Color(0xFF0F766E)],
+          colors: [Color(0xFF13305E), kAdminInk, Color(0xFF07111F)],
         ),
       ),
       child: Stack(
@@ -336,7 +335,7 @@ class _DesktopBrandPanel extends StatelessWidget {
                   'POWERING TRUSTED LOCAL SERVICES',
                   style: GoogleFonts.inter(
                     fontSize: 9,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 1.3,
                     color: Colors.white,
                   ),
@@ -349,7 +348,7 @@ class _DesktopBrandPanel extends StatelessWidget {
                   fontSize: 43,
                   height: 1.12,
                   letterSpacing: -1.6,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: Colors.white,
                 ),
               ),
@@ -416,9 +415,7 @@ class _MobileBrandHeader extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(26, 25, 26, 26),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF16A34A), Color(0xFF0D9488)],
-        ),
+        gradient: LinearGradient(colors: [kAdminBrand, kAdminBrandDark]),
       ),
       child: const _BrandLogo(),
     );
@@ -432,43 +429,37 @@ class _BrandLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-   Container(
-  height: 76,
-  width: 76,
-  decoration: BoxDecoration(
-    shape: BoxShape.circle,
-    gradient: const LinearGradient(
-      colors: [
-        Color(0xff22C55E),
-        Color(0xff0F9D58),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
-    boxShadow: [
-      BoxShadow(
-        color: const Color(0xff22C55E).withOpacity(0.35),
-        blurRadius: 28,
-        spreadRadius: 4,
-      ),
-    ],
-  ),
-  child: Center(
-    child: Container(
-      height: 60,
-      width: 60,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      padding: const EdgeInsets.all(8),
-      child: Image.asset(
-        'assets/app_icon.png',
-        fit: BoxFit.contain,
-      ),
-    ),
-  ),
-),
+        Container(
+          height: 76,
+          width: 76,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [kAdminBrand, kAdminBrandDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: kAdminBrand.withOpacity(0.35),
+                blurRadius: 28,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Container(
+              height: 60,
+              width: 60,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              padding: const EdgeInsets.all(8),
+              child: Image.asset('assets/app_icon.png', fit: BoxFit.contain),
+            ),
+          ),
+        ),
         const SizedBox(width: 14),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,7 +468,7 @@ class _BrandLogo extends StatelessWidget {
               'SkillNova',
               style: GoogleFonts.inter(
                 fontSize: 24,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
                 letterSpacing: -0.7,
                 color: Colors.white,
               ),
@@ -486,7 +477,7 @@ class _BrandLogo extends StatelessWidget {
               'ADMIN CONSOLE',
               style: GoogleFonts.inter(
                 fontSize: 9,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 2,
                 color: Colors.white70,
               ),
@@ -566,7 +557,7 @@ class _BackgroundDecoration extends StatelessWidget {
             width: 400,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF16A34A).withOpacity(0.08),
+              color: kAdminBrand.withOpacity(0.08),
             ),
           ),
         ),

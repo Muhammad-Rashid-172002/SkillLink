@@ -1,18 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
+import 'package:skilllink_admin/services/participant_directory.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../services/review_management_service.dart';
 
-enum ReviewFilter {
-  all,
-  positive,
-  neutral,
-  negative,
-  flagged,
-  hidden,
-}
+enum ReviewFilter { all, positive, neutral, negative, flagged, hidden }
 
 class AdminReviewsScreen extends StatefulWidget {
   const AdminReviewsScreen({super.key});
@@ -23,6 +17,10 @@ class AdminReviewsScreen extends StatefulWidget {
 
 class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   final ReviewManagementService _service = ReviewManagementService();
+
+  // Created once (not per build) and joined with participant names.
+  late final Stream<List<(String, Map<String, dynamic>)>> _stream =
+      ParticipantDirectory().join(_service.reviewsStream());
   final TextEditingController _searchController = TextEditingController();
 
   ReviewFilter _selectedFilter = ReviewFilter.all;
@@ -39,7 +37,8 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
     final query = _searchQuery.trim().toLowerCase();
 
     return reviews.where((review) {
-      final matchesSearch = query.isEmpty ||
+      final matchesSearch =
+          query.isEmpty ||
           review.customerName.toLowerCase().contains(query) ||
           review.workerName.toLowerCase().contains(query) ||
           review.comment.toLowerCase().contains(query) ||
@@ -55,12 +54,11 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
       };
 
       return matchesSearch && matchesFilter;
-    }).toList()
-      ..sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      });
+    }).toList()..sort((a, b) {
+      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
   }
 
   Future<void> _toggleHidden(ManagedReview review) async {
@@ -73,14 +71,12 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
       if (!mounted) return;
 
       _showMessage(
-        review.isHidden
-            ? 'Review visible kar diya gaya.'
-            : 'Review hide kar diya gaya.',
+        review.isHidden ? 'Review is visible again.' : 'Review hidden.',
       );
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Review visibility update nahi ho saki: $error',
+        'Couldn’t update review visibility. Please try again.',
         isError: true,
       );
     }
@@ -96,14 +92,12 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
       if (!mounted) return;
 
       _showMessage(
-        review.isFlagged
-            ? 'Review se flag remove ho gaya.'
-            : 'Review flag kar diya gaya.',
+        review.isFlagged ? 'Flag removed from review.' : 'Review flagged.',
       );
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Review flag update nahi ho saka: $error',
+        'Couldn’t update review flag. Please try again.',
         isError: true,
       );
     }
@@ -122,12 +116,12 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           title: Text(
             'Delete review?',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           content: Text(
-            'Ye review Firestore se permanently delete ho jayega. Is action ko undo nahi kiya ja sakta.',
+            'This permanently deletes the review. It can’t be undone.',
             style: GoogleFonts.inter(
               height: 1.5,
               color: const Color(0xFF64748B),
@@ -157,13 +151,10 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
       await _service.deleteReview(review.id);
 
       if (!mounted) return;
-      _showMessage('Review delete ho gaya.');
+      _showMessage('Review deleted.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Review delete nahi ho saka: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t delete review. Please try again.', isError: true);
     }
   }
 
@@ -211,7 +202,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                                 review.jobTitle,
                                 style: GoogleFonts.inter(
                                   fontSize: 22,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w700,
                                   color: const Color(0xFF0F172A),
                                 ),
                               ),
@@ -233,9 +224,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: const Color(0xFFE2E8F0),
-                        ),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: Text(
                         review.comment,
@@ -290,18 +279,12 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                                   : Icons.outlined_flag_rounded,
                             ),
                             label: Text(
-                              review.isFlagged
-                                  ? 'Remove flag'
-                                  : 'Flag review',
+                              review.isFlagged ? 'Remove flag' : 'Flag review',
                             ),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFD97706),
-                              side: const BorderSide(
-                                color: Color(0xFFD97706),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 15,
-                              ),
+                              side: const BorderSide(color: Color(0xFFD97706)),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
                             ),
                           ),
                         ),
@@ -318,16 +301,12 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                                   : Icons.visibility_off_rounded,
                             ),
                             label: Text(
-                              review.isHidden
-                                  ? 'Make visible'
-                                  : 'Hide review',
+                              review.isHidden ? 'Make visible' : 'Hide review',
                             ),
                             style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFF16A34A),
+                              backgroundColor: kAdminBrand,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 15,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
                             ),
                           ),
                         ),
@@ -343,17 +322,13 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
     );
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+        backgroundColor: isError ? kAdminDanger : kAdminSuccess,
         content: Text(message),
       ),
     );
@@ -361,25 +336,23 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _service.reviewsStream(),
+    return StreamBuilder<List<(String, Map<String, dynamic>)>>(
+      stream: _stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _ReviewsErrorState(
-            message: 'Reviews load nahi ho sake.\n${snapshot.error}',
+            message: 'We couldn’t load reviews. Refresh to try again.',
           );
         }
 
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF16A34A),
-            ),
+            child: CircularProgressIndicator(color: kAdminBrand),
           );
         }
 
-        final allReviews = snapshot.data!.docs
-            .map(ManagedReview.fromDocument)
+        final allReviews = snapshot.data!
+            .map((entry) => ManagedReview.fromMap(entry.$1, entry.$2))
             .toList();
 
         final filteredReviews = _applyFilters(allReviews);
@@ -387,9 +360,9 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
         final averageRating = allReviews.isEmpty
             ? 0.0
             : allReviews
-                    .map((review) => review.rating)
-                    .fold<double>(0, (sum, value) => sum + value) /
-                allReviews.length;
+                      .map((review) => review.rating)
+                      .fold<double>(0, (sum, value) => sum + value) /
+                  allReviews.length;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(28),
@@ -399,12 +372,13 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
               _ReviewsHeader(
                 total: allReviews.length,
                 averageRating: averageRating,
-                positive:
-                    allReviews.where((review) => review.rating >= 4).length,
-                negative:
-                    allReviews.where((review) => review.rating < 3).length,
-                flagged:
-                    allReviews.where((review) => review.isFlagged).length,
+                positive: allReviews
+                    .where((review) => review.rating >= 4)
+                    .length,
+                negative: allReviews
+                    .where((review) => review.rating < 3)
+                    .length,
+                flagged: allReviews.where((review) => review.isFlagged).length,
               ),
               const SizedBox(height: 22),
               _ReviewsToolbar(
@@ -483,7 +457,7 @@ class _ReviewsHeader extends StatelessWidget {
         title: 'Positive',
         value: '$positive',
         icon: Icons.thumb_up_alt_rounded,
-        color: const Color(0xFF16A34A),
+        color: kAdminBrand,
       ),
       _ReviewStatCard(
         title: 'Negative',
@@ -506,7 +480,7 @@ class _ReviewsHeader extends StatelessWidget {
           'Reviews Management',
           style: GoogleFonts.inter(
             fontSize: 25,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             letterSpacing: -0.7,
             color: const Color(0xFF0F172A),
           ),
@@ -525,10 +499,10 @@ class _ReviewsHeader extends StatelessWidget {
             final columns = constraints.maxWidth >= 1180
                 ? 5
                 : constraints.maxWidth >= 760
-                    ? 3
-                    : constraints.maxWidth >= 520
-                        ? 2
-                        : 1;
+                ? 3
+                : constraints.maxWidth >= 520
+                ? 2
+                : 1;
 
             final width =
                 (constraints.maxWidth - ((columns - 1) * 14)) / columns;
@@ -588,7 +562,7 @@ class _ReviewStatCard extends StatelessWidget {
                 value,
                 style: GoogleFonts.inter(
                   fontSize: 21,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -661,20 +635,15 @@ class _ReviewsToolbar extends StatelessWidget {
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF16A34A),
-                    width: 1.6,
-                  ),
+                  borderSide: const BorderSide(color: kAdminBrand, width: 1.6),
                 ),
               ),
             ),
@@ -690,20 +659,15 @@ class _ReviewsToolbar extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_reviewFilterLabel(filter)),
-                selectedColor:
-                    const Color(0xFF16A34A).withOpacity(0.12),
+                selectedColor: kAdminBrand.withOpacity(0.12),
                 backgroundColor: const Color(0xFFF8FAFC),
                 side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFE2E8F0),
+                  color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
                 ),
                 labelStyle: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFF64748B),
+                  color: selected ? kAdminBrand : const Color(0xFF64748B),
                 ),
               );
             }).toList(),
@@ -743,10 +707,7 @@ class _ReviewsToolbar extends StatelessWidget {
                 const SizedBox(height: 14),
                 filters,
                 const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: controls,
-                ),
+                Align(alignment: Alignment.centerRight, child: controls),
               ],
             );
           }
@@ -786,14 +747,10 @@ class _ViewButton extends StatelessWidget {
         height: 38,
         width: 38,
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF16A34A)
-              : const Color(0xFFF8FAFC),
+          color: selected ? kAdminBrand : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF16A34A)
-                : const Color(0xFFE2E8F0),
+            color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
           ),
         ),
         child: Icon(
@@ -831,119 +788,123 @@ class _ReviewsTable extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE6ECF2)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            const Color(0xFFF8FAFC),
-          ),
-          dataRowMinHeight: 78,
-          dataRowMaxHeight: 92,
-          horizontalMargin: 20,
-          columnSpacing: 28,
-          columns: const [
-            DataColumn(label: _TableHeading('REVIEW')),
-            DataColumn(label: _TableHeading('CUSTOMER')),
-            DataColumn(label: _TableHeading('WORKER')),
-            DataColumn(label: _TableHeading('RATING')),
-            DataColumn(label: _TableHeading('STATUS')),
-            DataColumn(label: _TableHeading('DATE')),
-            DataColumn(label: _TableHeading('ACTIONS')),
-          ],
-          rows: reviews.map((review) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 280,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          review.jobTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          review.comment,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 10.5,
-                            height: 1.35,
-                            color: const Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 130,
-                    child: Text(
-                      review.customerName,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 130,
-                    child: Text(
-                      review.workerName,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(_RatingStars(rating: review.rating)),
-                DataCell(
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _VisibilityBadge(isHidden: review.isHidden),
-                      if (review.isFlagged) const _FlaggedBadge(),
-                    ],
-                  ),
-                ),
-                DataCell(
-                  Text(
-                    _formatDate(review.createdAt),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF475569),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  _ReviewActions(
-                    review: review,
-                    onView: onView,
-                    onToggleHidden: onToggleHidden,
-                    onToggleFlagged: onToggleFlagged,
-                    onDelete: onDelete,
-                  ),
-                ),
+      child: LayoutBuilder(
+        // Fill the card on wide screens; scroll sideways on narrow ones.
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              dataRowMinHeight: 78,
+              dataRowMaxHeight: 92,
+              horizontalMargin: 20,
+              columnSpacing: 28,
+              columns: const [
+                DataColumn(label: _TableHeading('REVIEW')),
+                DataColumn(label: _TableHeading('CUSTOMER')),
+                DataColumn(label: _TableHeading('WORKER')),
+                DataColumn(label: _TableHeading('RATING')),
+                DataColumn(label: _TableHeading('STATUS')),
+                DataColumn(label: _TableHeading('DATE')),
+                DataColumn(label: _TableHeading('ACTIONS')),
               ],
-            );
-          }).toList(),
+              rows: reviews.map((review) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      SizedBox(
+                        width: 280,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              review.jobTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              review.comment,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 10.5,
+                                height: 1.35,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 130,
+                        child: Text(
+                          review.customerName,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 130,
+                        child: Text(
+                          review.workerName,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(_RatingStars(rating: review.rating)),
+                    DataCell(
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _VisibilityBadge(isHidden: review.isHidden),
+                          if (review.isFlagged) const _FlaggedBadge(),
+                        ],
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        _formatDate(review.createdAt),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      _ReviewActions(
+                        review: review,
+                        onView: onView,
+                        onToggleHidden: onToggleHidden,
+                        onToggleFlagged: onToggleFlagged,
+                        onDelete: onDelete,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );
@@ -972,11 +933,10 @@ class _ReviewsGrid extends StatelessWidget {
         final columns = constraints.maxWidth >= 1180
             ? 3
             : constraints.maxWidth >= 760
-                ? 2
-                : 1;
+            ? 2
+            : 1;
 
-        final width =
-            (constraints.maxWidth - ((columns - 1) * 16)) / columns;
+        final width = (constraints.maxWidth - ((columns - 1) * 16)) / columns;
 
         return Wrap(
           spacing: 16,
@@ -1053,7 +1013,7 @@ class _ReviewCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               fontSize: 15,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -1099,8 +1059,8 @@ class _ReviewCard extends StatelessWidget {
               icon: const Icon(Icons.visibility_outlined, size: 18),
               label: const Text('View review'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF16A34A),
-                side: const BorderSide(color: Color(0xFF16A34A)),
+                foregroundColor: kAdminBrand,
+                side: const BorderSide(color: kAdminBrand),
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),
             ),
@@ -1132,9 +1092,7 @@ class _ReviewActions extends StatelessWidget {
       tooltip: 'Review actions',
       color: Colors.white,
       surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       onSelected: (value) {
         switch (value) {
           case 'view':
@@ -1218,8 +1176,7 @@ class _ActionMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
+    final color = danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
 
     return Row(
       children: [
@@ -1257,8 +1214,8 @@ class _RatingStars extends StatelessWidget {
             filled
                 ? Icons.star_rounded
                 : half
-                    ? Icons.star_half_rounded
-                    : Icons.star_border_rounded,
+                ? Icons.star_half_rounded
+                : Icons.star_border_rounded,
             size: 18,
             color: const Color(0xFFEAB308),
           );
@@ -1268,7 +1225,7 @@ class _RatingStars extends StatelessWidget {
           rating.toStringAsFixed(1),
           style: GoogleFonts.inter(
             fontSize: 11,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             color: const Color(0xFF334155),
           ),
         ),
@@ -1284,15 +1241,10 @@ class _VisibilityBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isHidden
-        ? const Color(0xFF64748B)
-        : const Color(0xFF16A34A);
+    final color = isHidden ? const Color(0xFF64748B) : kAdminBrand;
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.09),
         borderRadius: BorderRadius.circular(20),
@@ -1301,7 +1253,7 @@ class _VisibilityBadge extends StatelessWidget {
         isHidden ? 'HIDDEN' : 'VISIBLE',
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -1315,10 +1267,7 @@ class _FlaggedBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFFD97706).withOpacity(0.09),
         borderRadius: BorderRadius.circular(20),
@@ -1327,7 +1276,7 @@ class _FlaggedBadge extends StatelessWidget {
         'FLAGGED',
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: const Color(0xFFD97706),
         ),
       ),
@@ -1350,11 +1299,7 @@ class _ReviewPersonRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 17,
-          color: const Color(0xFF94A3B8),
-        ),
+        Icon(icon, size: 17, color: const Color(0xFF94A3B8)),
         const SizedBox(width: 8),
         Text(
           '$label:',
@@ -1408,14 +1353,10 @@ class _InfoTile extends StatelessWidget {
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFF16A34A).withOpacity(0.10),
+              color: kAdminBrand.withOpacity(0.10),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              size: 19,
-              color: const Color(0xFF16A34A),
-            ),
+            child: Icon(icon, size: 19, color: kAdminBrand),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -1437,7 +1378,7 @@ class _InfoTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF334155),
                   ),
                 ),
@@ -1461,7 +1402,7 @@ class _TableHeading extends StatelessWidget {
       text,
       style: GoogleFonts.inter(
         fontSize: 9,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w700,
         letterSpacing: 0.7,
         color: const Color(0xFF64748B),
       ),
@@ -1494,13 +1435,13 @@ class _EmptyReviewsState extends StatelessWidget {
             'No reviews found',
             style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Search ya selected filter ke mutabiq koi review nahi mila.',
+            'No reviews match your search or filters.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: const Color(0xFF64748B),
@@ -1541,9 +1482,7 @@ class _ReviewsErrorState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF991B1B),
-              ),
+              style: GoogleFonts.inter(color: const Color(0xFF991B1B)),
             ),
           ],
         ),

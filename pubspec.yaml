@@ -101,10 +101,6 @@ flutter:
     - assets/app_icon_512x512(1).png
     - assets/skillNove_customer.png
     - assets/onboarding/pro_hero.jpg
-    - assets/onboarding/pro_ac.png
-    - assets/onboarding/pro_electrician.png
-    - assets/onboarding/pro_painter.png
-    - assets/onboarding/pro_plumber.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

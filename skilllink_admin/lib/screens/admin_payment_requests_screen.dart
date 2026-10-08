@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +20,7 @@ class AdminPaymentRequestsScreen extends StatefulWidget {
 
 class _AdminPaymentRequestsScreenState
     extends State<AdminPaymentRequestsScreen> {
-  static const _primary = Color(0xFF16A34A);
+  static const _primary = kAdminBrand;
   static const _warning = Color(0xFFF59E0B);
   static const _danger = Color(0xFFDC2626);
   static const _blue = Color(0xFF2563EB);
@@ -106,22 +107,15 @@ class _AdminPaymentRequestsScreenState
     setState(() => _processingId = request.id);
 
     try {
-      final adminId =
-          FirebaseAuth.instance.currentUser?.uid ?? 'admin';
+      final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'admin';
 
-      await _service.approvePayment(
-        requestId: request.id,
-        adminId: adminId,
-      );
+      await _service.approvePayment(requestId: request.id, adminId: adminId);
 
       if (!mounted) return;
       _snack('$credits credits approved and added.');
     } catch (error) {
       if (!mounted) return;
-      _snack(
-        error.toString().replaceFirst('Exception: ', ''),
-        error: true,
-      );
+      _snack(error.toString().replaceFirst('Exception: ', ''), error: true);
     } finally {
       if (mounted) setState(() => _processingId = null);
     }
@@ -173,8 +167,7 @@ class _AdminPaymentRequestsScreenState
     setState(() => _processingId = request.id);
 
     try {
-      final adminId =
-          FirebaseAuth.instance.currentUser?.uid ?? 'admin';
+      final adminId = FirebaseAuth.instance.currentUser?.uid ?? 'admin';
 
       await _service.rejectPayment(
         requestId: request.id,
@@ -186,10 +179,7 @@ class _AdminPaymentRequestsScreenState
       _snack('Payment request rejected.');
     } catch (error) {
       if (!mounted) return;
-      _snack(
-        error.toString().replaceFirst('Exception: ', ''),
-        error: true,
-      );
+      _snack(error.toString().replaceFirst('Exception: ', ''), error: true);
     } finally {
       if (mounted) setState(() => _processingId = null);
     }
@@ -204,8 +194,9 @@ class _AdminPaymentRequestsScreenState
     String? receiptUrl;
     if (receiptPath.isNotEmpty) {
       try {
-        receiptUrl =
-            await FirebaseStorage.instance.ref(receiptPath).getDownloadURL();
+        receiptUrl = await FirebaseStorage.instance
+            .ref(receiptPath)
+            .getDownloadURL();
       } catch (_) {}
     }
 
@@ -214,8 +205,7 @@ class _AdminPaymentRequestsScreenState
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        final status =
-            data['status']?.toString().toLowerCase() ?? 'pending';
+        final status = data['status']?.toString().toLowerCase() ?? 'pending';
         final color = _statusColor(status);
 
         return Dialog(
@@ -237,7 +227,7 @@ class _AdminPaymentRequestsScreenState
                             'Payment Request',
                             style: GoogleFonts.inter(
                               fontSize: 21,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
@@ -252,8 +242,14 @@ class _AdminPaymentRequestsScreenState
                       spacing: 12,
                       runSpacing: 12,
                       children: [
-                        _Detail('Worker', _textValue(data['workerName'], 'Worker')),
-                        _Detail('Email', _textValue(data['workerEmail'], 'No email')),
+                        _Detail(
+                          'Worker',
+                          _textValue(data['workerName'], 'Worker'),
+                        ),
+                        _Detail(
+                          'Email',
+                          _textValue(data['workerEmail'], 'No email'),
+                        ),
                         _Detail('Credits', '${_toInt(data['credits'])}'),
                         _Detail(
                           'Amount',
@@ -272,7 +268,7 @@ class _AdminPaymentRequestsScreenState
                       'Payment Receipt',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -295,9 +291,10 @@ class _AdminPaymentRequestsScreenState
                               child: Image.network(
                                 receiptUrl,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) =>
-                                    const Center(
-                                  child: Text('Receipt could not be displayed.'),
+                                errorBuilder: (_, __, ___) => const Center(
+                                  child: Text(
+                                    'Receipt could not be displayed.',
+                                  ),
                                 ),
                               ),
                             ),
@@ -386,7 +383,9 @@ class _AdminPaymentRequestsScreenState
 
           if (snapshot.hasError) {
             return Center(
-              child: Text('Unable to load requests: ${snapshot.error}'),
+              child: const Text(
+                'We couldn’t load payment requests. Refresh to try again.',
+              ),
             );
           }
 
@@ -406,7 +405,7 @@ class _AdminPaymentRequestsScreenState
                   'Payment Requests',
                   style: GoogleFonts.inter(
                     fontSize: 25,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: _text,
                   ),
                 ),
@@ -440,8 +439,7 @@ class _AdminPaymentRequestsScreenState
                         controller: _searchController,
                         onChanged: (value) => setState(() => _search = value),
                         decoration: const InputDecoration(
-                          hintText:
-                              'Search worker, email or transaction ID...',
+                          hintText: 'Search worker, email or transaction ID...',
                           prefixIcon: Icon(Icons.search),
                           border: OutlineInputBorder(),
                         ),
@@ -486,8 +484,7 @@ class _AdminPaymentRequestsScreenState
   ) {
     return docs
         .where(
-          (doc) =>
-              doc.data()['status']?.toString().toLowerCase() == status,
+          (doc) => doc.data()['status']?.toString().toLowerCase() == status,
         )
         .length;
   }
@@ -548,10 +545,15 @@ class _StatCard extends StatelessWidget {
                 '$value',
                 style: const TextStyle(
                   fontSize: 22,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              Text(title, style: const TextStyle(color: _AdminPaymentRequestsScreenState._muted)),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: _AdminPaymentRequestsScreenState._muted,
+                ),
+              ),
             ],
           ),
         ],
@@ -585,115 +587,126 @@ class _RequestTable extends StatelessWidget {
         border: Border.all(color: _AdminPaymentRequestsScreenState._border),
       ),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor:
-              WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-          columns: const [
-            DataColumn(label: Text('WORKER')),
-            DataColumn(label: Text('PACKAGE')),
-            DataColumn(label: Text('TRANSACTION ID')),
-            DataColumn(label: Text('STATUS')),
-            DataColumn(label: Text('ACTIONS')),
-          ],
-          rows: requests.map((request) {
-            final data = request.data();
-            final status =
-                data['status']?.toString().toLowerCase() ?? 'pending';
-            final color =
-                _AdminPaymentRequestsScreenState._statusColor(status);
-            final processing = processingId == request.id;
+      child: LayoutBuilder(
+        // Fill the card on wide screens; scroll sideways on narrow ones.
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              columns: const [
+                DataColumn(label: Text('WORKER')),
+                DataColumn(label: Text('PACKAGE')),
+                DataColumn(label: Text('TRANSACTION ID')),
+                DataColumn(label: Text('STATUS')),
+                DataColumn(label: Text('ACTIONS')),
+              ],
+              rows: requests.map((request) {
+                final data = request.data();
+                final status =
+                    data['status']?.toString().toLowerCase() ?? 'pending';
+                final color = _AdminPaymentRequestsScreenState._statusColor(
+                  status,
+                );
+                final processing = processingId == request.id;
 
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 210,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _AdminPaymentRequestsScreenState._textValue(
-                            data['workerName'],
-                            'Worker',
-                          ),
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        Text(
-                          _AdminPaymentRequestsScreenState._textValue(
-                            data['workerEmail'],
-                            'No email',
-                          ),
-                          style: const TextStyle(
-                            color: _AdminPaymentRequestsScreenState._muted,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                DataCell(
-                  Text(
-                    '${_AdminPaymentRequestsScreenState._toInt(data['credits'])} credits\n'
-                    'Rs. ${_AdminPaymentRequestsScreenState._toInt(data['amount'])}',
-                  ),
-                ),
-                DataCell(
-                  Text(
-                    _AdminPaymentRequestsScreenState._textValue(
-                      data['transactionId'],
-                      'Not provided',
-                    ),
-                  ),
-                ),
-                DataCell(
-                  Chip(
-                    label: Text(status.toUpperCase()),
-                    backgroundColor: color.withOpacity(.10),
-                    labelStyle: TextStyle(color: color),
-                  ),
-                ),
-                DataCell(
-                  processing
-                      ? const CircularProgressIndicator(strokeWidth: 2)
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      SizedBox(
+                        width: 210,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            IconButton(
-                              tooltip: 'View receipt',
-                              onPressed: () => onView(request),
-                              icon: const Icon(
-                                Icons.visibility_outlined,
-                                color: _AdminPaymentRequestsScreenState._blue,
+                            Text(
+                              _AdminPaymentRequestsScreenState._textValue(
+                                data['workerName'],
+                                'Worker',
+                              ),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                            if (status == 'pending') ...[
-                              IconButton(
-                                tooltip: 'Reject',
-                                onPressed: () => onReject(request),
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: _AdminPaymentRequestsScreenState._danger,
-                                ),
+                            Text(
+                              _AdminPaymentRequestsScreenState._textValue(
+                                data['workerEmail'],
+                                'No email',
                               ),
-                              IconButton(
-                                tooltip: 'Approve',
-                                onPressed: () => onApprove(request),
-                                icon: const Icon(
-                                  Icons.check,
-                                  color: _AdminPaymentRequestsScreenState._primary,
-                                ),
+                              style: const TextStyle(
+                                color: _AdminPaymentRequestsScreenState._muted,
+                                fontSize: 11,
                               ),
-                            ],
+                            ),
                           ],
                         ),
-                ),
-              ],
-            );
-          }).toList(),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        '${_AdminPaymentRequestsScreenState._toInt(data['credits'])} credits\n'
+                        'Rs. ${_AdminPaymentRequestsScreenState._toInt(data['amount'])}',
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        _AdminPaymentRequestsScreenState._textValue(
+                          data['transactionId'],
+                          'Not provided',
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      Chip(
+                        label: Text(status.toUpperCase()),
+                        backgroundColor: color.withOpacity(.10),
+                        labelStyle: TextStyle(color: color),
+                      ),
+                    ),
+                    DataCell(
+                      processing
+                          ? const CircularProgressIndicator(strokeWidth: 2)
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'View receipt',
+                                  onPressed: () => onView(request),
+                                  icon: const Icon(
+                                    Icons.visibility_outlined,
+                                    color:
+                                        _AdminPaymentRequestsScreenState._blue,
+                                  ),
+                                ),
+                                if (status == 'pending') ...[
+                                  IconButton(
+                                    tooltip: 'Reject',
+                                    onPressed: () => onReject(request),
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: _AdminPaymentRequestsScreenState
+                                          ._danger,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Approve',
+                                    onPressed: () => onApprove(request),
+                                    icon: const Icon(
+                                      Icons.check,
+                                      color: _AdminPaymentRequestsScreenState
+                                          ._primary,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );
@@ -732,7 +745,7 @@ class _Detail extends StatelessWidget {
             value,
             style: TextStyle(
               color: color ?? _AdminPaymentRequestsScreenState._text,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -760,7 +773,7 @@ class _EmptyState extends StatelessWidget {
           SizedBox(height: 12),
           Text(
             'No payment requests found',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
         ],
       ),

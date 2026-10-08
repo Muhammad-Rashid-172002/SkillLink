@@ -775,18 +775,7 @@ class _ResetPasswordSheetState extends State<_ResetPasswordSheet> {
       _error = null;
     });
     try {
-      try {
-        await FirebaseFunctions.instanceFor(region: 'us-central1')
-            .httpsCallable('sendCustomPasswordResetEmail')
-            .call(<String, dynamic>{'email': email})
-            .timeout(const Duration(seconds: 20));
-      } on FirebaseFunctionsException catch (error) {
-        if (error.code == 'invalid-argument') rethrow;
-        // Branded email unavailable: fall back to Firebase's built-in email.
-        await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      } on TimeoutException {
-        await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      }
+      await AuthSessionService.instance.sendPasswordReset(email);
       if (mounted) Navigator.of(context).pop(email);
     } on FirebaseAuthException catch (error) {
       setState(() => _error = AuthErrors.forAuthCode(error.code));

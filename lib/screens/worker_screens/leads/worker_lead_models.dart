@@ -149,6 +149,7 @@ class WorkerLead {
   String get customerId => workerText(data, const ['customerId']);
   DateTime? get createdAt => workerDate(data['createdAt']);
   double? get budgetValue => _moneyValue(data['budget']);
+
   /// Same money format as Jobs ("Rs 5,000") so a lead and the job it becomes
   /// read identically.
   String get postedBudget =>
@@ -483,12 +484,22 @@ bool workerLeadCategoriesMatch(String first, String second) {
   final right = normalizeWorkerCategory(second);
   if (left.isEmpty || right.isEmpty) return false;
   if (left == right) return true;
-  return left
-      .split(' ')
-      .toSet()
-      .intersection(right.split(' ').toSet())
-      .isNotEmpty;
+  // Share a trade word ("pest control" ~ "pest"), ignoring generic words so
+  // an AC technician is not matched to mobile or solar technician leads.
+  Set<String> tradeWords(String value) =>
+      value.split(' ').toSet().difference(_genericCategoryWords);
+  return tradeWords(left).intersection(tradeWords(right)).isNotEmpty;
 }
+
+const _genericCategoryWords = <String>{
+  'technician',
+  'repair',
+  'service',
+  'services',
+  'work',
+  'home',
+  'and',
+};
 
 List<String> workerLeadCategoryQueryValues(String skill) {
   final normalized = normalizeWorkerCategory(skill);

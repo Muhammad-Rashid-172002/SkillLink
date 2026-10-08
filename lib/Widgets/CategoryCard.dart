@@ -4,11 +4,7 @@ class CategoryCard extends StatelessWidget {
   final String title;
   final IconData icon;
 
-  const CategoryCard({
-    super.key,
-    required this.title,
-    required this.icon,
-  });
+  const CategoryCard({super.key, required this.title, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -20,18 +16,12 @@ class CategoryCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 35,
-            color: Color(0xFF2563EB),
-          ),
+          Icon(icon, size: 35, color: Color(0xFF2563EB)),
           const SizedBox(height: 10),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ],
       ),

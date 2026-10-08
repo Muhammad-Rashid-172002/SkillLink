@@ -1,18 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../services/notification_management_service.dart';
 
-enum NotificationFilter {
-  all,
-  unread,
-  customers,
-  workers,
-  broadcast,
-  archived,
-}
+enum NotificationFilter { all, unread, customers, workers, broadcast, archived }
 
 class AdminNotificationsScreen extends StatefulWidget {
   const AdminNotificationsScreen({super.key});
@@ -43,7 +37,8 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     final query = _searchQuery.trim().toLowerCase();
 
     return notifications.where((notification) {
-      final matchesSearch = query.isEmpty ||
+      final matchesSearch =
+          query.isEmpty ||
           notification.title.toLowerCase().contains(query) ||
           notification.message.toLowerCase().contains(query) ||
           notification.targetUserName.toLowerCase().contains(query);
@@ -62,12 +57,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       };
 
       return matchesSearch && matchesFilter;
-    }).toList()
-      ..sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      });
+    }).toList()..sort((a, b) {
+      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
   }
 
   Future<void> _showCreateNotificationDialog() async {
@@ -104,12 +98,12 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                               height: 54,
                               width: 54,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF16A34A).withOpacity(0.1),
+                                color: kAdminBrand.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(17),
                               ),
                               child: const Icon(
                                 Icons.notifications_active_rounded,
-                                color: Color(0xFF16A34A),
+                                color: kAdminBrand,
                                 size: 27,
                               ),
                             ),
@@ -122,13 +116,13 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                                     'Create Notification',
                                     style: GoogleFonts.inter(
                                       fontSize: 21,
-                                      fontWeight: FontWeight.w900,
+                                      fontWeight: FontWeight.w700,
                                       color: const Color(0xFF0F172A),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Users ko app notification bhejein.',
+                                    'Send an in-app notification to users.',
                                     style: GoogleFonts.inter(
                                       fontSize: 11.5,
                                       color: const Color(0xFF64748B),
@@ -249,11 +243,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                           children: [
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: () =>
-                                    Navigator.pop(dialogContext),
+                                onPressed: () => Navigator.pop(dialogContext),
                                 style: OutlinedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 15),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 15,
+                                  ),
                                 ),
                                 child: const Text('Cancel'),
                               ),
@@ -280,10 +274,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                                 icon: const Icon(Icons.send_rounded),
                                 label: const Text('Send notification'),
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF16A34A),
+                                  backgroundColor: kAdminBrand,
                                   foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 15),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 15,
+                                  ),
                                 ),
                               ),
                             ),
@@ -314,11 +309,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       );
 
       if (!mounted) return;
-      _showMessage('Notification successfully create ho gayi.');
+      _showMessage('Notification created.');
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Notification create nahi ho saki: $error',
+        'Couldn’t create notification. Please try again.',
         isError: true,
       );
     }
@@ -333,14 +328,12 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
 
       if (!mounted) return;
       _showMessage(
-        notification.isRead
-            ? 'Notification unread mark ho gayi.'
-            : 'Notification read mark ho gayi.',
+        notification.isRead ? 'Marked as unread.' : 'Marked as read.',
       );
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Notification update nahi ho saki: $error',
+        'Couldn’t update notification. Please try again.',
         isError: true,
       );
     }
@@ -357,21 +350,19 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       if (!mounted) return;
       _showMessage(
         notification.isArchived
-            ? 'Notification restore ho gayi.'
-            : 'Notification archive ho gayi.',
+            ? 'Notification restored.'
+            : 'Notification archived.',
       );
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Notification archive update nahi ho saki: $error',
+        'Couldn’t update notification archive. Please try again.',
         isError: true,
       );
     }
   }
 
-  Future<void> _deleteNotification(
-    ManagedNotification notification,
-  ) async {
+  Future<void> _deleteNotification(ManagedNotification notification) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -384,12 +375,12 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
           title: Text(
             'Delete notification?',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           content: Text(
-            'Ye notification Firestore se permanently delete ho jayegi.',
+            'This permanently deletes the notification.',
             style: GoogleFonts.inter(
               color: const Color(0xFF64748B),
               height: 1.5,
@@ -419,11 +410,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       await _service.deleteNotification(notification.id);
 
       if (!mounted) return;
-      _showMessage('Notification delete ho gayi.');
+      _showMessage('Notification deleted.');
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Notification delete nahi ho saki: $error',
+        'Couldn’t delete notification. Please try again.',
         isError: true,
       );
     }
@@ -450,10 +441,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                 children: [
                   Row(
                     children: [
-                      _NotificationIcon(
-                        type: notification.type,
-                        size: 58,
-                      ),
+                      _NotificationIcon(type: notification.type, size: 58),
                       const SizedBox(width: 15),
                       Expanded(
                         child: Column(
@@ -463,7 +451,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                               notification.title,
                               style: GoogleFonts.inter(
                                 fontSize: 21,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w700,
                                 color: const Color(0xFF0F172A),
                               ),
                             ),
@@ -472,9 +460,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                               spacing: 8,
                               runSpacing: 8,
                               children: [
-                                _AudienceBadge(
-                                  audience: notification.audience,
-                                ),
+                                _AudienceBadge(audience: notification.audience),
                                 _TypeBadge(type: notification.type),
                                 _ReadBadge(isRead: notification.isRead),
                               ],
@@ -495,9 +481,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: const Color(0xFFE2E8F0),
-                      ),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: Text(
                       notification.message,
@@ -531,9 +515,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                       _InfoTile(
                         icon: Icons.inventory_2_outlined,
                         label: 'Status',
-                        value: notification.isArchived
-                            ? 'Archived'
-                            : 'Active',
+                        value: notification.isArchived ? 'Archived' : 'Active',
                       ),
                     ],
                   ),
@@ -552,13 +534,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                                 : Icons.archive_outlined,
                           ),
                           label: Text(
-                            notification.isArchived
-                                ? 'Restore'
-                                : 'Archive',
+                            notification.isArchived ? 'Restore' : 'Archive',
                           ),
                           style: OutlinedButton.styleFrom(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 15),
+                            padding: const EdgeInsets.symmetric(vertical: 15),
                           ),
                         ),
                       ),
@@ -575,15 +554,12 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                                 : Icons.mark_email_read_outlined,
                           ),
                           label: Text(
-                            notification.isRead
-                                ? 'Mark unread'
-                                : 'Mark read',
+                            notification.isRead ? 'Mark unread' : 'Mark read',
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF16A34A),
+                            backgroundColor: kAdminBrand,
                             foregroundColor: Colors.white,
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 15),
+                            padding: const EdgeInsets.symmetric(vertical: 15),
                           ),
                         ),
                       ),
@@ -598,16 +574,12 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
     );
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+        backgroundColor: isError ? kAdminDanger : kAdminSuccess,
         content: Text(message),
       ),
     );
@@ -620,15 +592,13 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _NotificationsErrorState(
-            message: 'Notifications load nahi ho sake.\n${snapshot.error}',
+            message: 'We couldn’t load notifications. Refresh to try again.',
           );
         }
 
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF16A34A),
-            ),
+            child: CircularProgressIndicator(color: kAdminBrand),
           );
         }
 
@@ -636,8 +606,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
             .map(ManagedNotification.fromDocument)
             .toList();
 
-        final filteredNotifications =
-            _filterNotifications(allNotifications);
+        final filteredNotifications = _filterNotifications(allNotifications);
 
         final activeNotifications = allNotifications
             .where((notification) => !notification.isArchived)
@@ -657,10 +626,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                     .where((notification) => notification.audience == 'all')
                     .length,
                 workers: activeNotifications
-                    .where(
-                      (notification) =>
-                          notification.audience == 'workers',
-                    )
+                    .where((notification) => notification.audience == 'workers')
                     .length,
                 onCreate: _showCreateNotificationDialog,
               ),
@@ -747,7 +713,7 @@ class _NotificationsHeader extends StatelessWidget {
         title: 'Worker Alerts',
         value: '$workers',
         icon: Icons.engineering_rounded,
-        color: const Color(0xFF16A34A),
+        color: kAdminBrand,
       ),
     ];
 
@@ -786,8 +752,8 @@ class _NotificationsHeader extends StatelessWidget {
             final columns = constraints.maxWidth >= 950
                 ? 4
                 : constraints.maxWidth >= 540
-                    ? 2
-                    : 1;
+                ? 2
+                : 1;
 
             final width =
                 (constraints.maxWidth - ((columns - 1) * 14)) / columns;
@@ -818,7 +784,7 @@ class _HeaderTitle extends StatelessWidget {
           'Notifications',
           style: GoogleFonts.inter(
             fontSize: 25,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             letterSpacing: -0.7,
             color: const Color(0xFF0F172A),
           ),
@@ -848,15 +814,10 @@ class _CreateButton extends StatelessWidget {
       icon: const Icon(Icons.add_alert_rounded),
       label: const Text('Create Notification'),
       style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF16A34A),
+        backgroundColor: kAdminBrand,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 16,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -904,7 +865,7 @@ class _NotificationStatCard extends StatelessWidget {
                   value,
                   style: GoogleFonts.inter(
                     fontSize: 22,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF0F172A),
                   ),
                 ),
@@ -978,20 +939,15 @@ class _NotificationsToolbar extends StatelessWidget {
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF16A34A),
-                    width: 1.6,
-                  ),
+                  borderSide: const BorderSide(color: kAdminBrand, width: 1.6),
                 ),
               ),
             ),
@@ -1007,20 +963,15 @@ class _NotificationsToolbar extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_filterLabel(filter)),
-                selectedColor:
-                    const Color(0xFF16A34A).withOpacity(0.12),
+                selectedColor: kAdminBrand.withOpacity(0.12),
                 backgroundColor: const Color(0xFFF8FAFC),
                 side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFE2E8F0),
+                  color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
                 ),
                 labelStyle: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFF64748B),
+                  color: selected ? kAdminBrand : const Color(0xFF64748B),
                 ),
               );
             }).toList(),
@@ -1060,10 +1011,7 @@ class _NotificationsToolbar extends StatelessWidget {
                 const SizedBox(height: 14),
                 filters,
                 const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: controls,
-                ),
+                Align(alignment: Alignment.centerRight, child: controls),
               ],
             );
           }
@@ -1108,103 +1056,106 @@ class _NotificationsTable extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE6ECF2)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor:
-              WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-          dataRowMinHeight: 76,
-          dataRowMaxHeight: 92,
-          horizontalMargin: 20,
-          columnSpacing: 28,
-          columns: const [
-            DataColumn(label: _TableHeading('NOTIFICATION')),
-            DataColumn(label: _TableHeading('AUDIENCE')),
-            DataColumn(label: _TableHeading('TYPE')),
-            DataColumn(label: _TableHeading('READ STATUS')),
-            DataColumn(label: _TableHeading('CREATED')),
-            DataColumn(label: _TableHeading('ACTIONS')),
-          ],
-          rows: notifications.map((notification) {
-            return DataRow(
-              color: WidgetStateProperty.resolveWith((states) {
-                if (!notification.isRead) {
-                  return const Color(0xFFF8FFF9);
-                }
-                return null;
-              }),
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 330,
-                    child: Row(
-                      children: [
-                        _NotificationIcon(
-                          type: notification.type,
-                          size: 44,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                notification.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: notification.isRead
-                                      ? FontWeight.w700
-                                      : FontWeight.w900,
-                                  color: const Color(0xFF0F172A),
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                notification.message,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 10.5,
-                                  height: 1.35,
-                                  color: const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                DataCell(
-                  _AudienceBadge(audience: notification.audience),
-                ),
-                DataCell(_TypeBadge(type: notification.type)),
-                DataCell(_ReadBadge(isRead: notification.isRead)),
-                DataCell(
-                  Text(
-                    _formatDate(notification.createdAt),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF475569),
-                    ),
-                  ),
-                ),
-                DataCell(
-                  _NotificationActions(
-                    notification: notification,
-                    onView: onView,
-                    onRead: onRead,
-                    onArchive: onArchive,
-                    onDelete: onDelete,
-                  ),
-                ),
+      child: LayoutBuilder(
+        // Fill the card on wide screens; scroll sideways on narrow ones.
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              dataRowMinHeight: 76,
+              dataRowMaxHeight: 92,
+              horizontalMargin: 20,
+              columnSpacing: 28,
+              columns: const [
+                DataColumn(label: _TableHeading('NOTIFICATION')),
+                DataColumn(label: _TableHeading('AUDIENCE')),
+                DataColumn(label: _TableHeading('TYPE')),
+                DataColumn(label: _TableHeading('READ STATUS')),
+                DataColumn(label: _TableHeading('CREATED')),
+                DataColumn(label: _TableHeading('ACTIONS')),
               ],
-            );
-          }).toList(),
+              rows: notifications.map((notification) {
+                return DataRow(
+                  color: WidgetStateProperty.resolveWith((states) {
+                    if (!notification.isRead) {
+                      return kAdminBrandSoft;
+                    }
+                    return null;
+                  }),
+                  cells: [
+                    DataCell(
+                      SizedBox(
+                        width: 330,
+                        child: Row(
+                          children: [
+                            _NotificationIcon(
+                              type: notification.type,
+                              size: 44,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    notification.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: notification.isRead
+                                          ? FontWeight.w700
+                                          : FontWeight.w700,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    notification.message,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10.5,
+                                      height: 1.35,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DataCell(_AudienceBadge(audience: notification.audience)),
+                    DataCell(_TypeBadge(type: notification.type)),
+                    DataCell(_ReadBadge(isRead: notification.isRead)),
+                    DataCell(
+                      Text(
+                        _formatDate(notification.createdAt),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      _NotificationActions(
+                        notification: notification,
+                        onView: onView,
+                        onRead: onRead,
+                        onArchive: onArchive,
+                        onDelete: onDelete,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );
@@ -1233,11 +1184,10 @@ class _NotificationsGrid extends StatelessWidget {
         final columns = constraints.maxWidth >= 1180
             ? 3
             : constraints.maxWidth >= 760
-                ? 2
-                : 1;
+            ? 2
+            : 1;
 
-        final width =
-            (constraints.maxWidth - ((columns - 1) * 16)) / columns;
+        final width = (constraints.maxWidth - ((columns - 1) * 16)) / columns;
 
         return Wrap(
           spacing: 16,
@@ -1280,9 +1230,7 @@ class _NotificationCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: notification.isRead
-            ? Colors.white
-            : const Color(0xFFF8FFF9),
+        color: notification.isRead ? Colors.white : kAdminBrandSoft,
         borderRadius: BorderRadius.circular(21),
         border: Border.all(
           color: notification.isRead
@@ -1302,10 +1250,7 @@ class _NotificationCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              _NotificationIcon(
-                type: notification.type,
-                size: 48,
-              ),
+              _NotificationIcon(type: notification.type, size: 48),
               const Spacer(),
               _NotificationActions(
                 notification: notification,
@@ -1324,8 +1269,8 @@ class _NotificationCard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 15,
               fontWeight: notification.isRead
-                  ? FontWeight.w800
-                  : FontWeight.w900,
+                  ? FontWeight.w700
+                  : FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -1378,8 +1323,8 @@ class _NotificationCard extends StatelessWidget {
               icon: const Icon(Icons.visibility_outlined, size: 18),
               label: const Text('View notification'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF16A34A),
-                side: const BorderSide(color: Color(0xFF16A34A)),
+                foregroundColor: kAdminBrand,
+                side: const BorderSide(color: kAdminBrand),
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),
             ),
@@ -1411,9 +1356,7 @@ class _NotificationActions extends StatelessWidget {
       tooltip: 'Notification actions',
       color: Colors.white,
       surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       onSelected: (value) {
         switch (value) {
           case 'view':
@@ -1444,9 +1387,7 @@ class _NotificationActions extends StatelessWidget {
             icon: notification.isRead
                 ? Icons.mark_email_unread_outlined
                 : Icons.mark_email_read_outlined,
-            text: notification.isRead
-                ? 'Mark unread'
-                : 'Mark read',
+            text: notification.isRead ? 'Mark unread' : 'Mark read',
           ),
         ),
         PopupMenuItem(
@@ -1487,10 +1428,7 @@ class _NotificationActions extends StatelessWidget {
 }
 
 class _NotificationIcon extends StatelessWidget {
-  const _NotificationIcon({
-    required this.type,
-    required this.size,
-  });
+  const _NotificationIcon({required this.type, required this.size});
 
   final String type;
   final double size;
@@ -1507,11 +1445,7 @@ class _NotificationIcon extends StatelessWidget {
         color: color.withOpacity(0.10),
         borderRadius: BorderRadius.circular(size * 0.30),
       ),
-      child: Icon(
-        icon,
-        color: color,
-        size: size * 0.47,
-      ),
+      child: Icon(icon, color: color, size: size * 0.47),
     );
   }
 }
@@ -1524,15 +1458,12 @@ class _AudienceBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (audience) {
-      'workers' => const Color(0xFF16A34A),
+      'workers' => kAdminBrand,
       'customers' => const Color(0xFF2563EB),
       _ => const Color(0xFF7C3AED),
     };
 
-    return _Badge(
-      text: _audienceLabel(audience).toUpperCase(),
-      color: color,
-    );
+    return _Badge(text: _audienceLabel(audience).toUpperCase(), color: color);
   }
 }
 
@@ -1559,18 +1490,13 @@ class _ReadBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Badge(
       text: isRead ? 'READ' : 'UNREAD',
-      color: isRead
-          ? const Color(0xFF64748B)
-          : const Color(0xFFD97706),
+      color: isRead ? const Color(0xFF64748B) : const Color(0xFFD97706),
     );
   }
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({
-    required this.text,
-    required this.color,
-  });
+  const _Badge({required this.text, required this.color});
 
   final String text;
   final Color color;
@@ -1587,7 +1513,7 @@ class _Badge extends StatelessWidget {
         text,
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -1608,8 +1534,7 @@ class _ActionMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
+    final color = danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
 
     return Row(
       children: [
@@ -1651,7 +1576,7 @@ class _InfoTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 19, color: const Color(0xFF16A34A)),
+          Icon(icon, size: 19, color: kAdminBrand),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -1671,7 +1596,7 @@ class _InfoTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF334155),
                   ),
                 ),
@@ -1704,14 +1629,10 @@ class _ViewButton extends StatelessWidget {
         height: 38,
         width: 38,
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF16A34A)
-              : const Color(0xFFF8FAFC),
+          color: selected ? kAdminBrand : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF16A34A)
-                : const Color(0xFFE2E8F0),
+            color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
           ),
         ),
         child: Icon(
@@ -1735,7 +1656,7 @@ class _TableHeading extends StatelessWidget {
       text,
       style: GoogleFonts.inter(
         fontSize: 9,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w700,
         letterSpacing: 0.7,
         color: const Color(0xFF64748B),
       ),
@@ -1768,13 +1689,13 @@ class _EmptyNotificationsState extends StatelessWidget {
             'No notifications found',
             style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Search ya selected filter ke mutabiq koi notification nahi mili.',
+            'No notifications match your search or filters.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: const Color(0xFF64748B),
@@ -1806,9 +1727,7 @@ class _NotificationsErrorState extends StatelessWidget {
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF991B1B),
-          ),
+          style: GoogleFonts.inter(color: const Color(0xFF991B1B)),
         ),
       ),
     );
@@ -1879,7 +1798,7 @@ Color _typeColor(String type) {
     case 'update':
       return const Color(0xFF2563EB);
     default:
-      return const Color(0xFF16A34A);
+      return kAdminSuccess;
   }
 }
 

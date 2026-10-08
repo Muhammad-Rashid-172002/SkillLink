@@ -726,7 +726,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Foreground alerts on this device'), findsOneWidget);
+    expect(find.text('In-app alerts'), findsOneWidget);
     expect(
       find.textContaining('Server and system notifications may still arrive'),
       findsOneWidget,
@@ -777,7 +777,7 @@ void main() {
     await tester.pumpAndSettle();
     final cases = <(String, Type)>[
       ('Account information', WorkerAccountInformationScreen),
-      ('Privacy', WorkerPrivacyScreen),
+      ('Your data', WorkerPrivacyScreen),
       ('Help & Support', WorkerHelpScreen),
       ('Safety', WorkerSafetyScreen),
     ];

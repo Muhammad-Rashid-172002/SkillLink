@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationManagementService {
   NotificationManagementService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -96,44 +96,33 @@ class ManagedNotification {
 
     return ManagedNotification(
       id: document.id,
-      title: _firstString(
-        data,
-        const ['title', 'subject'],
-        fallback: 'Notification',
-      ),
-      message: _firstString(
-        data,
-        const ['message', 'body', 'description'],
-        fallback: 'No message',
-      ),
-      audience: _firstString(
-        data,
-        const ['audience', 'receiverType'],
-        fallback: 'all',
-      ).toLowerCase(),
-      type: _firstString(
-        data,
-        const ['type', 'category'],
-        fallback: 'general',
-      ).toLowerCase(),
-      status: _firstString(
-        data,
-        const ['status'],
-        fallback: 'sent',
-      ).toLowerCase(),
-      targetUserName: _firstString(
-        data,
-        const ['targetUserName', 'receiverName', 'userName'],
-        fallback: 'All Users',
-      ),
-      isRead: _firstBool(
-        data,
-        const ['isRead', 'read'],
-      ),
-      createdAt: _firstDate(
-        data,
-        const ['createdAt', 'sentAt', 'date'],
-      ),
+      title: _firstString(data, const [
+        'title',
+        'subject',
+      ], fallback: 'Notification'),
+      message: _firstString(data, const [
+        'message',
+        'body',
+        'description',
+      ], fallback: 'No message'),
+      audience: _firstString(data, const [
+        'audience',
+        'receiverType',
+      ], fallback: 'all').toLowerCase(),
+      type: _firstString(data, const [
+        'type',
+        'category',
+      ], fallback: 'general').toLowerCase(),
+      status: _firstString(data, const [
+        'status',
+      ], fallback: 'sent').toLowerCase(),
+      targetUserName: _firstString(data, const [
+        'targetUserName',
+        'receiverName',
+        'userName',
+      ], fallback: 'All Users'),
+      isRead: _firstBool(data, const ['isRead', 'read']),
+      createdAt: _firstDate(data, const ['createdAt', 'sentAt', 'date']),
     );
   }
 
@@ -151,10 +140,7 @@ class ManagedNotification {
     return fallback;
   }
 
-  static bool _firstBool(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static bool _firstBool(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
       if (value is bool) return value;
@@ -162,10 +148,7 @@ class ManagedNotification {
     return false;
   }
 
-  static DateTime? _firstDate(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static DateTime? _firstDate(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
       if (value is Timestamp) return value.toDate();

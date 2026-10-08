@@ -177,42 +177,9 @@ class _RequestState extends State<Request> {
         'longitude': _longitude,
       });
 
-      if (isDirectRequest) {
-        await firestore.collection('notifications').add({
-          'userId': selectedWorkerId,
-          'requestId': requestRef.id,
-          'customerId': user.uid,
-          'workerId': selectedWorkerId,
-          'title': 'Direct Job Request',
-          'message':
-              'A customer sent you a direct ${_service.title} service request.',
-          'type': 'direct_job',
-          'isDirectRequest': true,
-          'isRead': false,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        final workers = await firestore
-            .collection('users')
-            .where('role', isEqualTo: 'worker')
-            .get();
-        final batch = firestore.batch();
-        for (final worker in workers.docs) {
-          batch.set(firestore.collection('notifications').doc(), {
-            'userId': worker.id,
-            'requestId': requestRef.id,
-            'customerId': user.uid,
-            'workerId': worker.id,
-            'title': 'New Job Available',
-            'message': '${_service.title} job posted near you.',
-            'type': 'job',
-            'isDirectRequest': false,
-            'isRead': false,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-        }
-        await batch.commit();
-      }
+      // Matching workers (or the chosen worker, for a direct request) are
+      // notified by the sendJobNotification Cloud Function. The app never
+      // lists or messages other users from the customer's device.
 
       if (!mounted) return;
       Navigator.pushReplacement(

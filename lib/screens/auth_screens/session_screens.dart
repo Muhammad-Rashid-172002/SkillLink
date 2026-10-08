@@ -82,7 +82,8 @@ class _RoleRecoveryScreenState extends State<RoleRecoveryScreen> {
                   RoleChoiceTile(
                     role: UserRole.customer,
                     title: 'I need services',
-                    subtitle: 'Find, book and track trusted local professionals.',
+                    subtitle:
+                        'Find, book and track trusted local professionals.',
                     icon: Icons.person_search_rounded,
                     selected: _selected == UserRole.customer,
                     onTap: () => setState(() => _selected = UserRole.customer),
@@ -360,11 +361,7 @@ class RoleChoiceTile extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.check_rounded,
-                              size: 14,
-                              color: accent,
-                            ),
+                            Icon(Icons.check_rounded, size: 14, color: accent),
                             const SizedBox(width: 4),
                             Text(
                               item,

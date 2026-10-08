@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/design_system/widgets/skillnova_map.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
@@ -93,64 +94,68 @@ class _WorkerLeadsScreenState extends State<WorkerLeadsScreen> {
       bottomNavigationBar: embedded
           ? null
           : const WorkerBottomBar(selectedIndex: 1),
-      body: SafeArea(
-        bottom: false,
-        child: StreamBuilder<WorkerHomeProfile>(
-          stream: _workerStream,
-          builder: (context, workerSnapshot) {
-            if (workerSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (workerSnapshot.hasError || !workerSnapshot.hasData) {
-              return WorkerLeadErrorState(onRetry: _retry);
-            }
-            final worker = workerSnapshot.data!;
-            return StreamBuilder<List<WorkerLead>>(
-              stream: _streamFor(worker),
-              builder: (context, leadsSnapshot) {
-                if (leadsSnapshot.connectionState == ConnectionState.waiting) {
+      body: ContentWidth(
+        maxWidth: 760,
+        child: SafeArea(
+          bottom: false,
+          child: StreamBuilder<WorkerHomeProfile>(
+            stream: _workerStream,
+            builder: (context, workerSnapshot) {
+              if (workerSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (workerSnapshot.hasError || !workerSnapshot.hasData) {
+                return WorkerLeadErrorState(onRetry: _retry);
+              }
+              final worker = workerSnapshot.data!;
+              return StreamBuilder<List<WorkerLead>>(
+                stream: _streamFor(worker),
+                builder: (context, leadsSnapshot) {
+                  if (leadsSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return _layout(
+                      worker: worker,
+                      body: const SliverFillRemaining(
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    );
+                  }
+                  if (leadsSnapshot.hasError) {
+                    return _layout(
+                      worker: worker,
+                      body: SliverFillRemaining(
+                        child: WorkerLeadErrorState(onRetry: _retry),
+                      ),
+                    );
+                  }
+                  final loaded = leadsSnapshot.data ?? const <WorkerLead>[];
+                  final hasDistance = loaded.any(
+                    (lead) => lead.distanceKm != null,
+                  );
+                  if (!hasDistance && _sort == WorkerLeadSort.nearest) {
+                    _sort = WorkerLeadSort.recommended;
+                  }
+                  final visible = filterAndSortWorkerLeads(
+                    leads: loaded,
+                    search: _search,
+                    filters: _filters,
+                    sort: _sort,
+                  );
+                  final selected = visible
+                      .where((lead) => lead.id == _selectedLeadId)
+                      .firstOrNull;
                   return _layout(
                     worker: worker,
-                    body: const SliverFillRemaining(
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
+                    body: _view == WorkerLeadsView.list
+                        ? _listBody(worker, loaded, visible)
+                        : _mapBody(worker, visible, selected),
+                    loaded: loaded,
+                    hasDistance: hasDistance,
                   );
-                }
-                if (leadsSnapshot.hasError) {
-                  return _layout(
-                    worker: worker,
-                    body: SliverFillRemaining(
-                      child: WorkerLeadErrorState(onRetry: _retry),
-                    ),
-                  );
-                }
-                final loaded = leadsSnapshot.data ?? const <WorkerLead>[];
-                final hasDistance = loaded.any(
-                  (lead) => lead.distanceKm != null,
-                );
-                if (!hasDistance && _sort == WorkerLeadSort.nearest) {
-                  _sort = WorkerLeadSort.recommended;
-                }
-                final visible = filterAndSortWorkerLeads(
-                  leads: loaded,
-                  search: _search,
-                  filters: _filters,
-                  sort: _sort,
-                );
-                final selected = visible
-                    .where((lead) => lead.id == _selectedLeadId)
-                    .firstOrNull;
-                return _layout(
-                  worker: worker,
-                  body: _view == WorkerLeadsView.list
-                      ? _listBody(worker, loaded, visible)
-                      : _mapBody(worker, visible, selected),
-                  loaded: loaded,
-                  hasDistance: hasDistance,
-                );
-              },
-            );
-          },
+                },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -294,10 +299,16 @@ class _WorkerLeadsScreenState extends State<WorkerLeadsScreen> {
                   if (value != null && mounted) setState(() => _sort = value);
                 },
                 icon: const Icon(Icons.swap_vert_rounded, size: 18),
-                label: Text(
-                  _sort.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                // Short label on narrow phones so it never truncates.
+                label: Tooltip(
+                  message: 'Sorted by ${_sort.label.toLowerCase()}',
+                  child: Text(
+                    MediaQuery.sizeOf(context).width < 380
+                        ? 'Sort'
+                        : _sort.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ),

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skill_link/core/format/money.dart';
 
 import 'booking_status.dart';
 
@@ -182,9 +183,4 @@ String bookingDateLabel(DateTime? date, {bool includeTime = false}) {
   return '$dateText • $hour:$minute $period';
 }
 
-String formatPostedBudget(String raw) {
-  final value = raw.trim();
-  if (value.isEmpty) return '';
-  if (value.toLowerCase().startsWith('rs')) return value;
-  return 'Rs $value';
-}
+String formatPostedBudget(String raw) => formatRupees(raw);

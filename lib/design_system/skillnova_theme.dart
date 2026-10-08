@@ -9,14 +9,18 @@ abstract final class SkillNovaTheme {
 
   static ThemeData _build(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final surface = isDark ? SkillNovaColors.darkSurface : SkillNovaColors.surface;
+    final surface = isDark
+        ? SkillNovaColors.darkSurface
+        : SkillNovaColors.surface;
     final onSurface = isDark
         ? SkillNovaColors.darkTextPrimary
         : SkillNovaColors.textPrimary;
     final onSurfaceVariant = isDark
         ? SkillNovaColors.darkTextSecondary
         : SkillNovaColors.textSecondary;
-    final outline = isDark ? SkillNovaColors.darkBorder : SkillNovaColors.border;
+    final outline = isDark
+        ? SkillNovaColors.darkBorder
+        : SkillNovaColors.border;
 
     final scheme = ColorScheme(
       brightness: brightness,
@@ -33,12 +37,14 @@ abstract final class SkillNovaTheme {
           : SkillNovaColors.primaryDark,
       secondary: SkillNovaColors.accent,
       onSecondary: Colors.white,
+      // Tonal buttons and selected segments use secondaryContainer; keep
+      // them in the brand blue family so every tonal control matches.
       secondaryContainer: isDark
-          ? const Color(0xFF0D3B37)
-          : const Color(0xFFE6F6F4),
+          ? const Color(0xFF1B2F55)
+          : const Color(0xFFE3ECFF),
       onSecondaryContainer: isDark
-          ? const Color(0xFFB6EDE6)
-          : const Color(0xFF0B5F57),
+          ? const Color(0xFFD6E4FF)
+          : SkillNovaColors.primaryDark,
       tertiary: SkillNovaColors.worker,
       onTertiary: Colors.white,
       error: SkillNovaColors.error,
@@ -67,7 +73,9 @@ abstract final class SkillNovaTheme {
       surfaceContainerHighest: isDark
           ? const Color(0xFF2A3A52)
           : const Color(0xFFE3E8EF),
-      inverseSurface: isDark ? SkillNovaColors.surface : SkillNovaColors.secondary,
+      inverseSurface: isDark
+          ? SkillNovaColors.surface
+          : SkillNovaColors.secondary,
       onInverseSurface: isDark
           ? SkillNovaColors.textPrimary
           : SkillNovaColors.darkTextPrimary,
@@ -223,9 +231,8 @@ abstract final class SkillNovaTheme {
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? Colors.white
-              : null,
+          (states) =>
+              states.contains(WidgetState.selected) ? Colors.white : null,
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
@@ -257,6 +264,7 @@ abstract final class SkillNovaTheme {
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surface,
+        iconColor: scheme.primary,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: textTheme.titleLarge,
         contentTextStyle: textTheme.bodyMedium,

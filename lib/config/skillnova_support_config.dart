@@ -1,5 +1,8 @@
 abstract final class SkillNovaSupportConfig {
-  static const String supportEmail = 'support@korvennzatech';
+  /// The single official SkillNova support address, shown by the customer
+  /// and worker apps. The admin console mirrors it in
+  /// `skilllink_admin/lib/config/support_config.dart`.
+  static const String supportEmail = 'support@korvenzatech.com';
   static final Uri privacyPolicyUrl = Uri.parse(
     'https://skillnova-privacy-center.vercel.app/',
   );

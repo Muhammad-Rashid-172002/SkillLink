@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
 import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
@@ -55,59 +56,65 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Lead details')),
-      body: StreamBuilder<WorkerHomeProfile>(
-        stream: _workerStream,
-        builder: (context, workerSnapshot) {
-          if (workerSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (workerSnapshot.hasError || !workerSnapshot.hasData) {
-            return _errorState('Your worker profile could not be loaded.');
-          }
-          final worker = workerSnapshot.data!;
-          return StreamBuilder<WorkerLead?>(
-            stream: _streamFor(worker),
-            builder: (context, leadSnapshot) {
-              if (leadSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (leadSnapshot.hasError) {
-                return _errorState('This lead could not be loaded.');
-              }
-              final lead = leadSnapshot.data;
-              if (lead == null) return _missingState();
-              final eligibility = WorkerLeadEligibility.evaluate(worker, lead);
-              return Column(
-                children: [
-                  Expanded(
-                    child: ListView(
-                      key: ValueKey('lead-detail-${lead.id}'),
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                      children: [
-                        _serviceHeader(lead),
-                        const SizedBox(height: 12),
-                        _customerSummary(lead),
-                        const SizedBox(height: 12),
-                        _requestDetails(lead),
-                        const SizedBox(height: 12),
-                        _images(lead),
-                        const SizedBox(height: 12),
-                        _location(lead),
-                        const SizedBox(height: 12),
-                        _creditCost(worker),
-                        if (!eligibility.canAccept) ...[
+      body: ContentWidth(
+        maxWidth: 760,
+        child: StreamBuilder<WorkerHomeProfile>(
+          stream: _workerStream,
+          builder: (context, workerSnapshot) {
+            if (workerSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (workerSnapshot.hasError || !workerSnapshot.hasData) {
+              return _errorState('Your worker profile could not be loaded.');
+            }
+            final worker = workerSnapshot.data!;
+            return StreamBuilder<WorkerLead?>(
+              stream: _streamFor(worker),
+              builder: (context, leadSnapshot) {
+                if (leadSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (leadSnapshot.hasError) {
+                  return _errorState('This lead could not be loaded.');
+                }
+                final lead = leadSnapshot.data;
+                if (lead == null) return _missingState();
+                final eligibility = WorkerLeadEligibility.evaluate(
+                  worker,
+                  lead,
+                );
+                return Column(
+                  children: [
+                    Expanded(
+                      child: ListView(
+                        key: ValueKey('lead-detail-${lead.id}'),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        children: [
+                          _serviceHeader(lead),
                           const SizedBox(height: 12),
-                          _eligibilityState(eligibility),
+                          _customerSummary(lead),
+                          const SizedBox(height: 12),
+                          _requestDetails(lead),
+                          const SizedBox(height: 12),
+                          _images(lead),
+                          const SizedBox(height: 12),
+                          _location(lead),
+                          const SizedBox(height: 12),
+                          _creditCost(worker),
+                          if (!eligibility.canAccept) ...[
+                            const SizedBox(height: 12),
+                            _eligibilityState(eligibility),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  _bottomAction(worker, lead, eligibility),
-                ],
-              );
-            },
-          );
-        },
+                    _bottomAction(worker, lead, eligibility),
+                  ],
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -246,7 +253,7 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
           ],
           const SizedBox(height: 10),
           Text(
-            'The exact service address is kept private until this lead is accepted.',
+            'Customer contact options unlock once you accept this lead.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -641,18 +648,21 @@ class _LeadImageViewerState extends State<_LeadImageViewer> {
       foregroundColor: Colors.white,
       title: Text('${_index + 1} of ${widget.images.length}'),
     ),
-    body: PageView.builder(
-      controller: _controller,
-      itemCount: widget.images.length,
-      onPageChanged: (value) => setState(() => _index = value),
-      itemBuilder: (_, index) => InteractiveViewer(
-        minScale: 1,
-        maxScale: 4,
-        child: Image.network(
-          widget.images[index],
-          fit: BoxFit.contain,
-          errorBuilder: (_, _, _) => const Center(
-            child: Icon(Icons.broken_image_outlined, color: Colors.white),
+    body: ContentWidth(
+      maxWidth: 760,
+      child: PageView.builder(
+        controller: _controller,
+        itemCount: widget.images.length,
+        onPageChanged: (value) => setState(() => _index = value),
+        itemBuilder: (_, index) => InteractiveViewer(
+          minScale: 1,
+          maxScale: 4,
+          child: Image.network(
+            widget.images[index],
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => const Center(
+              child: Icon(Icons.broken_image_outlined, color: Colors.white),
+            ),
           ),
         ),
       ),

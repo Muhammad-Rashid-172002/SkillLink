@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class LoginForm extends StatefulWidget {
@@ -75,12 +76,12 @@ class _LoginFormState extends State<LoginForm> {
                     width: 56,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF16A34A), Color(0xFF0D9488)],
+                        colors: [kAdminBrand, kAdminBrandDark],
                       ),
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF16A34A).withOpacity(0.22),
+                          color: kAdminBrand.withOpacity(0.22),
                           blurRadius: 24,
                           offset: const Offset(0, 10),
                         ),
@@ -97,7 +98,7 @@ class _LoginFormState extends State<LoginForm> {
                     'Welcome to SkillNova Admin',
                     style: GoogleFonts.inter(
                       fontSize: widget.compact ? 28 : 32,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: -1,
                       color: const Color(0xFF0F172A),
                     ),
@@ -135,7 +136,7 @@ class _LoginFormState extends State<LoginForm> {
                     validator: (value) {
                       final email = value?.trim() ?? '';
                       if (email.isEmpty) {
-                        return 'Email address enter karein.';
+                        return 'Enter your email address.';
                       }
 
                       final validEmail = RegExp(
@@ -143,7 +144,7 @@ class _LoginFormState extends State<LoginForm> {
                       ).hasMatch(email);
 
                       if (!validEmail) {
-                        return 'Valid email address enter karein.';
+                        return 'Enter a valid email address.';
                       }
                       return null;
                     },
@@ -176,9 +177,9 @@ class _LoginFormState extends State<LoginForm> {
                     ),
                     validator: (value) {
                       final password = value ?? '';
-                      if (password.isEmpty) return 'Password enter karein.';
+                      if (password.isEmpty) return 'Enter your password.';
                       if (password.length < 6) {
-                        return 'Password kam az kam 6 characters ka hona chahiye.';
+                        return 'Password must be at least 6 characters.';
                       }
                       return null;
                     },
@@ -197,9 +198,8 @@ class _LoginFormState extends State<LoginForm> {
                     child: FilledButton(
                       onPressed: widget.isLoading ? null : _submit,
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF16A34A),
-                        disabledBackgroundColor:
-                            const Color(0xFF16A34A).withOpacity(0.55),
+                        backgroundColor: kAdminBrand,
+                        disabledBackgroundColor: kAdminBrand.withOpacity(0.55),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(17),
@@ -226,7 +226,7 @@ class _LoginFormState extends State<LoginForm> {
                                     'Continue to Dashboard',
                                     style: GoogleFonts.inter(
                                       fontSize: 14,
-                                      fontWeight: FontWeight.w800,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                   const SizedBox(width: 10),
@@ -252,7 +252,7 @@ class _LoginFormState extends State<LoginForm> {
                       children: [
                         const Icon(
                           Icons.shield_outlined,
-                          color: Color(0xFF16A34A),
+                          color: kAdminBrand,
                           size: 20,
                         ),
                         const SizedBox(width: 10),
@@ -323,13 +323,10 @@ class _LoginFormState extends State<LoginForm> {
       prefixIconColor: const Color(0xFF64748B),
       border: border(const Color(0xFFE2E8F0)),
       enabledBorder: border(const Color(0xFFE2E8F0)),
-      focusedBorder: border(const Color(0xFF16A34A), 1.8),
+      focusedBorder: border(kAdminBrand, 1.8),
       errorBorder: border(const Color(0xFFDC2626)),
       focusedErrorBorder: border(const Color(0xFFDC2626), 1.8),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 18,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
     );
   }
 }
@@ -379,7 +376,7 @@ class _RememberAndForgotRow extends StatelessWidget {
               width: 24,
               child: Checkbox(
                 value: rememberMe,
-                activeColor: const Color(0xFF16A34A),
+                activeColor: kAdminBrand,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -406,8 +403,8 @@ class _RememberAndForgotRow extends StatelessWidget {
             'Forgot password?',
             style: GoogleFonts.inter(
               fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF16A34A),
+              fontWeight: FontWeight.w700,
+              color: kAdminBrand,
             ),
           ),
         );
@@ -419,9 +416,7 @@ class _RememberAndForgotRow extends StatelessWidget {
           );
         }
 
-        return Row(
-          children: [rememberWidget, const Spacer(), forgotWidget],
-        );
+        return Row(children: [rememberWidget, const Spacer(), forgotWidget]);
       },
     );
   }

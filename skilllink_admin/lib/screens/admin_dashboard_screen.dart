@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skilllink_admin/models/dashboard_stats.dart';
@@ -46,11 +47,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     'Jobs',
     'Reviews',
     'Reports',
-    'Emergency Alerts',
+    'Emergency alerts',
     'Credits',
-    'Payment Requests',
+    'Payment requests',
     'Notifications',
-    'Verification Requests',
+    'Verifications',
     'Settings',
   ];
 
@@ -80,7 +81,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: kAdminCanvas,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final mobile = constraints.maxWidth < 760;
@@ -89,7 +90,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
           if (mobile) {
             return Scaffold(
-              backgroundColor: const Color(0xFFF4F7FB),
+              backgroundColor: kAdminCanvas,
               drawer: Drawer(
                 width: 270,
                 child: AdminSidebar(
@@ -110,7 +111,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 title: Text(
                   _pageTitles[_selectedIndex],
                   style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF0F172A),
                   ),
                 ),
@@ -130,6 +131,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   statsFuture: _statsFuture,
                   dashboardService: _dashboardService,
                   onRefresh: _refresh,
+                  onOpen: (index) => setState(() => _selectedIndex = index),
                 ),
 
                 1 => const AdminUsersScreen(),
@@ -154,7 +156,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                 11 => const AdminSettingsScreen(),
 
-                _ => _ComingSoonPage(title: _pageTitles[_selectedIndex]),
+                _ => const SizedBox.shrink(),
               },
             );
           }
@@ -186,6 +188,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           statsFuture: _statsFuture,
                           dashboardService: _dashboardService,
                           onRefresh: _refresh,
+                          onOpen: (index) =>
+                              setState(() => _selectedIndex = index),
                         ),
 
                         1 => const AdminUsersScreen(),
@@ -210,9 +214,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                         11 => const AdminSettingsScreen(),
 
-                        _ => _ComingSoonPage(
-                          title: _pageTitles[_selectedIndex],
-                        ),
+                        _ => const SizedBox.shrink(),
                       },
                     ),
                   ],
@@ -252,7 +254,7 @@ class _TopBar extends StatelessWidget {
             title,
             style: GoogleFonts.inter(
               fontSize: 22,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               letterSpacing: -0.5,
               color: const Color(0xFF0F172A),
             ),
@@ -268,12 +270,12 @@ class _TopBar extends StatelessWidget {
           const SizedBox(width: 14),
           CircleAvatar(
             radius: 20,
-            backgroundColor: const Color(0xFFE8F7ED),
+            backgroundColor: kAdminBrandSoft,
             child: Text(
               admin.name.isNotEmpty ? admin.name[0].toUpperCase() : 'A',
               style: GoogleFonts.inter(
-                color: const Color(0xFF16A34A),
-                fontWeight: FontWeight.w900,
+                color: kAdminBrand,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -286,7 +288,7 @@ class _TopBar extends StatelessWidget {
                 admin.name,
                 style: GoogleFonts.inter(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -311,6 +313,7 @@ class _DashboardBody extends StatelessWidget {
     required this.statsFuture,
     required this.dashboardService,
     required this.onRefresh,
+    required this.onOpen,
   });
 
   final AdminProfile admin;
@@ -318,212 +321,344 @@ class _DashboardBody extends StatelessWidget {
   final DashboardService dashboardService;
   final VoidCallback onRefresh;
 
+  /// Opens a console section by its sidebar index.
+  final ValueChanged<int> onOpen;
+
   @override
   Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? 'Good morning'
+        : hour < 17
+        ? 'Good afternoon'
+        : 'Good evening';
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _WelcomeCard(adminName: admin.name),
-            const SizedBox(height: 24),
-            FutureBuilder<DashboardStats>(
+        padding: const EdgeInsets.fromLTRB(28, 24, 28, 40),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1360),
+            child: FutureBuilder<DashboardStats>(
               future: statsFuture,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const _StatsLoadingGrid();
-                }
-
-                if (snapshot.hasError) {
-                  return _ErrorCard(
-                    message:
-                        'Dashboard data load nahi ho saka.\n${snapshot.error}',
-                    onRetry: onRefresh,
-                  );
-                }
-
-                final stats = snapshot.data!;
-
-                final cards = <Widget>[
-                  DashboardStatCard(
-                    title: 'Total Users',
-                    value: '${stats.totalUsers}',
-                    icon: Icons.groups_2_rounded,
-                    accent: const Color(0xFF2563EB),
-                    subtitle: 'Registered platform users',
-                  ),
-                  DashboardStatCard(
-                    title: 'Workers',
-                    value: '${stats.totalWorkers}',
-                    icon: Icons.engineering_rounded,
-                    accent: const Color(0xFF16A34A),
-                    subtitle: 'Service providers',
-                  ),
-                  DashboardStatCard(
-                    title: 'Customers',
-                    value: '${stats.totalCustomers}',
-                    icon: Icons.person_rounded,
-                    accent: const Color(0xFF7C3AED),
-                    subtitle: 'Service customers',
-                  ),
-                  DashboardStatCard(
-                    title: 'Total Jobs',
-                    value: '${stats.totalJobs}',
-                    icon: Icons.work_rounded,
-                    accent: const Color(0xFFEA580C),
-                    subtitle: 'All service requests',
-                  ),
-                  DashboardStatCard(
-                    title: 'Pending Jobs',
-                    value: '${stats.pendingJobs}',
-                    icon: Icons.schedule_rounded,
-                    accent: const Color(0xFFD97706),
-                    subtitle: 'Waiting for a worker',
-                  ),
-                  DashboardStatCard(
-                    title: 'Active SOS',
-                    value: '${stats.activeEmergencyAlerts}',
-                    icon: Icons.sos_rounded,
-                    accent: const Color(0xFFDC2626),
-                    subtitle: stats.activeEmergencyAlerts == 0
-                        ? 'No emergency requires action'
-                        : 'Immediate admin attention required',
-                  ),
-                  DashboardStatCard(
-                    title: 'Active Jobs',
-                    value: '${stats.activeJobs}',
-                    icon: Icons.play_circle_rounded,
-                    accent: const Color(0xFF0891B2),
-                    subtitle: 'Accepted or in progress',
-                  ),
-                  DashboardStatCard(
-                    title: 'Completed Jobs',
-                    value: '${stats.completedJobs}',
-                    icon: Icons.task_alt_rounded,
-                    accent: const Color(0xFF059669),
-                    subtitle: 'Successfully completed',
-                  ),
-                  DashboardStatCard(
-                    title: 'Reviews',
-                    value: '${stats.totalReviews}',
-                    icon: Icons.star_rounded,
-                    accent: const Color(0xFFEAB308),
-                    subtitle: 'Customer feedback',
-                  ),
-                ];
-
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final columns = constraints.maxWidth >= 1180
-                        ? 4
-                        : constraints.maxWidth >= 760
-                        ? 2
-                        : 1;
-                    final width =
-                        (constraints.maxWidth - ((columns - 1) * 16)) / columns;
-
-                    return Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: cards
-                          .map((card) => SizedBox(width: width, child: card))
-                          .toList(),
-                    );
-                  },
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < 920) {
-                  return Column(
-                    children: [
-                      _RecentJobsCard(service: dashboardService),
-                      const SizedBox(height: 18),
-                      _RecentUsersCard(service: dashboardService),
-                    ],
-                  );
-                }
-
-                return Row(
+                final stats = snapshot.data;
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      flex: 3,
-                      child: _RecentJobsCard(service: dashboardService),
+                    Text(
+                      '$greeting, ${admin.name.split(' ').first}',
+                      style: text.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    const SizedBox(width: 18),
-                    Expanded(
-                      flex: 2,
-                      child: _RecentUsersCard(service: dashboardService),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Here’s what needs your attention on SkillNova today.',
+                      style: text.bodyMedium?.copyWith(color: kAdminTextMuted),
+                    ),
+                    const SizedBox(height: 24),
+                    if (snapshot.hasError)
+                      _ErrorCard(
+                        message:
+                            'We couldn’t load the dashboard numbers. Check the '
+                            'connection and try again.',
+                        onRetry: onRefresh,
+                      )
+                    else if (stats == null)
+                      const _StatsLoadingGrid()
+                    else ...[
+                      _NeedsAttention(stats: stats, onOpen: onOpen),
+                      const SizedBox(height: 28),
+                      Text(
+                        'Platform overview',
+                        style: text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _KpiGrid(stats: stats, onOpen: onOpen),
+                    ],
+                    const SizedBox(height: 28),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        if (constraints.maxWidth < 920) {
+                          return Column(
+                            children: [
+                              _RecentJobsCard(service: dashboardService),
+                              const SizedBox(height: 18),
+                              _RecentUsersCard(service: dashboardService),
+                            ],
+                          );
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: _RecentJobsCard(service: dashboardService),
+                            ),
+                            const SizedBox(width: 18),
+                            Expanded(
+                              flex: 2,
+                              child: _RecentUsersCard(
+                                service: dashboardService,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 );
               },
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _WelcomeCard extends StatelessWidget {
-  const _WelcomeCard({required this.adminName});
+/// The queues an admin acts on, each linking straight to its section.
+class _NeedsAttention extends StatelessWidget {
+  const _NeedsAttention({required this.stats, required this.onOpen});
 
-  final String adminName;
+  final DashboardStats stats;
+  final ValueChanged<int> onOpen;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(26),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF16A34A), Color(0xFF0D9488)],
-        ),
-        borderRadius: BorderRadius.circular(24),
+    final items = [
+      (
+        'Identity verifications',
+        stats.pendingVerifications,
+        'waiting for review',
+        Icons.verified_user_outlined,
+        kAdminBrand,
+        10,
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -25,
-            top: -35,
-            child: Icon(
-              Icons.dashboard_customize_rounded,
-              size: 145,
-              color: Colors.white.withOpacity(0.09),
+      (
+        'Payment proofs',
+        stats.pendingPayments,
+        'waiting for approval',
+        Icons.receipt_long_outlined,
+        kAdminWarning,
+        8,
+      ),
+      (
+        'Active SOS alerts',
+        stats.activeEmergencyAlerts,
+        'need immediate action',
+        Icons.sos_rounded,
+        kAdminDanger,
+        6,
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 900 ? 3 : 1;
+        final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: [
+            for (final (label, count, detail, icon, color, index) in items)
+              SizedBox(
+                width: width,
+                child: _AttentionCard(
+                  label: label,
+                  count: count,
+                  detail: detail,
+                  icon: icon,
+                  color: color,
+                  onTap: () => onOpen(index),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AttentionCard extends StatelessWidget {
+  const _AttentionCard({
+    required this.label,
+    required this.count,
+    required this.detail,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final String detail;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final clear = count == 0;
+    return Semantics(
+      button: true,
+      label: '$label: ${clear ? 'none' : '$count $detail'}',
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: clear ? kAdminBorder : color.withValues(alpha: 0.45),
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: (clear ? kAdminTextMuted : color).withValues(
+                      alpha: 0.10,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: clear ? kAdminTextMuted : color),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: text.labelLarge?.copyWith(
+                          color: kAdminTextMuted,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        clear ? 'All clear' : '$count $detail',
+                        style: text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: clear ? kAdminSuccess : kAdminText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: kAdminTextMuted),
+              ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Welcome back, $adminName 👋',
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.7,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Monitor and manage users, workers, jobs, and platform activity from one powerful admin dashboard.',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  height: 1.6,
-                  color: Colors.white.withOpacity(0.82),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _KpiGrid extends StatelessWidget {
+  const _KpiGrid({required this.stats, required this.onOpen});
+
+  final DashboardStats stats;
+  final ValueChanged<int> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      DashboardStatCard(
+        title: 'Customers',
+        value: '${stats.totalCustomers}',
+        icon: Icons.person_outline_rounded,
+        accent: kAdminBrand,
+        subtitle: '${stats.totalUsers} accounts in total',
+        onTap: () => onOpen(1),
+      ),
+      DashboardStatCard(
+        title: 'Workers',
+        value: '${stats.totalWorkers}',
+        icon: Icons.engineering_outlined,
+        accent: kAdminBrand,
+        subtitle: 'Registered professionals',
+        onTap: () => onOpen(2),
+      ),
+      DashboardStatCard(
+        title: 'Open requests',
+        value: '${stats.pendingJobs}',
+        icon: Icons.schedule_rounded,
+        accent: kAdminWarning,
+        subtitle: 'Waiting for a professional',
+        onTap: () => onOpen(3),
+      ),
+      DashboardStatCard(
+        title: 'Jobs in progress',
+        value: '${stats.activeJobs}',
+        icon: Icons.play_circle_outline_rounded,
+        accent: kAdminBrand,
+        subtitle: 'Accepted, on the way or started',
+        onTap: () => onOpen(3),
+      ),
+      DashboardStatCard(
+        title: 'Completed jobs',
+        value: '${stats.completedJobs}',
+        icon: Icons.task_alt_rounded,
+        accent: kAdminSuccess,
+        subtitle: 'of ${stats.totalJobs} requests overall',
+        onTap: () => onOpen(3),
+      ),
+      DashboardStatCard(
+        title: 'Reviews',
+        value: '${stats.totalReviews}',
+        icon: Icons.star_outline_rounded,
+        accent: kAdminWarning,
+        subtitle: 'Left by customers',
+        onTap: () => onOpen(4),
+      ),
+      DashboardStatCard(
+        title: 'Credit transactions',
+        value: '${stats.totalTransactions}',
+        icon: Icons.account_balance_wallet_outlined,
+        accent: kAdminBrand,
+        subtitle: 'Purchases and lead spends',
+        onTap: () => onOpen(7),
+      ),
+      DashboardStatCard(
+        title: 'SOS alerts',
+        value: '${stats.totalEmergencyAlerts}',
+        icon: Icons.sos_rounded,
+        accent: kAdminDanger,
+        subtitle: '${stats.activeEmergencyAlerts} currently active',
+        onTap: () => onOpen(6),
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1100
+            ? 4
+            : constraints.maxWidth >= 640
+            ? 2
+            : 1;
+        final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: [
+            for (final card in cards) SizedBox(width: width, child: card),
+          ],
+        );
+      },
     );
   }
 }
@@ -543,7 +678,7 @@ class _RecentJobsCard extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return const _InlineMessage(
-              'Recent jobs load nahi ho sake. createdAt index/field check karein.',
+              'We couldn’t load recent jobs. Refresh to try again.',
             );
           }
 
@@ -554,7 +689,7 @@ class _RecentJobsCard extends StatelessWidget {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const _InlineMessage('Abhi koi job request nahi hai.');
+            return const _InlineMessage('No job requests yet.');
           }
 
           return Column(
@@ -596,7 +731,7 @@ class _RecentUsersCard extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return const _InlineMessage(
-              'Recent users load nahi ho sake. createdAt field check karein.',
+              'We couldn’t load recent users. Refresh to try again.',
             );
           }
 
@@ -607,7 +742,7 @@ class _RecentUsersCard extends StatelessWidget {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const _InlineMessage('Abhi koi registered user nahi hai.');
+            return const _InlineMessage('No registered users yet.');
           }
 
           return Column(
@@ -661,7 +796,7 @@ class _SectionCard extends StatelessWidget {
             title,
             style: GoogleFonts.inter(
               fontSize: 16,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -727,7 +862,7 @@ class _JobRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF0F172A),
                   ),
                 ),
@@ -756,7 +891,7 @@ class _JobRow extends StatelessWidget {
               style: GoogleFonts.inter(
                 color: color,
                 fontSize: 8.5,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -784,12 +919,12 @@ class _UserRow extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 20,
-            backgroundColor: const Color(0xFFE8F7ED),
+            backgroundColor: kAdminBrandSoft,
             child: Text(
               name.isNotEmpty ? name[0].toUpperCase() : 'U',
               style: GoogleFonts.inter(
-                color: const Color(0xFF16A34A),
-                fontWeight: FontWeight.w900,
+                color: kAdminBrand,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -804,7 +939,7 @@ class _UserRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF0F172A),
                   ),
                 ),
@@ -825,7 +960,7 @@ class _UserRow extends StatelessWidget {
             role.toUpperCase(),
             style: GoogleFonts.inter(
               fontSize: 8.5,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF64748B),
             ),
           ),
@@ -843,7 +978,7 @@ class _StatsLoadingGrid extends StatelessWidget {
     return const Center(
       child: Padding(
         padding: EdgeInsets.all(30),
-        child: CircularProgressIndicator(color: Color(0xFF16A34A)),
+        child: CircularProgressIndicator(color: kAdminBrand),
       ),
     );
   }
@@ -857,10 +992,7 @@ class _InlineLoader extends StatelessWidget {
     return const Center(
       child: Padding(
         padding: EdgeInsets.all(22),
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-          color: Color(0xFF16A34A),
-        ),
+        child: CircularProgressIndicator(strokeWidth: 2.5, color: kAdminBrand),
       ),
     );
   }
@@ -920,51 +1052,6 @@ class _ErrorCard extends StatelessWidget {
           ),
           TextButton(onPressed: onRetry, child: const Text('Retry')),
         ],
-      ),
-    );
-  }
-}
-
-class _ComingSoonPage extends StatelessWidget {
-  const _ComingSoonPage({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(28),
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFE6ECF2)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.construction_rounded,
-              size: 52,
-              color: Color(0xFF16A34A),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '$title module',
-              style: GoogleFonts.inter(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Ye screen next step mein banayenge.',
-              style: GoogleFonts.inter(color: const Color(0xFF64748B)),
-            ),
-          ],
-        ),
       ),
     );
   }

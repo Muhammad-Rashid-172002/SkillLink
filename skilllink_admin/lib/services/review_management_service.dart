@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReviewManagementService {
   ReviewManagementService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -69,57 +69,46 @@ class ManagedReview {
 
   factory ManagedReview.fromDocument(
     QueryDocumentSnapshot<Map<String, dynamic>> document,
-  ) {
-    final data = document.data();
+  ) => ManagedReview.fromMap(document.id, document.data());
 
+  factory ManagedReview.fromMap(String id, Map<String, dynamic> data) {
     return ManagedReview(
-      id: document.id,
-      rating: _firstDouble(
-        data,
-        const ['rating', 'stars', 'score'],
-      ),
-      comment: _firstString(
-        data,
-        const ['comment', 'review', 'message', 'feedback'],
-        fallback: 'No written feedback',
-      ),
-      customerName: _firstString(
-        data,
-        const ['customerName', 'reviewerName', 'userName', 'name'],
-        fallback: 'Customer',
-      ),
-      customerEmail: _firstString(
-        data,
-        const ['customerEmail', 'reviewerEmail', 'userEmail'],
-        fallback: 'No email',
-      ),
-      workerName: _firstString(
-        data,
-        const ['workerName', 'providerName'],
-        fallback: 'Worker',
-      ),
-      workerEmail: _firstString(
-        data,
-        const ['workerEmail', 'providerEmail'],
-        fallback: 'No email',
-      ),
-      jobTitle: _firstString(
-        data,
-        const ['jobTitle', 'serviceName', 'category', 'title'],
-        fallback: 'Service Job',
-      ),
-      isHidden: _firstBool(
-        data,
-        const ['isHidden', 'hidden'],
-      ),
-      isFlagged: _firstBool(
-        data,
-        const ['isFlagged', 'flagged', 'reported'],
-      ),
-      createdAt: _firstDate(
-        data,
-        const ['createdAt', 'submittedAt', 'date'],
-      ),
+      id: id,
+      rating: _firstDouble(data, const ['rating', 'stars', 'score']),
+      comment: _firstString(data, const [
+        'comment',
+        'review',
+        'message',
+        'feedback',
+      ], fallback: 'No written feedback'),
+      customerName: _firstString(data, const [
+        'customerName',
+        'reviewerName',
+        'userName',
+        'name',
+      ], fallback: 'Customer'),
+      customerEmail: _firstString(data, const [
+        'customerEmail',
+        'reviewerEmail',
+        'userEmail',
+      ], fallback: 'No email'),
+      workerName: _firstString(data, const [
+        'workerName',
+        'providerName',
+      ], fallback: 'Worker'),
+      workerEmail: _firstString(data, const [
+        'workerEmail',
+        'providerEmail',
+      ], fallback: 'No email'),
+      jobTitle: _firstString(data, const [
+        'jobTitle',
+        'serviceName',
+        'category',
+        'title',
+      ], fallback: 'Service Job'),
+      isHidden: _firstBool(data, const ['isHidden', 'hidden']),
+      isFlagged: _firstBool(data, const ['isFlagged', 'flagged', 'reported']),
+      createdAt: _firstDate(data, const ['createdAt', 'submittedAt', 'date']),
       rawData: data,
     );
   }
@@ -138,10 +127,7 @@ class ManagedReview {
     return fallback;
   }
 
-  static double _firstDouble(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static double _firstDouble(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
       if (value is double) return value;
@@ -154,10 +140,7 @@ class ManagedReview {
     return 0;
   }
 
-  static bool _firstBool(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static bool _firstBool(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
       if (value is bool) return value;
@@ -165,10 +148,7 @@ class ManagedReview {
     return false;
   }
 
-  static DateTime? _firstDate(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static DateTime? _firstDate(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
 

@@ -451,23 +451,44 @@ class StatTile extends StatelessWidget {
 /// Constrains page content to a readable width on tablets/desktop and keeps
 /// the standard gutter on phones.
 class ContentWidth extends StatelessWidget {
-  const ContentWidth({
-    super.key,
-    required this.child,
-    this.maxWidth = 760,
-  });
+  const ContentWidth({super.key, required this.child, this.maxWidth = 760});
 
   final Widget child;
   final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
+    // heightFactor 1: size to the child, so this also works inside bottom
+    // bars instead of expanding to fill the screen.
     return Align(
       alignment: Alignment.topCenter,
+      heightFactor: 1,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: child,
       ),
     );
   }
+}
+
+/// App bar for a primary tab (Bookings, Profile, ...): a large title that
+/// matches tabs with in-content headers, and a back arrow only when the page
+/// was pushed rather than shown as a tab.
+PreferredSizeWidget tabRootAppBar(
+  BuildContext context,
+  String title, {
+  List<Widget>? actions,
+  PreferredSizeWidget? bottom,
+  bool automaticallyImplyLeading = true,
+}) {
+  return AppBar(
+    toolbarHeight: 64,
+    automaticallyImplyLeading: automaticallyImplyLeading,
+    title: Semantics(
+      header: true,
+      child: Text(title, style: Theme.of(context).textTheme.headlineSmall),
+    ),
+    actions: actions,
+    bottom: bottom,
+  );
 }

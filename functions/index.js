@@ -2,6 +2,7 @@
 const {
   onDocumentCreated,
   onDocumentUpdated,
+  onDocumentWritten,
 } = require("firebase-functions/v2/firestore");
 
 const {initializeApp} = require("firebase-admin/app");
@@ -12,6 +13,8 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const nodemailer = require("nodemailer");
 const logger = require("firebase-functions/logger");
+const jobTargeting = require("./job_targeting");
+const {computeRatingAggregate} = require("./rating_aggregate");
 initializeApp();
 
 const smtpAppPassword = defineSecret("SMTP_APP_PASSWORD");
@@ -543,6 +546,7 @@ exports.sendJobNotification = onDocumentCreated(
         return;
       }
 
+      const requestId = event.params.requestId;
       const requestData = snapshot.data();
       const firestore = getFirestore();
 
@@ -553,34 +557,80 @@ exports.sendJobNotification = onDocumentCreated(
       const workerId = requestData.workerId || "";
       const isDirectRequest = requestData.isDirectRequest === true;
 
-      let workerSnapshots;
+      // Who hears about this request is decided here, not on the customer's
+      // phone: direct requests reach the chosen worker only; public requests
+      // reach eligible workers whose trade matches the category.
+      let recipients = [];
 
       if (isDirectRequest && workerId) {
         const workerSnapshot = await firestore
             .collection("users")
             .doc(workerId)
             .get();
-
-        workerSnapshots = workerSnapshot.exists ? [workerSnapshot] : [];
-      } else {
-        const workersQuery = await firestore
+        const workerData = workerSnapshot.exists ? workerSnapshot.data() : null;
+        if (workerData && workerData.role === "worker" &&
+            workerId !== customerId) {
+          recipients = [{id: workerSnapshot.id, data: workerData}];
+        }
+      } else if (!isDirectRequest) {
+        const skills = jobTargeting.candidateSkillValues(category);
+        const workersQuery = skills.length === 0 ? null : await firestore
             .collection("users")
-            .where("role", "==", "worker")
+            .where("skill", "in", skills)
             .get();
+        const workers = workersQuery ?
+          workersQuery.docs.map((doc) => ({id: doc.id, data: doc.data()})) :
+          [];
+        recipients = jobTargeting.selectWorkersForRequest(
+            workers, category, customerId);
+      }
 
-        workerSnapshots = workersQuery.docs;
+      if (recipients.length === 0) {
+        logger.info("No matching workers for request.", {
+          requestId, category, isDirectRequest,
+        });
+        return;
+      }
+
+      // In-app notifications. Deterministic ids make a retried trigger a
+      // no-op instead of a duplicate.
+      const title = isDirectRequest ? "Direct Job Request" : "New Job Available";
+      const message = isDirectRequest ?
+        `A customer sent you a direct ${category} service request.` :
+        `${category} job posted near you.`;
+      for (let i = 0; i < recipients.length; i += 400) {
+        const batch = firestore.batch();
+        for (const worker of recipients.slice(i, i + 400)) {
+          const ref = firestore
+              .collection("notifications")
+              .doc(`job_${requestId}_${worker.id}`);
+          batch.set(ref, {
+            userId: worker.id,
+            requestId,
+            customerId,
+            workerId: worker.id,
+            title,
+            message,
+            type: isDirectRequest ? "direct_job" : "job",
+            isDirectRequest,
+            isRead: false,
+            createdAt: new Date(),
+          }, {merge: true});
+        }
+        await batch.commit();
       }
 
       const messages = [];
+      const messageWorkers = [];
 
-      for (const workerSnapshot of workerSnapshots) {
-        const workerData = workerSnapshot.data() || {};
-        const token = workerData.fcmToken;
+      for (const worker of recipients) {
+        const token = worker.data.fcmToken;
 
         if (!token) {
           continue;
         }
 
+        messageWorkers.push(worker);
         messages.push({
           token: token,
 
@@ -593,9 +643,9 @@ exports.sendJobNotification = onDocumentCreated(
 
           data: {
             type: isDirectRequest ? "direct_job" : "job",
-            requestId: event.params.requestId,
+            requestId: requestId,
             customerId: customerId,
-            workerId: workerSnapshot.id,
+            workerId: worker.id,
             category: category,
             location: location,
             budget: budget.toString(),
@@ -622,7 +672,7 @@ exports.sendJobNotification = onDocumentCreated(
       }
 
       if (messages.length === 0) {
-        logger.info("No workers with FCM tokens found.");
+        logger.info("No matching workers with FCM tokens found.", {requestId});
         return;
       }
 
@@ -632,12 +682,12 @@ exports.sendJobNotification = onDocumentCreated(
         logger.info("Job notifications processed.", {
           successCount: response.successCount,
           failureCount: response.failureCount,
-          requestId: event.params.requestId,
+          requestId: requestId,
         });
 
         response.responses.forEach((result, index) => {
           if (!result.success) {
-            const failedWorker = workerSnapshots[index];
+            const failedWorker = messageWorkers[index];
 
             logger.error("Job notification failed.", {
               workerId: failedWorker ? failedWorker.id : "unknown",
@@ -1762,37 +1812,35 @@ exports.syncWorkerCompletedJobs = onDocumentUpdated(
 );
 
 /**
- * Recomputes a worker's rating server-side whenever a review is created, so
- * ratings no longer depend on a client writing another user's profile.
+ * Recomputes a worker's rating server-side whenever a review is created,
+ * changed (e.g. hidden by an admin) or deleted. Clients only submit reviews;
+ * security rules stop them writing rating/totalReviews.
  */
-exports.syncWorkerRating = onDocumentCreated(
+exports.syncWorkerRating = onDocumentWritten(
     "reviews/{reviewId}",
     async (event) => {
-      const review = event.data && event.data.data();
-      const workerId = review && String(review.workerId || "").trim();
-      if (!workerId) return;
+      const before = event.data.before.exists ? event.data.before.data() : {};
+      const after = event.data.after.exists ? event.data.after.data() : {};
+      const workerIds = new Set([
+        String(before.workerId || "").trim(),
+        String(after.workerId || "").trim(),
+      ].filter(Boolean));
+      if (workerIds.size === 0) return;
 
       const firestore = getFirestore();
-      const snapshot = await firestore
-          .collection("reviews")
-          .where("workerId", "==", workerId)
-          .get();
+      for (const workerId of workerIds) {
+        const snapshot = await firestore
+            .collection("reviews")
+            .where("workerId", "==", workerId)
+            .get();
+        const aggregate = computeRatingAggregate(
+            snapshot.docs.map((doc) => doc.data()));
 
-      let total = 0;
-      let count = 0;
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const rating = Number(data.rating);
-        if (data.isHidden === true || data.isDeleted === true) return;
-        if (!Number.isFinite(rating) || rating < 1 || rating > 5) return;
-        total += rating;
-        count += 1;
-      });
-
-      await firestore.collection("users").doc(workerId).set({
-        rating: count === 0 ? 0 : Math.round((total / count) * 10) / 10,
-        totalReviews: count,
-        statsUpdatedAt: new Date(),
-      }, {merge: true});
+        await firestore.collection("users").doc(workerId).set({
+          rating: aggregate.rating,
+          totalReviews: aggregate.totalReviews,
+          statsUpdatedAt: new Date(),
+        }, {merge: true});
+      }
     },
 );

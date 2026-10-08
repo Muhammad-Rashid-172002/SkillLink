@@ -47,8 +47,8 @@ class _AdminEmergencyAlertsScreenState
               if (snapshot.hasError) {
                 return _messageState(
                   icon: Icons.cloud_off_rounded,
-                  title: 'Emergency alerts load nahi ho sake',
-                  subtitle: '${snapshot.error}',
+                  title: 'We couldn’t load emergency alerts',
+                  subtitle: 'Refresh to try again.',
                 );
               }
 
@@ -204,7 +204,7 @@ class _AdminEmergencyAlertsScreenState
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 24,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: -0.7,
                       ),
                     ),
@@ -237,7 +237,7 @@ class _AdminEmergencyAlertsScreenState
                   style: GoogleFonts.inter(
                     color: Colors.white,
                     fontSize: 11,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -321,7 +321,7 @@ class _AdminEmergencyAlertsScreenState
                   '${item.value}',
                   style: GoogleFonts.inter(
                     fontSize: 21,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: _text,
                   ),
                 ),
@@ -475,7 +475,7 @@ class _AdminEmergencyAlertsScreenState
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         fontSize: 15,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         color: _text,
                       ),
                     ),
@@ -576,7 +576,7 @@ class _AdminEmergencyAlertsScreenState
         style: GoogleFonts.inter(
           color: design.color,
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -606,7 +606,7 @@ class _AdminEmergencyAlertsScreenState
             style: GoogleFonts.inter(
               color: _text,
               fontSize: 10.5,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -643,13 +643,13 @@ class _AdminEmergencyAlertsScreenState
             'No emergency alerts found',
             style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: _text,
             ),
           ),
           const SizedBox(height: 7),
           Text(
-            'Selected filter ya search ke mutabiq koi alert available nahi hai.',
+            'No alerts match your search or filters.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(color: _muted, fontSize: 11.5),
           ),
@@ -675,7 +675,7 @@ class _AdminEmergencyAlertsScreenState
               title,
               style: GoogleFonts.inter(
                 fontSize: 18,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 7),
@@ -827,7 +827,7 @@ class _AdminEmergencyAlertsScreenState
                                   'Emergency Alert Details',
                                   style: GoogleFonts.inter(
                                     fontSize: 19,
-                                    fontWeight: FontWeight.w900,
+                                    fontWeight: FontWeight.w700,
                                     color: _text,
                                   ),
                                 ),
@@ -934,7 +934,7 @@ class _AdminEmergencyAlertsScreenState
               style: GoogleFonts.inter(
                 color: _text,
                 fontSize: 11,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -970,7 +970,7 @@ class _AdminEmergencyAlertsScreenState
                 Text(
                   '$title: $name',
                   style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: _text,
                   ),
                 ),
@@ -1005,7 +1005,7 @@ class _AdminEmergencyAlertsScreenState
     final uri = Uri.tryParse(url);
     if (uri == null ||
         !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      _snack('Google Maps open nahi ho saka.', error: true);
+      _snack('Couldn’t open Google Maps.', error: true);
     }
   }
 
@@ -1014,7 +1014,7 @@ class _AdminEmergencyAlertsScreenState
     if (clean.isEmpty) return;
     final uri = Uri(scheme: 'tel', path: clean);
     if (!await launchUrl(uri)) {
-      _snack('Phone dialer open nahi ho saka.', error: true);
+      _snack('Couldn’t open the phone dialer.', error: true);
     }
   }
 

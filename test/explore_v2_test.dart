@@ -156,7 +156,8 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.tap(find.text('Recommended'));
+      // At 320px the sort button reads "Sort" so it never truncates.
+      await tester.tap(find.text('Sort'));
       await tester.pumpAndSettle();
       expect(find.text('Nearest'), findsNothing);
       Navigator.of(tester.element(find.text('Sort professionals'))).pop();

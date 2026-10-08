@@ -207,10 +207,20 @@ void main() {
       ),
     );
     for (final mode in ThemeMode.values) {
+      await tester.scrollUntilVisible(
+        find.byKey(Key('theme-${mode.name}')),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pump();
       await tester.tap(find.byKey(Key('theme-${mode.name}')));
       await tester.pump();
       expect(preferences.themeMode, mode);
     }
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('local-notification-switch')),
+      -200,
+    );
     await tester.tap(find.byKey(const Key('local-notification-switch')));
     await tester.pump();
     expect(preferences.localNotificationsEnabled, isFalse);

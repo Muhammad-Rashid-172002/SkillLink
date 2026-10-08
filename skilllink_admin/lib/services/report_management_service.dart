@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReportManagementService {
   ReportManagementService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -87,65 +87,65 @@ class ManagedReport {
 
     return ManagedReport(
       id: document.id,
-      title: _firstString(
-        data,
-        const ['title', 'subject', 'reason'],
-        fallback: 'User Complaint',
-      ),
-      description: _firstString(
-        data,
-        const ['description', 'details', 'message', 'complaint'],
-        fallback: 'No description provided',
-      ),
-      type: _firstString(
-        data,
-        const ['type', 'category', 'reportType'],
-        fallback: 'general',
-      ).toLowerCase(),
-      status: _firstString(
-        data,
-        const ['status'],
-        fallback: 'open',
-      ).toLowerCase(),
-      priority: _firstString(
-        data,
-        const ['priority', 'severity'],
-        fallback: 'medium',
-      ).toLowerCase(),
-      reporterName: _firstString(
-        data,
-        const ['reporterName', 'customerName', 'userName', 'submittedByName'],
-        fallback: 'Reporter',
-      ),
-      reporterEmail: _firstString(
-        data,
-        const ['reporterEmail', 'customerEmail', 'userEmail'],
-        fallback: 'No email',
-      ),
-      reportedUserName: _firstString(
-        data,
-        const ['reportedUserName', 'workerName', 'targetUserName'],
-        fallback: 'Not specified',
-      ),
-      reportedUserEmail: _firstString(
-        data,
-        const ['reportedUserEmail', 'workerEmail', 'targetUserEmail'],
-        fallback: 'No email',
-      ),
-      jobTitle: _firstString(
-        data,
-        const ['jobTitle', 'serviceName', 'category'],
-        fallback: 'Not linked',
-      ),
-      createdAt: _firstDate(
-        data,
-        const ['createdAt', 'reportedAt', 'submittedAt'],
-      ),
-      resolutionNote: _firstString(
-        data,
-        const ['resolutionNote', 'adminNote', 'note'],
-        fallback: '',
-      ),
+      title: _firstString(data, const [
+        'title',
+        'subject',
+        'reason',
+      ], fallback: 'User Complaint'),
+      description: _firstString(data, const [
+        'description',
+        'details',
+        'message',
+        'complaint',
+      ], fallback: 'No description provided'),
+      type: _firstString(data, const [
+        'type',
+        'category',
+        'reportType',
+      ], fallback: 'general').toLowerCase(),
+      status: _firstString(data, const [
+        'status',
+      ], fallback: 'open').toLowerCase(),
+      priority: _firstString(data, const [
+        'priority',
+        'severity',
+      ], fallback: 'medium').toLowerCase(),
+      reporterName: _firstString(data, const [
+        'reporterName',
+        'customerName',
+        'userName',
+        'submittedByName',
+      ], fallback: 'Reporter'),
+      reporterEmail: _firstString(data, const [
+        'reporterEmail',
+        'customerEmail',
+        'userEmail',
+      ], fallback: 'No email'),
+      reportedUserName: _firstString(data, const [
+        'reportedUserName',
+        'workerName',
+        'targetUserName',
+      ], fallback: 'Not specified'),
+      reportedUserEmail: _firstString(data, const [
+        'reportedUserEmail',
+        'workerEmail',
+        'targetUserEmail',
+      ], fallback: 'No email'),
+      jobTitle: _firstString(data, const [
+        'jobTitle',
+        'serviceName',
+        'category',
+      ], fallback: 'Not linked'),
+      createdAt: _firstDate(data, const [
+        'createdAt',
+        'reportedAt',
+        'submittedAt',
+      ]),
+      resolutionNote: _firstString(data, const [
+        'resolutionNote',
+        'adminNote',
+        'note',
+      ], fallback: ''),
       rawData: data,
     );
   }
@@ -164,10 +164,7 @@ class ManagedReport {
     return fallback;
   }
 
-  static DateTime? _firstDate(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static DateTime? _firstDate(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
 

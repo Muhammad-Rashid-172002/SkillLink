@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_components.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_detail_screen.dart';
@@ -70,22 +71,24 @@ class _WorkerJobsScreenState extends State<WorkerJobsScreen> {
       appBar: widget.embedded
           ? null
           : AppBar(leading: const BackButton(), title: const Text('My jobs')),
-      body: SafeArea(
-        top: widget.embedded,
-        child: Column(
-          children: [
-            _header(context),
-            Expanded(child: _jobStream()),
-          ],
+      body: ContentWidth(
+        maxWidth: 760,
+        child: SafeArea(
+          top: widget.embedded,
+          child: Column(
+            children: [
+              _header(context),
+              Expanded(child: _jobStream()),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _header(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    // Sits on the page canvas like the other tab headers (no white band).
     return Container(
-      color: colors.surface,
       padding: const EdgeInsets.fromLTRB(
         SkillNovaSpacing.md,
         SkillNovaSpacing.md,

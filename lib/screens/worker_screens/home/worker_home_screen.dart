@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_feedback.dart';
 import 'package:skill_link/Notification_screen/notification_screen.dart';
@@ -93,20 +94,23 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
       bottomNavigationBar: embedded
           ? null
           : const WorkerBottomBar(selectedIndex: 0),
-      body: SafeArea(
-        bottom: false,
-        child: StreamBuilder<WorkerHomeProfile>(
-          stream: _profileStream,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError || !snapshot.hasData) {
-              return WorkerHomeErrorState(onRetry: _retry);
-            }
-            return _dashboard(snapshot.data!);
-          },
+      body: ContentWidth(
+        maxWidth: 760,
+        child: SafeArea(
+          bottom: false,
+          child: StreamBuilder<WorkerHomeProfile>(
+            stream: _profileStream,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError || !snapshot.hasData) {
+                return WorkerHomeErrorState(onRetry: _retry);
+              }
+              return _dashboard(snapshot.data!);
+            },
+          ),
         ),
       ),
     );

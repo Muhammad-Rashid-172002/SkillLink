@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/design_system/widgets/skillnova_map.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
@@ -38,7 +39,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
       return const _ProfileSignedOutState();
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: tabRootAppBar(context, 'Profile'),
       body: StreamBuilder<CustomerProfile>(
         stream: _repository.watchProfile(),
         builder: (context, snapshot) {

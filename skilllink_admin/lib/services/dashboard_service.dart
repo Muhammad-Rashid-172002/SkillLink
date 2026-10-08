@@ -32,9 +32,19 @@ class DashboardService {
         query: users.where('role', isEqualTo: 'customer'),
       ),
       _countCollection('requests'),
+      // Open requests are written as `searching` (public) or
+      // `waiting_worker` (direct); `pending`/`requested` are legacy values.
       _countCollection(
         'requests',
-        query: requests.where('status', isEqualTo: 'pending'),
+        query: requests.where(
+          'status',
+          whereIn: const [
+            'searching',
+            'waiting_worker',
+            'pending',
+            'requested',
+          ],
+        ),
       ),
       _countActiveJobs(requests),
       _countCollection(
@@ -51,6 +61,18 @@ class DashboardService {
           whereIn: const ['active', 'investigating'],
         ),
       ),
+      _countCollection(
+        'verification_requests',
+        query: _firestore
+            .collection('verification_requests')
+            .where('identityStatus', isEqualTo: 'pending'),
+      ),
+      _countCollection(
+        'payment_requests',
+        query: _firestore
+            .collection('payment_requests')
+            .where('status', isEqualTo: 'pending'),
+      ),
     ]);
 
     return DashboardStats(
@@ -65,6 +87,8 @@ class DashboardService {
       totalTransactions: results[8],
       totalEmergencyAlerts: results[9],
       activeEmergencyAlerts: results[10],
+      pendingVerifications: results[11],
+      pendingPayments: results[12],
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -259,7 +260,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
               ],
             ),
           ),
-          Text('Rs. $_amount', style: text.titleLarge),
+          Text(formatWorkerJobBudget('$_amount'), style: text.titleLarge),
         ],
       ),
     );

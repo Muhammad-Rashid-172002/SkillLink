@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/config/skillnova_support_config.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/screens/Role_selection_screen/role_selection.dart';
@@ -161,7 +162,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Professional profile')),
+      appBar: tabRootAppBar(context, 'Profile'),
       body: StreamBuilder<WorkerProfile>(
         stream: _profileStream,
         builder: (context, snapshot) {
@@ -345,8 +346,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               ProfileMenuTile(
                 icon: Icons.settings_outlined,
                 title: 'Account & settings',
-                subtitle:
-                    'Identity, privacy, theme, notifications, and security',
+                subtitle: 'Notifications, appearance and privacy',
                 onTap: () => _runOrOpen(
                   widget.onSettings,
                   WorkerSettingsScreen(

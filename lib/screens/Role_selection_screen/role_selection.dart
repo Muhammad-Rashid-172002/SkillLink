@@ -78,7 +78,11 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
             subtitle:
                 'Request help at home, compare professionals and track the job.',
             icon: Icons.person_search_rounded,
-            highlights: const ['Post requests', 'Compare pros', 'Live tracking'],
+            highlights: const [
+              'Post requests',
+              'Compare pros',
+              'Live tracking',
+            ],
             selected: _selected == UserRole.customer,
             onTap: () => setState(() => _selected = UserRole.customer),
           ),

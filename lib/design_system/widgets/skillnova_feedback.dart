@@ -46,7 +46,10 @@ abstract final class SkillNovaToast {
           ),
           action: actionLabel == null
               ? null
-              : SnackBarAction(label: actionLabel, onPressed: onAction ?? () {}),
+              : SnackBarAction(
+                  label: actionLabel,
+                  onPressed: onAction ?? () {},
+                ),
         ),
       );
   }
@@ -138,7 +141,9 @@ class SkillNovaStatusView extends StatelessWidget {
                 ),
                 child: Icon(icon, color: accent, size: iconSize * 0.46),
               ),
-              SizedBox(height: compact ? SkillNovaSpacing.md : SkillNovaSpacing.lg),
+              SizedBox(
+                height: compact ? SkillNovaSpacing.md : SkillNovaSpacing.lg,
+              ),
               Text(
                 title,
                 textAlign: TextAlign.center,
@@ -268,7 +273,8 @@ class SkeletonList extends StatelessWidget {
           padding: padding ?? const EdgeInsets.all(SkillNovaSpacing.gutter),
           physics: const NeverScrollableScrollPhysics(),
           itemCount: count,
-          separatorBuilder: (_, _) => const SizedBox(height: SkillNovaSpacing.md),
+          separatorBuilder: (_, _) =>
+              const SizedBox(height: SkillNovaSpacing.md),
           itemBuilder: (_, _) => const Row(
             children: [
               SkeletonBox(width: 48, height: 48, radius: 14),

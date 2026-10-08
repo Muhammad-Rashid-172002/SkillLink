@@ -275,7 +275,17 @@ class _ExploreState extends State<Explore> {
                 ),
                 onPressed: () => _openSort(location),
                 icon: const Icon(Icons.swap_vert_rounded, size: 19),
-                label: Text(_sort.label, overflow: TextOverflow.ellipsis),
+                // On narrow phones the full sort name doesn't fit beside
+                // Filters; show "Sort" and keep the choice in the tooltip.
+                label: Tooltip(
+                  message: 'Sorted by ${_sort.label.toLowerCase()}',
+                  child: Text(
+                    MediaQuery.sizeOf(context).width < 380
+                        ? 'Sort'
+                        : _sort.label,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
             ),
           ],

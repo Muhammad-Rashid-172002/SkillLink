@@ -37,8 +37,8 @@ abstract final class AuthErrors {
           'option.',
     'google-token-missing' =>
       'Google didn’t confirm your sign-in. Please try again.',
-    'user-token-expired' || 'requires-recent-login' =>
-      'Your session expired. Please sign in again.',
+    'user-token-expired' ||
+    'requires-recent-login' => 'Your session expired. Please sign in again.',
     _ => generic,
   };
 
@@ -83,8 +83,7 @@ abstract final class AuthValidators {
     final text = value ?? '';
     if (text.isEmpty) return 'Create a password.';
     if (text.length < 8) return 'Use at least 8 characters.';
-    if (!RegExp(r'[A-Za-z]').hasMatch(text) ||
-        !RegExp(r'\d').hasMatch(text)) {
+    if (!RegExp(r'[A-Za-z]').hasMatch(text) || !RegExp(r'\d').hasMatch(text)) {
       return 'Include at least one letter and one number.';
     }
     return null;

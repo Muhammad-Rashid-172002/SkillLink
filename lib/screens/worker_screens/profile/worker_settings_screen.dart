@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skill_link/screens/shared/security_settings_section.dart';
 import 'package:skill_link/config/skillnova_support_config.dart';
 import 'package:skill_link/design_system/skillnova_theme.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
@@ -116,14 +117,47 @@ class _WorkerSettingsScreenState extends State<WorkerSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Worker Settings')),
+      appBar: AppBar(title: const Text('Settings')),
       body: AnimatedBuilder(
         animation: _preferences,
         builder: (context, _) => ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
           children: [
             SettingsSection(
-              title: 'Appearance',
+              title: 'Account',
+              children: [
+                ProfileMenuTile(
+                  icon: Icons.manage_accounts_outlined,
+                  title: 'Account information',
+                  subtitle: 'Verified contact details and account status',
+                  onTap: () => _open(
+                    WorkerAccountInformationScreen(profile: widget.profile),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const SecuritySettingsSection(),
+            const SizedBox(height: 20),
+            SettingsSection(
+              title: 'Notifications',
+              children: [
+                SwitchListTile(
+                  key: const ValueKey('worker-foreground-alert-switch'),
+                  value: _preferences.localNotificationsEnabled,
+                  onChanged: _setForegroundAlerts,
+                  secondary: const Icon(Icons.notifications_outlined),
+                  title: const Text('In-app alerts'),
+                  subtitle: const Text(
+                    'Show alerts while SkillNova is open. Server and system '
+                    'notifications may still arrive.',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SettingsSection(
+              title: 'Preferences',
               children: [
                 Padding(
                   padding: const EdgeInsets.all(SkillNovaSpacing.md),
@@ -136,71 +170,23 @@ class _WorkerSettingsScreenState extends State<WorkerSettingsScreen> {
             ),
             const SizedBox(height: 20),
             SettingsSection(
-              title: 'Notifications',
+              title: 'Privacy',
               children: [
-                SwitchListTile(
-                  key: const ValueKey('worker-foreground-alert-switch'),
-                  value: _preferences.localNotificationsEnabled,
-                  onChanged: _setForegroundAlerts,
-                  secondary: const Icon(Icons.notifications_outlined),
-                  title: const Text('Foreground alerts on this device'),
-                  subtitle: const Text(
-                    'Controls alerts SkillNova displays while this app is open. Server and system notifications may still arrive.',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SettingsSection(
-              title: 'Privacy & account',
-              children: [
-                ProfileMenuTile(
-                  icon: Icons.manage_accounts_outlined,
-                  title: 'Account information',
-                  subtitle: 'Verified identity and account status',
-                  onTap: () => _open(
-                    WorkerAccountInformationScreen(profile: widget.profile),
-                  ),
-                ),
-                const Divider(height: 1),
                 ProfileMenuTile(
                   icon: Icons.privacy_tip_outlined,
-                  title: 'Privacy',
+                  title: 'Your data',
                   subtitle: 'What customers can see and what stays private',
                   onTap: () => _open(const WorkerPrivacyScreen()),
                 ),
                 const Divider(height: 1),
                 ProfileMenuTile(
-                  icon: Icons.no_accounts_outlined,
-                  title: 'Delete account',
-                  subtitle: 'How to permanently close your account',
-                  danger: true,
+                  icon: Icons.policy_outlined,
+                  title: 'Privacy Policy',
+                  subtitle: 'How we collect and use your information',
                   onTap: () => _open(
-                    WorkerDeleteAccountScreen(
-                      onContactSupport: () => _open(const WorkerHelpScreen()),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SettingsSection(
-              title: 'Support & safety',
-              children: [
-                ProfileMenuTile(
-                  icon: Icons.support_agent_outlined,
-                  title: 'Help & Support',
-                  subtitle: 'Answers for professionals and how to reach us',
-                  onTap: () => _open(const WorkerHelpScreen()),
-                ),
-                const Divider(height: 1),
-                ProfileMenuTile(
-                  icon: Icons.health_and_safety_outlined,
-                  title: 'Safety',
-                  subtitle: 'SOS, on-the-way sharing, and emergency guidance',
-                  onTap: () => _open(
-                    WorkerSafetyScreen(
-                      onReport: () => _open(const WorkerHelpScreen()),
+                    LegalDocumentScreen(
+                      title: 'Privacy Policy',
+                      url: SkillNovaSupportConfig.privacyPolicyUrl,
                     ),
                   ),
                 ),
@@ -216,15 +202,26 @@ class _WorkerSettingsScreenState extends State<WorkerSettingsScreen> {
                     ),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SettingsSection(
+              title: 'Support',
+              children: [
+                ProfileMenuTile(
+                  icon: Icons.support_agent_outlined,
+                  title: 'Help & Support',
+                  subtitle: 'Answers for professionals and how to reach us',
+                  onTap: () => _open(const WorkerHelpScreen()),
+                ),
                 const Divider(height: 1),
                 ProfileMenuTile(
-                  icon: Icons.policy_outlined,
-                  title: 'Privacy Policy',
-                  subtitle: 'How we collect and use your information',
+                  icon: Icons.health_and_safety_outlined,
+                  title: 'Safety',
+                  subtitle: 'SOS, trip sharing and emergency guidance',
                   onTap: () => _open(
-                    LegalDocumentScreen(
-                      title: 'Privacy Policy',
-                      url: SkillNovaSupportConfig.privacyPolicyUrl,
+                    WorkerSafetyScreen(
+                      onReport: () => _open(const WorkerHelpScreen()),
                     ),
                   ),
                 ),
@@ -236,8 +233,8 @@ class _WorkerSettingsScreenState extends State<WorkerSettingsScreen> {
               children: [
                 ProfileMenuTile(
                   icon: Icons.info_outline_rounded,
-                  title: 'SkillNova',
-                  subtitle: 'About and application version',
+                  title: 'About SkillNova',
+                  subtitle: 'Version and legal information',
                   onTap: () => showSkillNovaAboutDialog(
                     context,
                     helpBuilder: (_) => const WorkerHelpScreen(),
@@ -245,20 +242,38 @@ class _WorkerSettingsScreenState extends State<WorkerSettingsScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              key: const ValueKey('worker-settings-logout'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
+            const SizedBox(height: 28),
+            SizedBox(
+              height: 52,
+              child: OutlinedButton.icon(
+                key: const ValueKey('worker-settings-logout'),
+                onPressed: _loggingOut ? null : _confirmLogout,
+                icon: _loggingOut
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.logout_rounded),
+                label: Text(_loggingOut ? 'Logging out…' : 'Log out'),
               ),
-              onPressed: _loggingOut ? null : _confirmLogout,
-              icon: _loggingOut
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.logout_rounded),
-              label: Text(_loggingOut ? 'Logging out…' : 'Log out'),
+            ),
+            const SizedBox(height: 28),
+            // Permanent, destructive actions live apart from everyday ones.
+            SettingsSection(
+              title: 'Danger zone',
+              children: [
+                ProfileMenuTile(
+                  icon: Icons.no_accounts_outlined,
+                  title: 'Delete account',
+                  subtitle: 'Permanently close your SkillNova account',
+                  danger: true,
+                  onTap: () => _open(
+                    WorkerDeleteAccountScreen(
+                      onContactSupport: () => _open(const WorkerHelpScreen()),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

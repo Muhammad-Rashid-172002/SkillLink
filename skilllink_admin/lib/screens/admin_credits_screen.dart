@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -75,20 +76,15 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
                 height: 46,
                 width: 46,
                 decoration: BoxDecoration(
-                  color:
-                      (isAdding
-                              ? const Color(0xFF16A34A)
-                              : const Color(0xFFDC2626))
-                          .withOpacity(0.10),
+                  color: (isAdding ? kAdminBrand : const Color(0xFFDC2626))
+                      .withOpacity(0.10),
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Icon(
                   isAdding
                       ? Icons.add_card_rounded
                       : Icons.remove_circle_outline_rounded,
-                  color: isAdding
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFDC2626),
+                  color: isAdding ? kAdminBrand : const Color(0xFFDC2626),
                 ),
               ),
               const SizedBox(width: 13),
@@ -100,7 +96,7 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
                       isAdding ? 'Add credits' : 'Deduct credits',
                       style: GoogleFonts.inter(
                         fontSize: 19,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         color: const Color(0xFF0F172A),
                       ),
                     ),
@@ -183,7 +179,7 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
               label: Text(isAdding ? 'Add credits' : 'Deduct credits'),
               style: FilledButton.styleFrom(
                 backgroundColor: isAdding
-                    ? const Color(0xFF16A34A)
+                    ? kAdminBrand
                     : const Color(0xFFDC2626),
                 foregroundColor: Colors.white,
               ),
@@ -220,12 +216,12 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
 
       _showMessage(
         isAdding
-            ? '${result.amount} credits add ho gaye.'
-            : '${result.amount} credits deduct ho gaye.',
+            ? 'Added ${result.amount} credits.'
+            : 'Deducted ${result.amount} credits.',
       );
     } catch (error) {
       if (!mounted) return;
-      _showMessage('Credits update nahi ho sake: $error', isError: true);
+      _showMessage('Couldn’t update credits. Please try again.', isError: true);
     }
   }
 
@@ -247,7 +243,7 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
           title: Text(
             'Set credit balance',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -304,7 +300,7 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
                 );
               },
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF16A34A),
+                backgroundColor: kAdminBrand,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Save balance'),
@@ -329,10 +325,10 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
       );
 
       if (!mounted) return;
-      _showMessage('${worker.name} ka balance update ho gaya.');
+      _showMessage('Balance updated for ${worker.name}.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage('Balance update nahi ho saka: $error', isError: true);
+      _showMessage('Couldn’t update balance. Please try again.', isError: true);
     }
   }
 
@@ -366,7 +362,7 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
                               worker.name,
                               style: GoogleFonts.inter(
                                 fontSize: 21,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w700,
                                 color: const Color(0xFF0F172A),
                               ),
                             ),
@@ -376,7 +372,7 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFF16A34A),
+                                color: kAdminBrand,
                               ),
                             ),
                           ],
@@ -405,7 +401,7 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
                           style: GoogleFonts.inter(
                             fontSize: 10,
                             letterSpacing: 1.2,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white70,
                           ),
                         ),
@@ -414,7 +410,7 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
                           '${worker.credits}',
                           style: GoogleFonts.inter(
                             fontSize: 42,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white,
                           ),
                         ),
@@ -483,7 +479,7 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
                           icon: const Icon(Icons.add_rounded),
                           label: const Text('Add credits'),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF16A34A),
+                            backgroundColor: kAdminBrand,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 15),
                           ),
@@ -505,9 +501,7 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isError
-            ? const Color(0xFFDC2626)
-            : const Color(0xFF16A34A),
+        backgroundColor: isError ? const Color(0xFFDC2626) : kAdminBrand,
         content: Text(message),
       ),
     );
@@ -520,13 +514,13 @@ class _AdminCreditsScreenState extends State<AdminCreditsScreen> {
       builder: (context, workerSnapshot) {
         if (workerSnapshot.hasError) {
           return _CreditsErrorState(
-            message: 'Workers load nahi ho sake.\n${workerSnapshot.error}',
+            message: 'We couldn’t load workers. Refresh to try again.',
           );
         }
 
         if (!workerSnapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF16A34A)),
+            child: CircularProgressIndicator(color: kAdminBrand),
           );
         }
 
@@ -653,7 +647,7 @@ class _CreditsHeader extends StatelessWidget {
         title: 'Credits in Circulation',
         value: NumberFormat('#,##0').format(totalCredits),
         icon: Icons.toll_rounded,
-        color: const Color(0xFF16A34A),
+        color: kAdminBrand,
       ),
       _CreditStatCard(
         title: 'Zero Balance',
@@ -676,7 +670,7 @@ class _CreditsHeader extends StatelessWidget {
           'Credits Management',
           style: GoogleFonts.inter(
             fontSize: 25,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             letterSpacing: -0.7,
             color: const Color(0xFF0F172A),
           ),
@@ -759,7 +753,7 @@ class _CreditStatCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 22,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF0F172A),
                   ),
                 ),
@@ -841,10 +835,7 @@ class _CreditsToolbar extends StatelessWidget {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF16A34A),
-                    width: 1.6,
-                  ),
+                  borderSide: const BorderSide(color: kAdminBrand, width: 1.6),
                 ),
               ),
             ),
@@ -860,19 +851,15 @@ class _CreditsToolbar extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_filterLabel(filter)),
-                selectedColor: const Color(0xFF16A34A).withOpacity(0.12),
+                selectedColor: kAdminBrand.withOpacity(0.12),
                 backgroundColor: const Color(0xFFF8FAFC),
                 side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFE2E8F0),
+                  color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
                 ),
                 labelStyle: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFF64748B),
+                  color: selected ? kAdminBrand : const Color(0xFF64748B),
                 ),
               );
             }).toList(),
@@ -957,102 +944,108 @@ class _CreditsTable extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE6ECF2)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-          dataRowMinHeight: 74,
-          dataRowMaxHeight: 82,
-          horizontalMargin: 20,
-          columnSpacing: 30,
-          columns: const [
-            DataColumn(label: _TableHeading('WORKER')),
-            DataColumn(label: _TableHeading('SKILL')),
-            DataColumn(label: _TableHeading('CREDITS')),
-            DataColumn(label: _TableHeading('COMPLETED JOBS')),
-            DataColumn(label: _TableHeading('BALANCE STATUS')),
-            DataColumn(label: _TableHeading('ACTIONS')),
-          ],
-          rows: workers.map((worker) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 230,
-                    child: Row(
-                      children: [
-                        _WorkerAvatar(worker: worker, radius: 21),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                worker.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF0F172A),
-                                ),
+      child: LayoutBuilder(
+        // Fill the card on wide screens; scroll sideways on narrow ones.
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              dataRowMinHeight: 74,
+              dataRowMaxHeight: 82,
+              horizontalMargin: 20,
+              columnSpacing: 30,
+              columns: const [
+                DataColumn(label: _TableHeading('WORKER')),
+                DataColumn(label: _TableHeading('SKILL')),
+                DataColumn(label: _TableHeading('CREDITS')),
+                DataColumn(label: _TableHeading('COMPLETED JOBS')),
+                DataColumn(label: _TableHeading('BALANCE STATUS')),
+                DataColumn(label: _TableHeading('ACTIONS')),
+              ],
+              rows: workers.map((worker) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      SizedBox(
+                        width: 230,
+                        child: Row(
+                          children: [
+                            _WorkerAvatar(worker: worker, radius: 21),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    worker.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    worker.email,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                worker.email,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  color: const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 120,
-                    child: Text(
-                      worker.skill,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF475569),
                       ),
                     ),
-                  ),
-                ),
-                DataCell(_CreditBalance(value: worker.credits)),
-                DataCell(
-                  Text(
-                    '${worker.completedJobs}',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF334155),
+                    DataCell(
+                      SizedBox(
+                        width: 120,
+                        child: Text(
+                          worker.skill,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                DataCell(_BalanceStatusBadge(credits: worker.credits)),
-                DataCell(
-                  _CreditActions(
-                    worker: worker,
-                    onView: onView,
-                    onAdd: onAdd,
-                    onDeduct: onDeduct,
-                    onSetBalance: onSetBalance,
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
+                    DataCell(_CreditBalance(value: worker.credits)),
+                    DataCell(
+                      Text(
+                        '${worker.completedJobs}',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF334155),
+                        ),
+                      ),
+                    ),
+                    DataCell(_BalanceStatusBadge(credits: worker.credits)),
+                    DataCell(
+                      _CreditActions(
+                        worker: worker,
+                        onView: onView,
+                        onAdd: onAdd,
+                        onDeduct: onDeduct,
+                        onSetBalance: onSetBalance,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );
@@ -1160,7 +1153,7 @@ class _CreditWorkerCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               fontSize: 15,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -1171,7 +1164,7 @@ class _CreditWorkerCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               fontSize: 11,
-              color: const Color(0xFF16A34A),
+              color: kAdminBrand,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1190,7 +1183,7 @@ class _CreditWorkerCard extends StatelessWidget {
                   '${worker.credits}',
                   style: GoogleFonts.inter(
                     fontSize: 30,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF0F172A),
                   ),
                 ),
@@ -1224,7 +1217,7 @@ class _CreditWorkerCard extends StatelessWidget {
                 child: FilledButton(
                   onPressed: () => onAdd(worker),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF16A34A),
+                    backgroundColor: kAdminBrand,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Add'),
@@ -1276,7 +1269,7 @@ class _RecentTransactions extends StatelessWidget {
                 'Recent Credit Transactions',
                 style: GoogleFonts.inter(
                   fontSize: 16,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -1288,7 +1281,7 @@ class _RecentTransactions extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 28),
               child: Center(
                 child: Text(
-                  'Abhi koi credit transaction available nahi hai.',
+                  'No credit transactions yet.',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: const Color(0xFF64748B),
@@ -1313,9 +1306,7 @@ class _TransactionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = transaction.isCredit
-        ? const Color(0xFF16A34A)
-        : const Color(0xFFDC2626);
+    final color = transaction.isCredit ? kAdminBrand : const Color(0xFFDC2626);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1348,7 +1339,7 @@ class _TransactionRow extends StatelessWidget {
                   transaction.workerName,
                   style: GoogleFonts.inter(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF334155),
                   ),
                 ),
@@ -1373,7 +1364,7 @@ class _TransactionRow extends StatelessWidget {
                 '${transaction.isCredit ? '+' : '-'}${transaction.amount}',
                 style: GoogleFonts.inter(
                   fontSize: 13,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: color,
                 ),
               ),
@@ -1523,7 +1514,7 @@ class _WorkerAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFFE8F7ED),
+      backgroundColor: kAdminBrandSoft,
       backgroundImage: worker.photoUrl != null
           ? NetworkImage(worker.photoUrl!)
           : null,
@@ -1531,9 +1522,9 @@ class _WorkerAvatar extends StatelessWidget {
           ? Text(
               worker.name.isNotEmpty ? worker.name[0].toUpperCase() : 'W',
               style: GoogleFonts.inter(
-                color: const Color(0xFF16A34A),
+                color: kAdminBrand,
                 fontSize: radius * 0.70,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             )
           : null,
@@ -1551,13 +1542,13 @@ class _CreditBalance extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.toll_rounded, size: 18, color: Color(0xFF16A34A)),
+        const Icon(Icons.toll_rounded, size: 18, color: kAdminBrand),
         const SizedBox(width: 6),
         Text(
           '$value',
           style: GoogleFonts.inter(
             fontSize: 13,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             color: const Color(0xFF0F172A),
           ),
         ),
@@ -1577,7 +1568,7 @@ class _BalanceStatusBadge extends StatelessWidget {
         ? const Color(0xFFDC2626)
         : credits <= 5
         ? const Color(0xFFD97706)
-        : const Color(0xFF16A34A);
+        : kAdminBrand;
 
     final text = credits == 0
         ? 'EMPTY'
@@ -1595,7 +1586,7 @@ class _BalanceStatusBadge extends StatelessWidget {
         text,
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -1626,7 +1617,7 @@ class _InfoTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 19, color: const Color(0xFF16A34A)),
+          Icon(icon, size: 19, color: kAdminBrand),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -1646,7 +1637,7 @@ class _InfoTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF334155),
                   ),
                 ),
@@ -1679,10 +1670,10 @@ class _ViewButton extends StatelessWidget {
         height: 38,
         width: 38,
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF16A34A) : const Color(0xFFF8FAFC),
+          color: selected ? kAdminBrand : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: selected ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0),
+            color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
           ),
         ),
         child: Icon(
@@ -1706,7 +1697,7 @@ class _TableHeading extends StatelessWidget {
       text,
       style: GoogleFonts.inter(
         fontSize: 9,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w700,
         letterSpacing: 0.7,
         color: const Color(0xFF64748B),
       ),
@@ -1735,13 +1726,13 @@ class _EmptyCreditsState extends StatelessWidget {
             'No workers found',
             style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Search ya selected filter ke mutabiq koi worker nahi mila.',
+            'No workers match your search or filters.',
             style: GoogleFonts.inter(
               color: const Color(0xFF64748B),
               fontSize: 12,

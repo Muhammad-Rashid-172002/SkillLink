@@ -1,16 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:skilllink_admin/services/ser_management_service.dart';
 
-
-enum UserRoleFilter {
-  all,
-  customers,
-  workers,
-  blocked,
-}
+enum UserRoleFilter { all, customers, workers, blocked }
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
@@ -37,7 +32,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     return users.where((user) {
       final query = _searchQuery.trim().toLowerCase();
 
-      final matchesSearch = query.isEmpty ||
+      final matchesSearch =
+          query.isEmpty ||
           user.name.toLowerCase().contains(query) ||
           user.email.toLowerCase().contains(query) ||
           user.phone.toLowerCase().contains(query);
@@ -50,12 +46,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       };
 
       return matchesSearch && matchesFilter;
-    }).toList()
-      ..sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      });
+    }).toList()..sort((a, b) {
+      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
   }
 
   Future<void> _toggleBlocked(ManagedUser user) async {
@@ -73,14 +68,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           title: Text(
             '${action[0].toUpperCase()}${action.substring(1)} user?',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           content: Text(
             user.isBlocked
-                ? '${user.name} ka account dobara active ho jayega.'
-                : '${user.name} app use nahi kar sakega jab tak aap unblock na karein.',
+                ? '${user.name} will be able to use SkillNova again.'
+                : '${user.name} won’t be able to use SkillNova until you unblock them.',
             style: GoogleFonts.inter(
               height: 1.5,
               color: const Color(0xFF64748B),
@@ -95,13 +90,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               onPressed: () => Navigator.pop(dialogContext, true),
               style: FilledButton.styleFrom(
                 backgroundColor: user.isBlocked
-                    ? const Color(0xFF16A34A)
+                    ? kAdminBrand
                     : const Color(0xFFDC2626),
                 foregroundColor: Colors.white,
               ),
-              child: Text(
-                user.isBlocked ? 'Unblock' : 'Block user',
-              ),
+              child: Text(user.isBlocked ? 'Unblock' : 'Block user'),
             ),
           ],
         );
@@ -120,15 +113,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
       _showMessage(
         user.isBlocked
-            ? '${user.name} unblock ho gaya.'
-            : '${user.name} block ho gaya.',
+            ? '${user.name} was unblocked.'
+            : '${user.name} was blocked.',
       );
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Status update nahi ho saka: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t update status. Please try again.', isError: true);
     }
   }
 
@@ -143,13 +133,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
       _showMessage(
         user.isVerified
-            ? '${user.name} ki verification remove ho gayi.'
-            : '${user.name} verify ho gaya.',
+            ? 'Verification removed for ${user.name}.'
+            : '${user.name} is now verified.',
       );
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Verification update nahi ho saki: $error',
+        'Couldn’t update verification. Please try again.',
         isError: true,
       );
     }
@@ -168,12 +158,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           title: Text(
             'Delete Firestore profile?',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           content: Text(
-            'Ye sirf Firestore users document delete karega. Firebase Authentication account automatically delete nahi hoga.',
+            'This deletes the profile document only. The sign-in account is not deleted automatically.',
             style: GoogleFonts.inter(
               height: 1.5,
               color: const Color(0xFF64748B),
@@ -204,13 +194,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
       if (!mounted) return;
 
-      _showMessage('${user.name} ka Firestore profile delete ho gaya.');
+      _showMessage('Profile deleted for ${user.name}.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Profile delete nahi ho saka: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t delete profile. Please try again.', isError: true);
     }
   }
 
@@ -245,7 +232,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               user.name,
                               style: GoogleFonts.inter(
                                 fontSize: 22,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w700,
                                 color: const Color(0xFF0F172A),
                               ),
                             ),
@@ -302,7 +289,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     'Document ID',
                     style: GoogleFonts.inter(
                       fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       color: const Color(0xFF94A3B8),
                     ),
                   ),
@@ -323,17 +310,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+        backgroundColor: isError ? kAdminDanger : kAdminSuccess,
         content: Text(message),
       ),
     );
@@ -346,15 +329,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _UsersErrorState(
-            message: 'Users load nahi ho sake.\n${snapshot.error}',
+            message: 'We couldn’t load users. Refresh to try again.',
           );
         }
 
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF16A34A),
-            ),
+            child: CircularProgressIndicator(color: kAdminBrand),
           );
         }
 
@@ -371,12 +352,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             children: [
               _UsersHeader(
                 totalUsers: allUsers.length,
-                workers:
-                    allUsers.where((user) => user.isWorker).length,
-                customers:
-                    allUsers.where((user) => user.isCustomer).length,
-                blocked:
-                    allUsers.where((user) => user.isBlocked).length,
+                workers: allUsers.where((user) => user.isWorker).length,
+                customers: allUsers.where((user) => user.isCustomer).length,
+                blocked: allUsers.where((user) => user.isBlocked).length,
               ),
               const SizedBox(height: 22),
               _UsersToolbar(
@@ -443,7 +421,7 @@ class _UsersHeader extends StatelessWidget {
           'Users Management',
           style: GoogleFonts.inter(
             fontSize: 25,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             letterSpacing: -0.7,
             color: const Color(0xFF0F172A),
           ),
@@ -462,8 +440,8 @@ class _UsersHeader extends StatelessWidget {
             final columns = constraints.maxWidth >= 950
                 ? 4
                 : constraints.maxWidth >= 520
-                    ? 2
-                    : 1;
+                ? 2
+                : 1;
 
             final width =
                 (constraints.maxWidth - ((columns - 1) * 14)) / columns;
@@ -479,7 +457,7 @@ class _UsersHeader extends StatelessWidget {
                 label: 'Workers',
                 value: '$workers',
                 icon: Icons.engineering_rounded,
-                color: const Color(0xFF16A34A),
+                color: kAdminBrand,
               ),
               _MiniStatCard(
                 label: 'Customers',
@@ -550,7 +528,7 @@ class _MiniStatCard extends StatelessWidget {
                 value,
                 style: GoogleFonts.inter(
                   fontSize: 22,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -623,20 +601,15 @@ class _UsersToolbar extends StatelessWidget {
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF16A34A),
-                    width: 1.6,
-                  ),
+                  borderSide: const BorderSide(color: kAdminBrand, width: 1.6),
                 ),
               ),
             ),
@@ -653,19 +626,14 @@ class _UsersToolbar extends StatelessWidget {
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_filterLabel(filter)),
                 backgroundColor: const Color(0xFFF8FAFC),
-                selectedColor:
-                    const Color(0xFF16A34A).withOpacity(0.12),
+                selectedColor: kAdminBrand.withOpacity(0.12),
                 side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFE2E8F0),
+                  color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
                 ),
                 labelStyle: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFF64748B),
+                  color: selected ? kAdminBrand : const Color(0xFF64748B),
                 ),
               );
             }).toList(),
@@ -705,10 +673,7 @@ class _UsersToolbar extends StatelessWidget {
                 const SizedBox(height: 14),
                 filters,
                 const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: viewControls,
-                ),
+                Align(alignment: Alignment.centerRight, child: viewControls),
               ],
             );
           }
@@ -748,14 +713,10 @@ class _ViewButton extends StatelessWidget {
         height: 38,
         width: 38,
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF16A34A)
-              : const Color(0xFFF8FAFC),
+          color: selected ? kAdminBrand : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF16A34A)
-                : const Color(0xFFE2E8F0),
+            color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
           ),
         ),
         child: Icon(
@@ -793,102 +754,106 @@ class _UsersTable extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE6ECF2)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            const Color(0xFFF8FAFC),
-          ),
-          dataRowMinHeight: 70,
-          dataRowMaxHeight: 78,
-          horizontalMargin: 20,
-          columnSpacing: 34,
-          columns: const [
-            DataColumn(label: _TableHeading('USER')),
-            DataColumn(label: _TableHeading('ROLE')),
-            DataColumn(label: _TableHeading('PHONE')),
-            DataColumn(label: _TableHeading('STATUS')),
-            DataColumn(label: _TableHeading('JOINED')),
-            DataColumn(label: _TableHeading('ACTIONS')),
-          ],
-          rows: users.map((user) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 230,
-                    child: Row(
-                      children: [
-                        _UserAvatar(user: user, radius: 21),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF0F172A),
-                                ),
+      child: LayoutBuilder(
+        // Fill the card on wide screens; scroll sideways on narrow ones.
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              dataRowMinHeight: 70,
+              dataRowMaxHeight: 78,
+              horizontalMargin: 20,
+              columnSpacing: 34,
+              columns: const [
+                DataColumn(label: _TableHeading('USER')),
+                DataColumn(label: _TableHeading('ROLE')),
+                DataColumn(label: _TableHeading('PHONE')),
+                DataColumn(label: _TableHeading('STATUS')),
+                DataColumn(label: _TableHeading('JOINED')),
+                DataColumn(label: _TableHeading('ACTIONS')),
+              ],
+              rows: users.map((user) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      SizedBox(
+                        width: 230,
+                        child: Row(
+                          children: [
+                            _UserAvatar(user: user, radius: 21),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    user.email,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      color: const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                user.email,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  color: const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                DataCell(_RoleBadge(role: user.role)),
-                DataCell(
-                  SizedBox(
-                    width: 120,
-                    child: Text(
-                      user.phone,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: const Color(0xFF475569),
                       ),
                     ),
-                  ),
-                ),
-                DataCell(_StatusBadge(isBlocked: user.isBlocked)),
-                DataCell(
-                  Text(
-                    _formatDate(user.createdAt),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFF475569),
+                    DataCell(_RoleBadge(role: user.role)),
+                    DataCell(
+                      SizedBox(
+                        width: 120,
+                        child: Text(
+                          user.phone,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                DataCell(
-                  _UserActions(
-                    user: user,
-                    onView: onView,
-                    onToggleBlocked: onToggleBlocked,
-                    onToggleVerified: onToggleVerified,
-                    onDelete: onDelete,
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
+                    DataCell(_StatusBadge(isBlocked: user.isBlocked)),
+                    DataCell(
+                      Text(
+                        _formatDate(user.createdAt),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      _UserActions(
+                        user: user,
+                        onView: onView,
+                        onToggleBlocked: onToggleBlocked,
+                        onToggleVerified: onToggleVerified,
+                        onDelete: onDelete,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );
@@ -917,13 +882,12 @@ class _UsersGrid extends StatelessWidget {
         final columns = constraints.maxWidth >= 1180
             ? 4
             : constraints.maxWidth >= 820
-                ? 3
-                : constraints.maxWidth >= 540
-                    ? 2
-                    : 1;
+            ? 3
+            : constraints.maxWidth >= 540
+            ? 2
+            : 1;
 
-        final width =
-            (constraints.maxWidth - ((columns - 1) * 16)) / columns;
+        final width = (constraints.maxWidth - ((columns - 1) * 16)) / columns;
 
         return Wrap(
           spacing: 16,
@@ -997,7 +961,7 @@ class _UserCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               fontSize: 15,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -1019,8 +983,7 @@ class _UserCard extends StatelessWidget {
             children: [
               _RoleBadge(role: user.role),
               _StatusBadge(isBlocked: user.isBlocked),
-              if (user.isWorker && user.isVerified)
-                const _VerifiedBadge(),
+              if (user.isWorker && user.isVerified) const _VerifiedBadge(),
             ],
           ),
           const SizedBox(height: 15),
@@ -1092,9 +1055,7 @@ class _UserActions extends StatelessWidget {
       tooltip: 'User actions',
       color: Colors.white,
       surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       onSelected: (value) {
         switch (value) {
           case 'view':
@@ -1133,9 +1094,7 @@ class _UserActions extends StatelessWidget {
             value: 'verify',
             child: _MenuItem(
               icon: Icons.verified_outlined,
-              text: user.isVerified
-                  ? 'Remove verification'
-                  : 'Verify worker',
+              text: user.isVerified ? 'Remove verification' : 'Verify worker',
             ),
           ),
         const PopupMenuDivider(),
@@ -1179,8 +1138,7 @@ class _MenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
+    final color = danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
 
     return Row(
       children: [
@@ -1200,10 +1158,7 @@ class _MenuItem extends StatelessWidget {
 }
 
 class _UserAvatar extends StatelessWidget {
-  const _UserAvatar({
-    required this.user,
-    required this.radius,
-  });
+  const _UserAvatar({required this.user, required this.radius});
 
   final ManagedUser user;
   final double radius;
@@ -1214,18 +1169,15 @@ class _UserAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFFE8F7ED),
-      backgroundImage:
-          photo != null ? NetworkImage(photo) : null,
+      backgroundColor: kAdminBrandSoft,
+      backgroundImage: photo != null ? NetworkImage(photo) : null,
       child: photo == null
           ? Text(
-              user.name.isNotEmpty
-                  ? user.name[0].toUpperCase()
-                  : 'U',
+              user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
               style: GoogleFonts.inter(
-                color: const Color(0xFF16A34A),
+                color: kAdminBrand,
                 fontSize: radius * 0.70,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             )
           : null,
@@ -1241,14 +1193,10 @@ class _RoleBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final worker = role.toLowerCase() == 'worker';
-    final color =
-        worker ? const Color(0xFF16A34A) : const Color(0xFF7C3AED);
+    final color = worker ? kAdminBrand : const Color(0xFF7C3AED);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.09),
         borderRadius: BorderRadius.circular(20),
@@ -1257,7 +1205,7 @@ class _RoleBadge extends StatelessWidget {
         role.toUpperCase(),
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -1272,15 +1220,10 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isBlocked
-        ? const Color(0xFFDC2626)
-        : const Color(0xFF059669);
+    final color = isBlocked ? const Color(0xFFDC2626) : const Color(0xFF059669);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.09),
         borderRadius: BorderRadius.circular(20),
@@ -1289,7 +1232,7 @@ class _StatusBadge extends StatelessWidget {
         isBlocked ? 'BLOCKED' : 'ACTIVE',
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -1303,10 +1246,7 @@ class _VerifiedBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFF2563EB).withOpacity(0.09),
         borderRadius: BorderRadius.circular(20),
@@ -1315,7 +1255,7 @@ class _VerifiedBadge extends StatelessWidget {
         'VERIFIED',
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: const Color(0xFF2563EB),
         ),
       ),
@@ -1334,7 +1274,7 @@ class _TableHeading extends StatelessWidget {
       text,
       style: GoogleFonts.inter(
         fontSize: 9,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w700,
         letterSpacing: 0.7,
         color: const Color(0xFF64748B),
       ),
@@ -1343,10 +1283,7 @@ class _TableHeading extends StatelessWidget {
 }
 
 class _DetailChip extends StatelessWidget {
-  const _DetailChip({
-    required this.icon,
-    required this.label,
-  });
+  const _DetailChip({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -1354,10 +1291,7 @@ class _DetailChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(14),
@@ -1366,11 +1300,7 @@ class _DetailChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: const Color(0xFF16A34A),
-          ),
+          Icon(icon, size: 16, color: kAdminBrand),
           const SizedBox(width: 7),
           Text(
             label,
@@ -1411,13 +1341,13 @@ class _EmptyUsersState extends StatelessWidget {
             'No users found',
             style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Search ya selected filter ke mutabiq koi user nahi mila.',
+            'No users match your search or filters.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: const Color(0xFF64748B),
@@ -1458,9 +1388,7 @@ class _UsersErrorState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF991B1B),
-              ),
+              style: GoogleFonts.inter(color: const Color(0xFF991B1B)),
             ),
           ],
         ),

@@ -64,10 +64,8 @@ class NotificationItem {
     'credits' ||
     'credit' ||
     'payment' => (Icons.account_balance_wallet_outlined, SkillNovaTone.success),
-    'job_completed' || 'completed' => (
-      Icons.task_alt_rounded,
-      SkillNovaTone.success,
-    ),
+    'job_completed' ||
+    'completed' => (Icons.task_alt_rounded, SkillNovaTone.success),
     'job_accepted' || 'accepted' => (Icons.route_outlined, SkillNovaTone.info),
     'job_status' when status == 'completed' => (
       Icons.task_alt_rounded,

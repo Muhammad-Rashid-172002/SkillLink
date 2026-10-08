@@ -1,16 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/worker_management_service.dart';
 
-enum WorkerFilter {
-  all,
-  verified,
-  pending,
-  rejected,
-  blocked,
-}
+enum WorkerFilter { all, verified, pending, rejected, blocked }
 
 class AdminWorkersScreen extends StatefulWidget {
   const AdminWorkersScreen({super.key});
@@ -37,7 +32,8 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
     final query = _searchQuery.trim().toLowerCase();
 
     return workers.where((worker) {
-      final matchesSearch = query.isEmpty ||
+      final matchesSearch =
+          query.isEmpty ||
           worker.name.toLowerCase().contains(query) ||
           worker.email.toLowerCase().contains(query) ||
           worker.phone.toLowerCase().contains(query) ||
@@ -53,21 +49,20 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
       };
 
       return matchesSearch && matchesFilter;
-    }).toList()
-      ..sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
-      });
+    }).toList()..sort((a, b) {
+      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
   }
 
   Future<void> _verifyWorker(ManagedWorker worker) async {
     final confirmed = await _confirmationDialog(
       title: 'Verify worker?',
       message:
-          '${worker.name} ko verified worker mark kiya jayega. Verify karne se pehle CNIC aur profile details check karein.',
+          '${worker.name} will be marked as verified. Check their CNIC and profile details before confirming.',
       confirmText: 'Verify worker',
-      confirmColor: const Color(0xFF16A34A),
+      confirmColor: kAdminBrand,
       icon: Icons.verified_rounded,
     );
 
@@ -80,13 +75,10 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
       );
 
       if (!mounted) return;
-      _showMessage('${worker.name} successfully verify ho gaya.');
+      _showMessage('${worker.name} is now verified.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Worker verify nahi ho saka: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t verify worker. Please try again.', isError: true);
     }
   }
 
@@ -105,7 +97,7 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
           title: Text(
             'Reject verification',
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
@@ -116,7 +108,7 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${worker.name} ki verification reject karne ka reason likhein.',
+                  'Tell ${worker.name} why their verification was rejected.',
                   style: GoogleFonts.inter(
                     height: 1.5,
                     color: const Color(0xFF64748B),
@@ -172,11 +164,11 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
       );
 
       if (!mounted) return;
-      _showMessage('${worker.name} ki verification reject ho gayi.');
+      _showMessage('Verification rejected for ${worker.name}.');
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Verification reject nahi ho saki: $error',
+        'Couldn’t reject verification. Please try again.',
         isError: true,
       );
     }
@@ -190,13 +182,10 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
       );
 
       if (!mounted) return;
-      _showMessage('${worker.name} ko pending verification par move kar diya.');
+      _showMessage('${worker.name} moved back to pending verification.');
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Status update nahi ho saka: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t update status. Please try again.', isError: true);
     }
   }
 
@@ -204,12 +193,10 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
     final confirmed = await _confirmationDialog(
       title: worker.isBlocked ? 'Unblock worker?' : 'Block worker?',
       message: worker.isBlocked
-          ? '${worker.name} dobara app use kar sakega.'
-          : '${worker.name} ka account block ho jayega.',
+          ? '${worker.name} will be able to use SkillNova again.'
+          : '${worker.name}’s account will be blocked.',
       confirmText: worker.isBlocked ? 'Unblock' : 'Block worker',
-      confirmColor: worker.isBlocked
-          ? const Color(0xFF16A34A)
-          : const Color(0xFFDC2626),
+      confirmColor: worker.isBlocked ? kAdminBrand : const Color(0xFFDC2626),
       icon: worker.isBlocked ? Icons.lock_open_rounded : Icons.block_rounded,
     );
 
@@ -225,15 +212,12 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
 
       _showMessage(
         worker.isBlocked
-            ? '${worker.name} unblock ho gaya.'
-            : '${worker.name} block ho gaya.',
+            ? '${worker.name} was unblocked.'
+            : '${worker.name} was blocked.',
       );
     } catch (error) {
       if (!mounted) return;
-      _showMessage(
-        'Status update nahi ho saka: $error',
-        isError: true,
-      );
+      _showMessage('Couldn’t update status. Please try again.', isError: true);
     }
   }
 
@@ -269,7 +253,7 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                 child: Text(
                   title,
                   style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF0F172A),
                   ),
                 ),
@@ -337,7 +321,7 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                                       worker.name,
                                       style: GoogleFonts.inter(
                                         fontSize: 23,
-                                        fontWeight: FontWeight.w900,
+                                        fontWeight: FontWeight.w700,
                                         color: const Color(0xFF0F172A),
                                       ),
                                     ),
@@ -410,7 +394,7 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                       'Verification documents',
                       style: GoogleFonts.inter(
                         fontSize: 15,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         color: const Color(0xFF0F172A),
                       ),
                     ),
@@ -445,12 +429,8 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                             label: const Text('Reject'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFFDC2626),
-                              side: const BorderSide(
-                                color: Color(0xFFDC2626),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 15,
-                              ),
+                              side: const BorderSide(color: Color(0xFFDC2626)),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
                             ),
                           ),
                         ),
@@ -470,11 +450,9 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                                   : 'Verify worker',
                             ),
                             style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFF16A34A),
+                              backgroundColor: kAdminBrand,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 15,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
                             ),
                           ),
                         ),
@@ -490,17 +468,13 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
     );
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+        backgroundColor: isError ? kAdminDanger : kAdminSuccess,
         content: Text(message),
       ),
     );
@@ -513,15 +487,13 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _WorkerErrorState(
-            message: 'Workers load nahi ho sake.\n${snapshot.error}',
+            message: 'We couldn’t load workers. Refresh to try again.',
           );
         }
 
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF16A34A),
-            ),
+            child: CircularProgressIndicator(color: kAdminBrand),
           );
         }
 
@@ -538,8 +510,9 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
             children: [
               _WorkersHeader(
                 total: allWorkers.length,
-                verified:
-                    allWorkers.where((worker) => worker.isVerified).length,
+                verified: allWorkers
+                    .where((worker) => worker.isVerified)
+                    .length,
                 pending: allWorkers
                     .where(
                       (worker) =>
@@ -547,8 +520,7 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                           worker.verificationStatus == 'pending',
                     )
                     .length,
-                blocked:
-                    allWorkers.where((worker) => worker.isBlocked).length,
+                blocked: allWorkers.where((worker) => worker.isBlocked).length,
               ),
               const SizedBox(height: 22),
               _WorkersToolbar(
@@ -621,7 +593,7 @@ class _WorkersHeader extends StatelessWidget {
         title: 'Verified',
         value: '$verified',
         icon: Icons.verified_rounded,
-        color: const Color(0xFF16A34A),
+        color: kAdminSuccess,
       ),
       _WorkerStatCard(
         title: 'Pending',
@@ -644,7 +616,7 @@ class _WorkersHeader extends StatelessWidget {
           'Worker Verification',
           style: GoogleFonts.inter(
             fontSize: 25,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             letterSpacing: -0.7,
             color: const Color(0xFF0F172A),
           ),
@@ -663,8 +635,8 @@ class _WorkersHeader extends StatelessWidget {
             final columns = constraints.maxWidth >= 950
                 ? 4
                 : constraints.maxWidth >= 520
-                    ? 2
-                    : 1;
+                ? 2
+                : 1;
 
             final width =
                 (constraints.maxWidth - ((columns - 1) * 14)) / columns;
@@ -724,7 +696,7 @@ class _WorkerStatCard extends StatelessWidget {
                 value,
                 style: GoogleFonts.inter(
                   fontSize: 22,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   color: const Color(0xFF0F172A),
                 ),
               ),
@@ -797,20 +769,15 @@ class _WorkersToolbar extends StatelessWidget {
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF16A34A),
-                    width: 1.6,
-                  ),
+                  borderSide: const BorderSide(color: kAdminBrand, width: 1.6),
                 ),
               ),
             ),
@@ -826,20 +793,15 @@ class _WorkersToolbar extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_workerFilterLabel(filter)),
-                selectedColor:
-                    const Color(0xFF16A34A).withOpacity(0.12),
+                selectedColor: kAdminBrand.withOpacity(0.12),
                 backgroundColor: const Color(0xFFF8FAFC),
                 side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFE2E8F0),
+                  color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
                 ),
                 labelStyle: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: selected
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFF64748B),
+                  color: selected ? kAdminBrand : const Color(0xFF64748B),
                 ),
               );
             }).toList(),
@@ -879,10 +841,7 @@ class _WorkersToolbar extends StatelessWidget {
                 const SizedBox(height: 14),
                 filters,
                 const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: viewControls,
-                ),
+                Align(alignment: Alignment.centerRight, child: viewControls),
               ],
             );
           }
@@ -922,14 +881,10 @@ class _ViewToggleButton extends StatelessWidget {
         height: 38,
         width: 38,
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF16A34A)
-              : const Color(0xFFF8FAFC),
+          color: selected ? kAdminBrand : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF16A34A)
-                : const Color(0xFFE2E8F0),
+            color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
           ),
         ),
         child: Icon(
@@ -969,126 +924,130 @@ class _WorkersTable extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE6ECF2)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            const Color(0xFFF8FAFC),
-          ),
-          dataRowMinHeight: 72,
-          dataRowMaxHeight: 80,
-          horizontalMargin: 20,
-          columnSpacing: 28,
-          columns: const [
-            DataColumn(label: _TableHeading('WORKER')),
-            DataColumn(label: _TableHeading('SKILL')),
-            DataColumn(label: _TableHeading('RATING')),
-            DataColumn(label: _TableHeading('JOBS')),
-            DataColumn(label: _TableHeading('VERIFICATION')),
-            DataColumn(label: _TableHeading('STATUS')),
-            DataColumn(label: _TableHeading('ACTIONS')),
-          ],
-          rows: workers.map((worker) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 230,
-                    child: Row(
-                      children: [
-                        _WorkerAvatar(worker: worker, radius: 21),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+      child: LayoutBuilder(
+        // Fill the card on wide screens; scroll sideways on narrow ones.
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              dataRowMinHeight: 72,
+              dataRowMaxHeight: 80,
+              horizontalMargin: 20,
+              columnSpacing: 28,
+              columns: const [
+                DataColumn(label: _TableHeading('WORKER')),
+                DataColumn(label: _TableHeading('SKILL')),
+                DataColumn(label: _TableHeading('RATING')),
+                DataColumn(label: _TableHeading('JOBS')),
+                DataColumn(label: _TableHeading('VERIFICATION')),
+                DataColumn(label: _TableHeading('STATUS')),
+                DataColumn(label: _TableHeading('ACTIONS')),
+              ],
+              rows: workers.map((worker) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      SizedBox(
+                        width: 230,
+                        child: Row(
+                          children: [
+                            _WorkerAvatar(worker: worker, radius: 21),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Flexible(
-                                    child: Text(
-                                      worker.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        color: const Color(0xFF0F172A),
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          worker.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF0F172A),
+                                          ),
+                                        ),
                                       ),
+                                      if (worker.isVerified) ...[
+                                        const SizedBox(width: 5),
+                                        const Icon(
+                                          Icons.verified_rounded,
+                                          size: 15,
+                                          color: Color(0xFF2563EB),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    worker.email,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      color: const Color(0xFF64748B),
                                     ),
                                   ),
-                                  if (worker.isVerified) ...[
-                                    const SizedBox(width: 5),
-                                    const Icon(
-                                      Icons.verified_rounded,
-                                      size: 15,
-                                      color: Color(0xFF2563EB),
-                                    ),
-                                  ],
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                worker.email,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  color: const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 120,
-                    child: Text(
-                      worker.skill,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF475569),
                       ),
                     ),
-                  ),
-                ),
-                DataCell(_RatingLabel(rating: worker.rating)),
-                DataCell(
-                  Text(
-                    '${worker.completedJobs}',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF334155),
+                    DataCell(
+                      SizedBox(
+                        width: 120,
+                        child: Text(
+                          worker.skill,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF475569),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                DataCell(
-                  _VerificationBadge(
-                    status: worker.verificationStatus,
-                    isVerified: worker.isVerified,
-                  ),
-                ),
-                DataCell(_BlockedBadge(isBlocked: worker.isBlocked)),
-                DataCell(
-                  _WorkerActions(
-                    worker: worker,
-                    onView: onView,
-                    onVerify: onVerify,
-                    onReject: onReject,
-                    onPending: onPending,
-                    onToggleBlocked: onToggleBlocked,
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
+                    DataCell(_RatingLabel(rating: worker.rating)),
+                    DataCell(
+                      Text(
+                        '${worker.completedJobs}',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF334155),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      _VerificationBadge(
+                        status: worker.verificationStatus,
+                        isVerified: worker.isVerified,
+                      ),
+                    ),
+                    DataCell(_BlockedBadge(isBlocked: worker.isBlocked)),
+                    DataCell(
+                      _WorkerActions(
+                        worker: worker,
+                        onView: onView,
+                        onVerify: onVerify,
+                        onReject: onReject,
+                        onPending: onPending,
+                        onToggleBlocked: onToggleBlocked,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );
@@ -1119,13 +1078,12 @@ class _WorkersGrid extends StatelessWidget {
         final columns = constraints.maxWidth >= 1180
             ? 4
             : constraints.maxWidth >= 820
-                ? 3
-                : constraints.maxWidth >= 540
-                    ? 2
-                    : 1;
+            ? 3
+            : constraints.maxWidth >= 540
+            ? 2
+            : 1;
 
-        final width =
-            (constraints.maxWidth - ((columns - 1) * 16)) / columns;
+        final width = (constraints.maxWidth - ((columns - 1) * 16)) / columns;
 
         return Wrap(
           spacing: 16,
@@ -1207,7 +1165,7 @@ class _WorkerCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 15,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF0F172A),
                   ),
                 ),
@@ -1229,7 +1187,7 @@ class _WorkerCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               fontSize: 11,
-              color: const Color(0xFF16A34A),
+              color: kAdminBrand,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1275,8 +1233,8 @@ class _WorkerCard extends StatelessWidget {
               icon: const Icon(Icons.visibility_outlined, size: 18),
               label: const Text('Review profile'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF16A34A),
-                side: const BorderSide(color: Color(0xFF16A34A)),
+                foregroundColor: kAdminBrand,
+                side: const BorderSide(color: kAdminBrand),
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),
             ),
@@ -1310,9 +1268,7 @@ class _WorkerActions extends StatelessWidget {
       tooltip: 'Worker actions',
       color: Colors.white,
       surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       onSelected: (value) {
         switch (value) {
           case 'view':
@@ -1407,8 +1363,7 @@ class _ActionMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
+    final color = danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
 
     return Row(
       children: [
@@ -1428,10 +1383,7 @@ class _ActionMenuItem extends StatelessWidget {
 }
 
 class _WorkerAvatar extends StatelessWidget {
-  const _WorkerAvatar({
-    required this.worker,
-    required this.radius,
-  });
+  const _WorkerAvatar({required this.worker, required this.radius});
 
   final ManagedWorker worker;
   final double radius;
@@ -1442,17 +1394,15 @@ class _WorkerAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFFE8F7ED),
+      backgroundColor: kAdminBrandSoft,
       backgroundImage: photo != null ? NetworkImage(photo) : null,
       child: photo == null
           ? Text(
-              worker.name.isNotEmpty
-                  ? worker.name[0].toUpperCase()
-                  : 'W',
+              worker.name.isNotEmpty ? worker.name[0].toUpperCase() : 'W',
               style: GoogleFonts.inter(
-                color: const Color(0xFF16A34A),
+                color: kAdminBrand,
                 fontSize: radius * 0.70,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             )
           : null,
@@ -1461,10 +1411,7 @@ class _WorkerAvatar extends StatelessWidget {
 }
 
 class _VerificationBadge extends StatelessWidget {
-  const _VerificationBadge({
-    required this.status,
-    required this.isVerified,
-  });
+  const _VerificationBadge({required this.status, required this.isVerified});
 
   final String status;
   final bool isVerified;
@@ -1474,7 +1421,7 @@ class _VerificationBadge extends StatelessWidget {
     final normalized = isVerified ? 'verified' : status.toLowerCase();
 
     final color = switch (normalized) {
-      'verified' => const Color(0xFF16A34A),
+      'verified' => kAdminBrand,
       'rejected' => const Color(0xFFDC2626),
       _ => const Color(0xFFD97706),
     };
@@ -1486,10 +1433,7 @@ class _VerificationBadge extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.09),
         borderRadius: BorderRadius.circular(20),
@@ -1498,7 +1442,7 @@ class _VerificationBadge extends StatelessWidget {
         text,
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -1513,15 +1457,10 @@ class _BlockedBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isBlocked
-        ? const Color(0xFFDC2626)
-        : const Color(0xFF059669);
+    final color = isBlocked ? const Color(0xFFDC2626) : const Color(0xFF059669);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.09),
         borderRadius: BorderRadius.circular(20),
@@ -1530,7 +1469,7 @@ class _BlockedBadge extends StatelessWidget {
         isBlocked ? 'BLOCKED' : 'ACTIVE',
         style: GoogleFonts.inter(
           fontSize: 8.5,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
@@ -1548,17 +1487,13 @@ class _RatingLabel extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
-          Icons.star_rounded,
-          size: 17,
-          color: Color(0xFFEAB308),
-        ),
+        const Icon(Icons.star_rounded, size: 17, color: Color(0xFFEAB308)),
         const SizedBox(width: 4),
         Text(
           rating.toStringAsFixed(1),
           style: GoogleFonts.inter(
             fontSize: 11,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             color: const Color(0xFF334155),
           ),
         ),
@@ -1582,17 +1517,13 @@ class _MiniMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(
-          icon,
-          color: const Color(0xFF16A34A),
-          size: 20,
-        ),
+        Icon(icon, color: kAdminBrand, size: 20),
         const SizedBox(height: 5),
         Text(
           value,
           style: GoogleFonts.inter(
             fontSize: 14,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             color: const Color(0xFF0F172A),
           ),
         ),
@@ -1635,14 +1566,10 @@ class _InfoTile extends StatelessWidget {
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFF16A34A).withOpacity(0.10),
+              color: kAdminBrand.withOpacity(0.10),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              size: 19,
-              color: const Color(0xFF16A34A),
-            ),
+            child: Icon(icon, size: 19, color: kAdminBrand),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -1664,7 +1591,7 @@ class _InfoTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: const Color(0xFF334155),
                   ),
                 ),
@@ -1678,10 +1605,7 @@ class _InfoTile extends StatelessWidget {
 }
 
 class _DocumentPreview extends StatelessWidget {
-  const _DocumentPreview({
-    required this.title,
-    required this.imageUrl,
-  });
+  const _DocumentPreview({required this.title, required this.imageUrl});
 
   final String title;
   final String? imageUrl;
@@ -1748,7 +1672,7 @@ class _DocumentPreview extends StatelessWidget {
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -1770,7 +1694,7 @@ class _TableHeading extends StatelessWidget {
       text,
       style: GoogleFonts.inter(
         fontSize: 9,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w700,
         letterSpacing: 0.7,
         color: const Color(0xFF64748B),
       ),
@@ -1803,13 +1727,13 @@ class _EmptyWorkersState extends StatelessWidget {
             'No workers found',
             style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: const Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Search ya filter ke mutabiq koi worker nahi mila.',
+            'No workers match your search or filters.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: const Color(0xFF64748B),
@@ -1850,9 +1774,7 @@ class _WorkerErrorState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF991B1B),
-              ),
+              style: GoogleFonts.inter(color: const Color(0xFF991B1B)),
             ),
           ],
         ),

@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserManagementService {
   UserManagementService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -18,6 +18,8 @@ class UserManagementService {
     required bool isBlocked,
   }) async {
     await _users.doc(userId).update({
+      // The app restricts sign-in by accountStatus; isBlocked is legacy.
+      'accountStatus': isBlocked ? 'blocked' : 'active',
       'isBlocked': isBlocked,
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -73,44 +75,50 @@ class ManagedUser {
 
     return ManagedUser(
       id: document.id,
-      name: _firstString(
-        data,
-        const ['name', 'fullName', 'displayName', 'userName'],
-        fallback: 'Unnamed User',
-      ),
-      email: _firstString(
-        data,
-        const ['email'],
-        fallback: 'No email',
-      ),
-      phone: _firstString(
-        data,
-        const ['phone', 'phoneNumber', 'mobile'],
-        fallback: 'Not provided',
-      ),
-      role: _firstString(
-        data,
-        const ['role', 'userType', 'type'],
-        fallback: 'user',
-      ).toLowerCase(),
-      isBlocked: _firstBool(
-        data,
-        const ['isBlocked', 'blocked', 'isDisabled'],
-        fallback: false,
-      ),
-      isVerified: _firstBool(
-        data,
-        const ['isVerified', 'verified', 'workerVerified'],
-        fallback: false,
-      ),
-      createdAt: _firstDate(
-        data,
-        const ['createdAt', 'joinedAt', 'registeredAt'],
-      ),
-      photoUrl: _nullableString(
-        data,
-        const ['photoUrl', 'profileImage', 'imageUrl'],
-      ),
+      name: _firstString(data, const [
+        'name',
+        'fullName',
+        'displayName',
+        'userName',
+      ], fallback: 'Unnamed User'),
+      email: _firstString(data, const ['email'], fallback: 'No email'),
+      phone: _firstString(data, const [
+        'phone',
+        'phoneNumber',
+        'mobile',
+      ], fallback: 'Not provided'),
+      role: _firstString(data, const [
+        'role',
+        'userType',
+        'type',
+      ], fallback: 'user').toLowerCase(),
+      // Blocked as the mobile app enforces it (accountStatus), plus legacy
+      // flags written by older console versions.
+      isBlocked:
+          const {
+            'blocked',
+            'suspended',
+          }.contains(data['accountStatus']?.toString().trim().toLowerCase()) ||
+          _firstBool(data, const [
+            'isBlocked',
+            'blocked',
+            'isDisabled',
+          ], fallback: false),
+      isVerified: _firstBool(data, const [
+        'isVerified',
+        'verified',
+        'workerVerified',
+      ], fallback: false),
+      createdAt: _firstDate(data, const [
+        'createdAt',
+        'joinedAt',
+        'registeredAt',
+      ]),
+      photoUrl: _nullableString(data, const [
+        'photoUrl',
+        'profileImage',
+        'imageUrl',
+      ]),
       rawData: data,
     );
   }
@@ -129,10 +137,7 @@ class ManagedUser {
     return fallback;
   }
 
-  static String? _nullableString(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static String? _nullableString(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
       if (value is String && value.trim().isNotEmpty) {
@@ -154,10 +159,7 @@ class ManagedUser {
     return fallback;
   }
 
-  static DateTime? _firstDate(
-    Map<String, dynamic> data,
-    List<String> keys,
-  ) {
+  static DateTime? _firstDate(Map<String, dynamic> data, List<String> keys) {
     for (final key in keys) {
       final value = data[key];
 

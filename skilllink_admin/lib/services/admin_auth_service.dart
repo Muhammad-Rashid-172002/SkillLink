@@ -2,11 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminAuthService {
-  AdminAuthService({
-    FirebaseAuth? firebaseAuth,
-    FirebaseFirestore? firestore,
-  })  : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  AdminAuthService({FirebaseAuth? firebaseAuth, FirebaseFirestore? firestore})
+    : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
@@ -47,9 +45,7 @@ class AdminAuthService {
     } on AdminAuthException {
       rethrow;
     } catch (_) {
-      throw const AdminAuthException(
-        'Something went wrong. Please try again.',
-      );
+      throw const AdminAuthException('Something went wrong. Please try again.');
     }
   }
 
@@ -70,8 +66,10 @@ class AdminAuthService {
   }
 
   Future<AdminProfile> _verifyAdmin(User user) async {
-    final adminDocument =
-        await _firestore.collection('admins').doc(user.uid).get();
+    final adminDocument = await _firestore
+        .collection('admins')
+        .doc(user.uid)
+        .get();
 
     if (!adminDocument.exists) {
       await signOut();
@@ -86,9 +84,7 @@ class AdminAuthService {
     if (data == null) {
       await signOut();
 
-      throw const AdminAuthException(
-        'Admin profile data is not available.',
-      );
+      throw const AdminAuthException('Admin profile data is not available.');
     }
 
     final isActive = data['isActive'] as bool? ?? false;
@@ -101,8 +97,7 @@ class AdminAuthService {
       );
     }
 
-    final storedEmail =
-        (data['email'] as String?)?.trim().toLowerCase() ?? '';
+    final storedEmail = (data['email'] as String?)?.trim().toLowerCase() ?? '';
 
     final authenticatedEmail = user.email?.trim().toLowerCase() ?? '';
 
@@ -112,7 +107,7 @@ class AdminAuthService {
       await signOut();
 
       throw const AdminAuthException(
-        'Admin email verification match nahi hui.',
+        'This admin account’s email doesn’t match our records.',
       );
     }
 
@@ -136,9 +131,7 @@ class AdminAuthService {
     }
 
     try {
-      await _firebaseAuth.sendPasswordResetEmail(
-        email: normalizedEmail,
-      );
+      await _firebaseAuth.sendPasswordResetEmail(email: normalizedEmail);
     } on FirebaseAuthException catch (error) {
       throw AdminAuthException(_mapFirebaseAuthError(error));
     } catch (_) {

@@ -68,7 +68,9 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
   Future<void> _sendCode({bool resend = false}) async {
     if (_sending || _verifying) return;
     if (!resend && !(_phoneFormKey.currentState?.validate() ?? false)) return;
-    final phone = resend ? _phone : normalizePakistanPhone(_phoneController.text);
+    final phone = resend
+        ? _phone
+        : normalizePakistanPhone(_phoneController.text);
     if (phone == null) return;
 
     setState(() {

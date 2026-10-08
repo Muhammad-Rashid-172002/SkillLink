@@ -11,6 +11,8 @@ class DashboardStats {
     required this.totalTransactions,
     required this.totalEmergencyAlerts,
     required this.activeEmergencyAlerts,
+    this.pendingVerifications = 0,
+    this.pendingPayments = 0,
   });
 
   final int totalUsers;
@@ -24,4 +26,10 @@ class DashboardStats {
   final int totalTransactions;
   final int totalEmergencyAlerts;
   final int activeEmergencyAlerts;
+
+  /// Worker identity submissions waiting for an admin decision.
+  final int pendingVerifications;
+
+  /// Credit purchase proofs waiting for an admin decision.
+  final int pendingPayments;
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -389,6 +390,40 @@ class AuthSessionService {
     } on FirebaseException catch (error) {
       // Routing still works for this session; repair is retried next launch.
       debugPrint('Role repair deferred: ${error.code}');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Password
+  // ---------------------------------------------------------------------------
+
+  /// Sends a password reset link: the branded email via Cloud Functions when
+  /// available, otherwise Firebase's built-in email. Used by "Forgot
+  /// password" and by Settings > Security.
+  Future<void> sendPasswordReset(String email) async {
+    final address = email.trim().toLowerCase();
+    try {
+      await FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('sendCustomPasswordResetEmail')
+          .call(<String, dynamic>{'email': address})
+          .timeout(const Duration(seconds: 20));
+    } on FirebaseFunctionsException catch (error) {
+      if (error.code == 'invalid-argument') rethrow;
+      await _auth.sendPasswordResetEmail(email: address);
+    } on TimeoutException {
+      await _auth.sendPasswordResetEmail(email: address);
+    }
+  }
+
+  /// True when the signed-in account has an email/password credential.
+  bool get hasPasswordSignIn {
+    try {
+      return _auth.currentUser?.providerData.any(
+            (info) => info.providerId == 'password',
+          ) ??
+          false;
+    } catch (_) {
+      return false; // Firebase not initialised (e.g. widget tests).
     }
   }
 
