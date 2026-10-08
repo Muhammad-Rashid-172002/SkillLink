@@ -171,7 +171,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final email = _auth.currentUser?.email ?? 'your email';
+    final email = _auth.currentUser?.email ?? 'your email address';
     return AuthLayout(
       role: _role,
       trailing: TextButton(
