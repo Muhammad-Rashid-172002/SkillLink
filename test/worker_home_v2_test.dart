@@ -71,9 +71,10 @@ void main() {
       ).state,
       WorkerReadinessState.inactive,
     );
+    // SkillNova is free: a verified worker with no credits is ready.
     expect(
       WorkerEligibilityAdapter.evaluate(worker(workerData(credits: 0))).state,
-      WorkerReadinessState.needsCredits,
+      WorkerReadinessState.ready,
     );
   });
 
@@ -211,7 +212,9 @@ void main() {
     },
   );
 
-  testWidgets('zero-credit and no-lead states remain distinct', (tester) async {
+  testWidgets('zero-credit worker is ready and sees the free-jobs card', (
+    tester,
+  ) async {
     final repository = _FakeWorkerHomeRepository(
       profile: worker(workerData(credits: 0)),
       active: const WorkerActiveJobsSnapshot(),
@@ -219,7 +222,7 @@ void main() {
     );
     await tester.pumpWidget(_app(WorkerHomeScreen(repository: repository)));
     await tester.pumpAndSettle();
-    expect(find.text('Add lead credits to accept jobs'), findsOneWidget);
+    expect(find.text('Add lead credits to accept jobs'), findsNothing);
     await tester.scrollUntilVisible(
       find.text('No new leads'),
       200,
@@ -228,11 +231,12 @@ void main() {
     expect(find.text('No new leads'), findsOneWidget);
     expect(repository.leadWatchCount, 1);
     await tester.scrollUntilVisible(
-      find.text('0 available'),
+      find.text('Jobs are free on SkillNova'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('0 available'), findsOneWidget);
+    expect(find.text('Jobs are free on SkillNova'), findsOneWidget);
+    expect(find.text('0 available'), findsNothing);
   });
 
   for (final statusAndAction in const <(String, String)>[

@@ -97,7 +97,18 @@ class FirebaseCustomerProfileRepository implements CustomerProfileRepository {
   @override
   Future<String> uploadProfilePhoto(String path) async {
     final reference = _storage.ref('customer_profiles/${_user.uid}.jpg');
-    await reference.putFile(File(path));
+    final extension = path.split('.').last.toLowerCase();
+    await reference.putFile(
+      File(path),
+      SettableMetadata(
+        contentType: switch (extension) {
+          'png' => 'image/png',
+          'webp' => 'image/webp',
+          'heic' || 'heif' => 'image/heic',
+          _ => 'image/jpeg',
+        },
+      ),
+    );
     return reference.getDownloadURL();
   }
 

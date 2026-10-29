@@ -108,7 +108,7 @@ exports.sendCustomVerificationEmail = onCall(
         await transporter.sendMail({
           from: "\"SkillNova\" <noreply@korvenzatech.com>",
           to: email,
-          replyTo: "info@korvenzatech.com",
+          replyTo: "MuhammadRashid172002@gmail.com",
           subject: "Verify your email | SkillNova",
           text:
             `Hi ${firstName},\n\n` +
@@ -191,7 +191,7 @@ exports.sendCustomPasswordResetEmail = onCall(
         await transporter.sendMail({
           from: "\"SkillNova\" <noreply@korvenzatech.com>",
           to: email,
-          replyTo: "info@korvenzatech.com",
+          replyTo: "MuhammadRashid172002@gmail.com",
           subject: "Reset your password | SkillNova",
           text:
             `Hi ${firstName},\n\n` +
@@ -1442,13 +1442,25 @@ exports.computeJobRoute = onCall(
         );
       }
 
+      // The worker travels to the job's service location. Fall back to the
+      // customer's shared live location only when the request has none.
+      const serviceLocation = {
+        latitude: Number(job.requestData.latitude),
+        longitude: Number(job.requestData.longitude),
+      };
+      const destinationLocation =
+        isValidLatitude(serviceLocation.latitude) &&
+        isValidLongitude(serviceLocation.longitude) ?
+          serviceLocation :
+          customerLocation;
+
       if (
-        !isValidLatitude(customerLocation.latitude) ||
-        !isValidLongitude(customerLocation.longitude)
+        !isValidLatitude(destinationLocation.latitude) ||
+        !isValidLongitude(destinationLocation.longitude)
       ) {
         throw new HttpsError(
             "failed-precondition",
-            "The customer's live location is not available yet.",
+            "The service location for this job is not available.",
         );
       }
 
@@ -1497,8 +1509,8 @@ exports.computeJobRoute = onCall(
                 destination: {
                   location: {
                     latLng: {
-                      latitude: Number(customerLocation.latitude),
-                      longitude: Number(customerLocation.longitude),
+                      latitude: Number(destinationLocation.latitude),
+                      longitude: Number(destinationLocation.longitude),
                     },
                   },
                 },
@@ -1571,8 +1583,8 @@ exports.computeJobRoute = onCall(
             longitude: Number(workerLocation.longitude),
           },
           destination: {
-            latitude: Number(customerLocation.latitude),
-            longitude: Number(customerLocation.longitude),
+            latitude: Number(destinationLocation.latitude),
+            longitude: Number(destinationLocation.longitude),
           },
         };
 
@@ -1841,6 +1853,314 @@ exports.syncWorkerRating = onDocumentWritten(
           totalReviews: aggregate.totalReviews,
           statsUpdatedAt: new Date(),
         }, {merge: true});
+      }
+    },
+);
+
+
+/**
+ * ---------------------------------------------------------------------------
+ * Accounts & roles (server-authoritative)
+ * ---------------------------------------------------------------------------
+ * The app never writes `role`. Sign-up, Google sign-in and legacy-account
+ * repair all call initializeAccount, which decides the role on the server,
+ * stores it once in users/{uid}.role and mirrors it into the custom claim
+ * `role` that Firestore/Storage rules read.
+ */
+const accounts = require("./accounts");
+const {FieldValue} = require("firebase-admin/firestore");
+
+/**
+ * Sets the `role` custom claim when it differs from what is stored.
+ *
+ * @param {string} uid User id.
+ * @param {string} role Role.
+ * @return {Promise<boolean>} True when the claim changed.
+ */
+async function ensureRoleClaim(uid, role) {
+  const auth = getAuth();
+  const user = await auth.getUser(uid);
+  const claims = user.customClaims || {};
+  if (claims.role === role) return false;
+  await auth.setCustomUserClaims(uid, {...claims, role});
+  return true;
+}
+
+exports.initializeAccount = onCall(
+    {region: "us-central1", timeoutSeconds: 30, memory: "256MiB"},
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Please sign in again to continue.");
+      }
+      const uid = request.auth.uid;
+      const data = request.data || {};
+      const firestore = getFirestore();
+      const ref = firestore.collection("users").doc(uid);
+
+      const result = await firestore.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(ref);
+        const plan = accounts.planAccountInitialization({
+          exists: snapshot.exists,
+          data: snapshot.data() || {},
+          requestedRole: data.role,
+        });
+
+        if (plan.action === "needs_role" || plan.action === "admin") return plan;
+
+        const now = FieldValue.serverTimestamp();
+        if (plan.action === "create") {
+          const user = await getAuth().getUser(uid);
+          const provider = (user.providerData || [])
+              .some((info) => info.providerId === "google.com") ? "google" : "password";
+          transaction.set(ref, {
+            ...accounts.initialProfile({
+              uid,
+              role: plan.role,
+              name: data.name || user.displayName,
+              email: user.email,
+              photoUrl: user.photoURL,
+              phoneNumber: user.phoneNumber,
+              emailVerified: user.emailVerified,
+              authProvider: provider,
+            }),
+            ...(user.emailVerified ? {emailVerifiedAt: now} : {}),
+            roleAssignedBy: "initializeAccount",
+            createdAt: now,
+            updatedAt: now,
+          });
+        } else if (plan.action === "repair" || plan.action === "claim") {
+          transaction.set(ref, {
+            role: plan.role,
+            roleRecoveredFrom: plan.source,
+            roleRecoveredAt: now,
+            updatedAt: now,
+          }, {merge: true});
+        }
+        return plan;
+      });
+
+      if (result.action === "admin") {
+        return {status: "admin", role: "admin"};
+      }
+      if (result.action === "needs_role") {
+        return {status: "needs_role", role: null, reason: result.source};
+      }
+
+      const claimChanged = await ensureRoleClaim(uid, result.role);
+      logger.info("Account initialized.", {uid, action: result.action, role: result.role});
+      return {
+        status: "ok",
+        role: result.role,
+        action: result.action,
+        refreshToken: claimChanged,
+      };
+    },
+);
+
+/**
+ * Keeps custom claims, account status and the public profile in sync with
+ * users/{uid}. Runs with Admin SDK privileges.
+ */
+exports.syncAccountState = onDocumentWritten(
+    "users/{userId}",
+    async (event) => {
+      const uid = event.params.userId;
+      const before = event.data.before.exists ? event.data.before.data() : null;
+      const after = event.data.after.exists ? event.data.after.data() : null;
+      const firestore = getFirestore();
+      const publicRef = firestore.collection("public_profiles").doc(uid);
+
+      if (!after) {
+        await publicRef.delete().catch(() => null);
+        return;
+      }
+
+      const role = accounts.resolveStoredRole(after).role;
+      const previousRole = before ? accounts.resolveStoredRole(before).role : null;
+
+      try {
+        if (accounts.APP_ROLES.includes(role)) {
+          const changed = await ensureRoleClaim(uid, role);
+          if (changed && previousRole && previousRole !== role) {
+            // Admin changed the role: force every device to get a new token.
+            await getAuth().revokeRefreshTokens(uid);
+          }
+        }
+
+        const status = String(after.accountStatus || "active").toLowerCase();
+        const previousStatus = String((before && before.accountStatus) || "active").toLowerCase();
+        if (status !== previousStatus) {
+          const restricted = ["suspended", "blocked", "deleted"].includes(status);
+          await getAuth().updateUser(uid, {disabled: restricted});
+          if (restricted) await getAuth().revokeRefreshTokens(uid);
+        }
+      } catch (error) {
+        if (error && error.code === "auth/user-not-found") {
+          logger.warn("users doc without auth user", {uid});
+        } else {
+          logger.error("syncAccountState auth sync failed", {uid, error: String(error)});
+        }
+      }
+
+      const profile = accounts.publicProfileOf(uid, after);
+      if (!profile || ["suspended", "blocked", "deleted"].includes(profile.accountStatus)) {
+        await publicRef.delete().catch(() => null);
+        return;
+      }
+      await publicRef.set({...profile, updatedAt: new Date()});
+    },
+);
+
+/**
+ * Admin-only: suspend or reactivate an account, with an audit log entry.
+ */
+exports.adminSetAccountStatus = onCall(
+    {region: "us-central1", timeoutSeconds: 30, memory: "256MiB"},
+    async (request) => {
+      if (!request.auth) throw new HttpsError("unauthenticated", "Sign in required.");
+      const firestore = getFirestore();
+      const adminSnap = await firestore.collection("admins").doc(request.auth.uid).get();
+      if (!adminSnap.exists || adminSnap.data().isActive !== true) {
+        throw new HttpsError("permission-denied", "Admin access required.");
+      }
+      const uid = String((request.data && request.data.uid) || "").trim();
+      const status = String((request.data && request.data.status) || "").trim();
+      const reason = String((request.data && request.data.reason) || "").trim().slice(0, 500);
+      if (!uid || !["active", "suspended"].includes(status)) {
+        throw new HttpsError("invalid-argument", "A user id and status (active|suspended) are required.");
+      }
+      if (status === "suspended" && !reason) {
+        throw new HttpsError("invalid-argument", "Give a reason for the suspension.");
+      }
+      await firestore.collection("users").doc(uid).set({
+        accountStatus: status,
+        accountStatusReason: reason || null,
+        accountStatusUpdatedAt: FieldValue.serverTimestamp(),
+        accountStatusUpdatedBy: request.auth.uid,
+      }, {merge: true});
+      await firestore.collection("admin_audit_logs").add({
+        action: status === "suspended" ? "account_suspended" : "account_reactivated",
+        targetUid: uid,
+        reason: reason || null,
+        adminUid: request.auth.uid,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return {success: true};
+    },
+);
+
+/**
+ * Deactivates live tracking documents that stopped receiving updates, so a
+ * worker's last position is never shown as "live" for long.
+ */
+const {onSchedule} = require("firebase-functions/v2/scheduler");
+exports.expireStaleLiveTracking = onSchedule(
+    {schedule: "every 15 minutes", region: "us-central1"},
+    async () => {
+      const cutoff = new Date(Date.now() - 30 * 60 * 1000);
+      const snapshot = await getFirestore()
+          .collection(LIVE_TRACKING_COLLECTION)
+          .where("isActive", "==", true)
+          .where("updatedAt", "<", cutoff)
+          .limit(200)
+          .get();
+      const batch = getFirestore().batch();
+      snapshot.docs.forEach((doc) => batch.set(doc.ref, {
+        isActive: false,
+        expiredAt: new Date(),
+      }, {merge: true}));
+      if (!snapshot.empty) await batch.commit();
+      logger.info("Expired stale live tracking", {count: snapshot.size});
+    },
+);
+
+
+/**
+ * Shares the customer's phone number with the assigned worker only, in
+ * requests/{id}/private/contact, once a worker accepts the job. Removed again
+ * when the job finishes so contact details don't linger.
+ */
+exports.shareCustomerContact = onDocumentUpdated(
+    "requests/{requestId}",
+    async (event) => {
+      const before = event.data.before.data() || {};
+      const after = event.data.after.data() || {};
+      const firestore = getFirestore();
+      const contactRef = event.data.after.ref.collection("private").doc("contact");
+      const status = normalizeJobStatus(after.status);
+      const workerId = String(after.workerId || "").trim();
+      const customerId = String(after.customerId || "").trim();
+
+      if (FINISHED_JOB_STATUSES.has(status)) {
+        if (!FINISHED_JOB_STATUSES.has(normalizeJobStatus(before.status))) {
+          await contactRef.delete().catch(() => null);
+        }
+        return;
+      }
+      const becameAssigned = TRACKABLE_JOB_STATUSES.has(status) && workerId &&
+        (String(before.workerId || "") !== workerId ||
+          !TRACKABLE_JOB_STATUSES.has(normalizeJobStatus(before.status)));
+      if (!becameAssigned || !customerId) return;
+
+      const customer = (await firestore.collection("users").doc(customerId).get()).data() || {};
+      await contactRef.set({
+        customerId,
+        workerId,
+        customerName: String(customer.name || "Customer"),
+        customerPhone: String(customer.phoneNumber || customer.phone || ""),
+        sharedAt: new Date(),
+      });
+    },
+);
+
+/**
+ * Tells the other party when a job is cancelled (customer cancels -> the
+ * assigned worker is told; worker hands the job back -> the customer is told).
+ */
+exports.sendCancellationNotification = onDocumentUpdated(
+    "requests/{requestId}",
+    async (event) => {
+      const before = event.data.before.data() || {};
+      const after = event.data.after.data() || {};
+      const was = normalizeJobStatus(before.status);
+      const now = normalizeJobStatus(after.status);
+      if (was === now || (now !== "cancelled" && now !== "canceled")) return;
+
+      const customerId = String(after.customerId || "").trim();
+      const workerId = String(after.workerId || before.workerId || "").trim();
+      const cancelledBy = String(after.cancelledBy || "customer");
+      const recipientId = cancelledBy === "worker" ? customerId : workerId;
+      if (!recipientId) return;
+
+      const firestore = getFirestore();
+      const category = String(after.category || after.title || "service");
+      const title = "Job cancelled";
+      const message = cancelledBy === "worker" ?
+        `Your worker can no longer do the ${category} job. Please post your request again to find another worker.` :
+        `The customer cancelled the ${category} job.`;
+
+      await firestore.collection("notifications").add({
+        userId: recipientId,
+        role: cancelledBy === "worker" ? "customer" : "worker",
+        type: "job_cancelled",
+        title,
+        message,
+        requestId: event.params.requestId,
+        isRead: false,
+        createdAt: new Date(),
+      });
+
+      const recipient = (await firestore.collection("users").doc(recipientId).get()).data() || {};
+      if (!recipient.fcmToken) return;
+      try {
+        await getMessaging().send({
+          token: recipient.fcmToken,
+          notification: {title, body: message},
+          data: {type: "job_cancelled", requestId: event.params.requestId},
+          android: {priority: "high", notification: {channelId: "job_alerts"}},
+        });
+      } catch (error) {
+        logger.error("Cancellation push failed", {error: String(error)});
       }
     },
 );

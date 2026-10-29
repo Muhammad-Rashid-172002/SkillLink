@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
-import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_detail_screen.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_lead_components.dart';
@@ -14,13 +13,11 @@ class WorkerLeadDetailScreen extends StatefulWidget {
     required this.requestId,
     this.repository,
     this.onAccepted,
-    this.onGetCredits,
   });
 
   final String requestId;
   final WorkerLeadsRepository? repository;
   final ValueChanged<WorkerLead>? onAccepted;
-  final VoidCallback? onGetCredits;
 
   @override
   State<WorkerLeadDetailScreen> createState() => _WorkerLeadDetailScreenState();
@@ -100,7 +97,7 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
                           const SizedBox(height: 12),
                           _location(lead),
                           const SizedBox(height: 12),
-                          _creditCost(worker),
+                          _freeToAccept(),
                           if (!eligibility.canAccept) ...[
                             const SizedBox(height: 12),
                             _eligibilityState(eligibility),
@@ -261,17 +258,13 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
     );
   }
 
-  Widget _creditCost(WorkerHomeProfile worker) {
+  Widget _freeToAccept() {
     return _section(
-      title: 'Lead credits',
-      icon: Icons.toll_outlined,
-      child: Column(
-        children: [
-          _detailRow('Lead cost', '1 credit'),
-          _detailRow('Your balance', '${worker.credits} credits'),
-          const SizedBox(height: 6),
-          const Text('Credits are used to accept eligible leads.'),
-        ],
+      title: 'Free to accept',
+      icon: Icons.volunteer_activism_outlined,
+      child: const Text(
+        'Accepting this job is free. SkillNova never charges workers to apply '
+        'or accept work. Agree the final price directly with the customer.',
       ),
     );
   }
@@ -320,9 +313,7 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: eligibility.needsCredits
-            ? colors.tertiaryContainer
-            : colors.errorContainer,
+        color: colors.errorContainer,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -369,32 +360,25 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
             ],
             SizedBox(
               width: double.infinity,
-              child: eligibility.needsCredits
-                  ? ElevatedButton.icon(
-                      key: const ValueKey('get-lead-credits'),
-                      onPressed: _getCredits,
-                      icon: const Icon(Icons.toll_rounded),
-                      label: const Text('Get credits'),
-                    )
-                  : ElevatedButton.icon(
-                      key: const ValueKey('accept-lead'),
-                      onPressed: eligibility.canAccept && !_isAccepting
-                          ? () => _confirmAccept(worker, lead)
-                          : null,
-                      icon: _isAccepting
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.check_circle_outline_rounded),
-                      label: Text(
-                        _isAccepting
-                            ? 'Accepting lead…'
-                            : eligibility.canAccept
-                            ? 'Accept lead'
-                            : 'Lead unavailable',
-                      ),
-                    ),
+              child: ElevatedButton.icon(
+                key: const ValueKey('accept-lead'),
+                onPressed: eligibility.canAccept && !_isAccepting
+                    ? () => _confirmAccept(worker, lead)
+                    : null,
+                icon: _isAccepting
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_circle_outline_rounded),
+                label: Text(
+                  _isAccepting
+                      ? 'Accepting lead…'
+                      : eligibility.canAccept
+                      ? 'Accept lead'
+                      : 'Lead unavailable',
+                ),
+              ),
             ),
           ],
         ),
@@ -421,14 +405,12 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
             ),
             const SizedBox(height: 10),
             _dialogLine('Posted budget', lead.postedBudget),
-            _dialogLine('Lead cost', '1 credit'),
-            _dialogLine(
-              'Your balance',
-              '${worker.credits} credits → ${worker.credits - 1} credits',
-            ),
+            _dialogLine('Cost to accept', 'Free'),
             const SizedBox(height: 12),
             const Text(
-              'Accepting spends 1 lead credit. The posted budget is customer-provided and is not guaranteed earnings or payment.',
+              'The customer will see you as their professional and can track '
+              'you once you start travelling. The posted budget is the '
+              'customer’s estimate — agree the final price with them.',
             ),
           ],
         ),
@@ -451,7 +433,9 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
       await _repository.acceptLead(lead.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lead accepted. 1 credit used.')),
+        const SnackBar(
+          content: Text('Job accepted. The customer has been notified.'),
+        ),
       );
       final callback = widget.onAccepted;
       if (callback != null) {
@@ -467,10 +451,6 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
     } on WorkerLeadAcceptanceException catch (error) {
       if (!mounted) return;
       _showFailure(error.message);
-      if (error.failure == WorkerLeadAcceptanceFailure.insufficientCredits) {
-        // The fresh transaction result is authoritative; the worker can use
-        // the visible Get credits route after the profile stream refreshes.
-      }
     } catch (_) {
       if (mounted) {
         _showFailure('The lead could not be accepted. Please try again.');
@@ -478,18 +458,6 @@ class _WorkerLeadDetailScreenState extends State<WorkerLeadDetailScreen> {
     } finally {
       if (mounted) setState(() => _isAccepting = false);
     }
-  }
-
-  void _getCredits() {
-    final callback = widget.onGetCredits;
-    if (callback != null) {
-      callback();
-      return;
-    }
-    Navigator.push(
-      context,
-      MaterialPageRoute<void>(builder: (_) => const WallatScreen()),
-    );
   }
 
   void _showFailure(String message) {

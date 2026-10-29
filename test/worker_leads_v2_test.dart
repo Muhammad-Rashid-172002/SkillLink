@@ -162,103 +162,91 @@ void main() {
     );
   });
 
-  test(
-    'acceptance plan preserves one-credit and accepted lifecycle contract',
-    () {
-      final plan = planWorkerLeadAcceptance(
+  test('acceptance plan is free and keeps the accepted lifecycle contract', () {
+    final plan = planWorkerLeadAcceptance(
+      workerId: 'worker-1',
+      workerData: _worker().data,
+      requestId: 'lead-1',
+      requestData: _lead(id: 'lead-1').data,
+    );
+    expect(plan.workerId, 'worker-1');
+    expect(plan.nextStatus, 'accepted');
+
+    // A worker with zero credits can still accept: there are no fees.
+    final freePlan = planWorkerLeadAcceptance(
+      workerId: 'worker-1',
+      workerData: _worker(credits: 0).data,
+      requestId: 'lead-1',
+      requestData: _lead(id: 'lead-1').data,
+    );
+    expect(freePlan.nextStatus, 'accepted');
+    for (final changed in [
+      _lead(id: 'lead-1', status: 'cancelled'),
+      _lead(id: 'lead-1', status: 'accepted', workerId: 'worker-2'),
+    ]) {
+      expect(
+        () => planWorkerLeadAcceptance(
+          workerId: 'worker-1',
+          workerData: _worker().data,
+          requestId: changed.id,
+          requestData: changed.data,
+        ),
+        throwsA(isA<WorkerLeadAcceptanceException>()),
+      );
+    }
+    expect(
+      () => planWorkerLeadAcceptance(
         workerId: 'worker-1',
-        workerData: _worker().data,
+        workerData: _worker(verification: 'pending').data,
         requestId: 'lead-1',
         requestData: _lead(id: 'lead-1').data,
-      );
-      expect(plan.balanceBefore, 5);
-      expect(plan.balanceAfter, 4);
-      expect(plan.workerId, 'worker-1');
-      expect(plan.nextStatus, 'accepted');
-
+      ),
+      throwsA(
+        isA<WorkerLeadAcceptanceException>().having(
+          (error) => error.failure,
+          'failure',
+          WorkerLeadAcceptanceFailure.workerIneligible,
+        ),
+      ),
+    );
+    final unchangedWorker = {..._worker().data};
+    for (final workerData in [
+      {..._worker().data, 'isBlocked': true},
+      {..._worker().data, 'accountStatus': 'inactive'},
+      {..._worker().data, 'canAcceptJobs': false},
+      {..._worker().data, 'profileCompleted': false},
+    ]) {
       expect(
         () => planWorkerLeadAcceptance(
           workerId: 'worker-1',
-          workerData: _worker(credits: 0).data,
+          workerData: workerData,
           requestId: 'lead-1',
           requestData: _lead(id: 'lead-1').data,
         ),
-        throwsA(
-          isA<WorkerLeadAcceptanceException>().having(
-            (error) => error.failure,
-            'failure',
-            WorkerLeadAcceptanceFailure.insufficientCredits,
-          ),
-        ),
+        throwsA(isA<WorkerLeadAcceptanceException>()),
       );
-      for (final changed in [
-        _lead(id: 'lead-1', status: 'cancelled'),
-        _lead(id: 'lead-1', status: 'accepted', workerId: 'worker-2'),
-      ]) {
-        expect(
-          () => planWorkerLeadAcceptance(
-            workerId: 'worker-1',
-            workerData: _worker().data,
-            requestId: changed.id,
-            requestData: changed.data,
-          ),
-          throwsA(isA<WorkerLeadAcceptanceException>()),
-        );
-      }
-      expect(
-        () => planWorkerLeadAcceptance(
-          workerId: 'worker-1',
-          workerData: _worker(verification: 'pending').data,
-          requestId: 'lead-1',
-          requestData: _lead(id: 'lead-1').data,
+    }
+    expect(
+      () => planWorkerLeadAcceptance(
+        workerId: 'worker-1',
+        workerData: unchangedWorker,
+        requestId: 'deleted',
+        requestData: null,
+      ),
+      throwsA(
+        isA<WorkerLeadAcceptanceException>().having(
+          (error) => error.failure,
+          'failure',
+          WorkerLeadAcceptanceFailure.leadMissing,
         ),
-        throwsA(
-          isA<WorkerLeadAcceptanceException>().having(
-            (error) => error.failure,
-            'failure',
-            WorkerLeadAcceptanceFailure.workerIneligible,
-          ),
-        ),
-      );
-      final unchangedWorker = {..._worker().data};
-      for (final workerData in [
-        {..._worker().data, 'isBlocked': true},
-        {..._worker().data, 'accountStatus': 'inactive'},
-        {..._worker().data, 'canAcceptJobs': false},
-        {..._worker().data, 'profileCompleted': false},
-      ]) {
-        expect(
-          () => planWorkerLeadAcceptance(
-            workerId: 'worker-1',
-            workerData: workerData,
-            requestId: 'lead-1',
-            requestData: _lead(id: 'lead-1').data,
-          ),
-          throwsA(isA<WorkerLeadAcceptanceException>()),
-        );
-      }
-      expect(
-        () => planWorkerLeadAcceptance(
-          workerId: 'worker-1',
-          workerData: unchangedWorker,
-          requestId: 'deleted',
-          requestData: null,
-        ),
-        throwsA(
-          isA<WorkerLeadAcceptanceException>().having(
-            (error) => error.failure,
-            'failure',
-            WorkerLeadAcceptanceFailure.leadMissing,
-          ),
-        ),
-      );
-      expect(
-        unchangedWorker['credits'],
-        5,
-        reason: 'failed plans do not mutate credit data',
-      );
-    },
-  );
+      ),
+    );
+    expect(
+      unchangedWorker['credits'],
+      5,
+      reason: 'failed plans do not mutate worker data',
+    );
+  });
 
   testWidgets(
     'Leads supports search, filters, sorting and empty states at 390',
@@ -436,7 +424,7 @@ void main() {
   });
 
   testWidgets(
-    'Lead detail confirms credit spend and prevents double acceptance',
+    'Lead detail confirms free acceptance and prevents double acceptance',
     (tester) async {
       _size(tester, const Size(320, 720));
       final acceptance = Completer<void>();
@@ -459,24 +447,21 @@ void main() {
       expect(tester.takeException(), isNull, reason: 'initial detail layout');
       expect(find.text('Posted budget'), findsOneWidget);
       await tester.scrollUntilVisible(
-        find.text('Lead cost'),
+        find.text('Free to accept'),
         240,
         scrollable: find.byType(Scrollable).first,
       );
       expect(tester.takeException(), isNull, reason: 'scrolled detail layout');
-      expect(find.text('Lead cost'), findsOneWidget);
-      expect(find.text('1 credit'), findsOneWidget);
-      expect(
-        find.textContaining('contact options unlock'),
-        findsOneWidget,
-      );
+      expect(find.text('Free to accept'), findsOneWidget);
+      expect(find.textContaining('credit'), findsNothing);
+      expect(find.textContaining('contact options unlock'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('accept-lead')));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'confirmation layout');
       expect(find.text('Accept this lead?'), findsOneWidget);
-      expect(find.text('8 credits → 7 credits'), findsOneWidget);
-      expect(find.textContaining('not guaranteed earnings'), findsOneWidget);
+      expect(find.text('Free'), findsOneWidget);
+      expect(find.textContaining('credits'), findsNothing);
       await tester.tap(find.byKey(const ValueKey('confirm-accept-lead')));
       await tester.pump();
       expect(tester.takeException(), isNull, reason: 'accepting layout');
@@ -490,11 +475,10 @@ void main() {
     },
   );
 
-  testWidgets('zero credits and ineligible workers get truthful actions', (
+  testWidgets('zero credits can accept for free; ineligible workers cannot', (
     tester,
   ) async {
     _size(tester, const Size(390, 844));
-    var creditsOpened = 0;
     final zeroRepo = _FakeWorkerLeadsRepository(
       worker: _worker(credits: 0),
       leads: [_lead(id: 'zero')],
@@ -505,14 +489,12 @@ void main() {
           key: const ValueKey('zero-credit-detail'),
           requestId: 'zero',
           repository: zeroRepo,
-          onGetCredits: () => creditsOpened++,
         ),
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Get credits'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('get-lead-credits')));
-    expect(creditsOpened, 1);
+    expect(find.text('Get credits'), findsNothing);
+    expect(find.text('Accept lead'), findsOneWidget);
 
     final pendingRepo = _FakeWorkerLeadsRepository(
       worker: _worker(verification: 'pending'),

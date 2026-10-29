@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// SkillNova Cloud Storage security rules.
+// Files are read in the app through download URLs (token links). These rules
+// decide who may upload, replace or list files.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function isOwner(userId) { return signedIn() && request.auth.uid == userId; }
+    function isImage() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)');
+    }
+    function isAudio() {
+      return request.resource.contentType.matches('audio/.*');
+    }
+    function under(mb) { return request.resource.size < mb * 1024 * 1024; }
+    function isAdmin() {
+      return signedIn() && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('isActive', false) == true;
+    }
+    function chatParticipant(chatId) {
+      let chat = firestore.get(/databases/(default)/documents/chats/$(chatId)).data;
+      return signedIn() && (chat.get('customerId', '') == request.auth.uid
+        || chat.get('workerId', '') == request.auth.uid);
+    }
+
+    // Worker profile photo.
+    match /profile_images/workers/{userId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if isOwner(userId) && isImage() && under(5);
+    }
+
+    // Customer profile photo.
+    match /customer_profiles/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn() && fileName == request.auth.uid + '.jpg'
+        && isImage() && under(5);
+    }
+
+    // Photos attached to a service request by its customer.
+    match /request_images/{userId}/{requestId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if isOwner(userId) && isImage() && under(8);
+    }
+
+    // Chat photos and voice notes: only the chat's two participants.
+    match /chat_media/{chatId}/{fileName} {
+      allow read: if chatParticipant(chatId) || isAdmin();
+      allow create: if chatParticipant(chatId) && isImage() && under(10);
+    }
+    match /chat_audio/{chatId}/{fileName} {
+      allow read: if chatParticipant(chatId) || isAdmin();
+      allow create: if chatParticipant(chatId) && isAudio() && under(10);
+    }
+
+    // Identity documents and selfies: write-only for the worker, readable
+    // only by admins reviewing verification.
+    match /private_verifications/workers/{workerId}/{allPaths=**} {
+      allow write: if isOwner(workerId) && isImage() && under(8);
+      allow read: if isAdmin();
+    }
+
+    // Legacy payment receipts (platform is now free): admin read only.
+    match /payment_receipts/{userId}/{allPaths=**} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

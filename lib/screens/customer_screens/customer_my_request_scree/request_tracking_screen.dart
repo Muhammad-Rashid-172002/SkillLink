@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
-import 'package:skill_link/design_system/widgets/skillnova_map.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
 import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
@@ -12,6 +11,8 @@ import 'package:skill_link/screens/customer_screens/bookings/booking_repository.
 import 'package:skill_link/screens/customer_screens/bookings/booking_status.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/RateWorkerScreen.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
+import 'package:skill_link/screens/customer_screens/tracking/live_tracking_panel.dart';
+import 'package:skill_link/services/live_tracking/live_tracking.dart';
 
 class RequestTrackingScreen extends StatefulWidget {
   const RequestTrackingScreen({
@@ -23,10 +24,15 @@ class RequestTrackingScreen extends StatefulWidget {
     this.onViewProfile,
     this.onSos,
     this.onRate,
+    this.trackingStream,
   });
 
   final String requestId;
   final BookingDetailDataSource? dataSource;
+
+  /// Live position + route for this job. Defaults to
+  /// `live_tracking/{requestId}` in Firestore.
+  final Stream<LiveTrackingSnapshot>? trackingStream;
   final VoidCallback? onMessage;
   final VoidCallback? onCall;
   final VoidCallback? onViewProfile;
@@ -42,20 +48,25 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
   late Stream<Map<String, dynamic>?> _requestStream;
   late Stream<Map<String, dynamic>?> _reviewStream;
   final Map<String, Stream<Map<String, dynamic>?>> _workerStreams = {};
-  GoogleMapController? _mapController;
+  late final Stream<LiveTrackingSnapshot> _trackingStream;
 
   @override
   void initState() {
     super.initState();
+    _trackingStream =
+        widget.trackingStream ??
+        (widget.dataSource != null
+            // Injected data sources (tests, previews) have no Firestore.
+            ? const Stream<LiveTrackingSnapshot>.empty()
+            : FirebaseFirestore.instance
+                  .collection('live_tracking')
+                  .doc(widget.requestId)
+                  .snapshots()
+                  .map((doc) => LiveTrackingSnapshot.fromMap(doc.data()))
+                  .handleError((Object _) {}));
     _dataSource = widget.dataSource ?? FirebaseCustomerBookingsRepository();
     _requestStream = _dataSource.watchRequest(widget.requestId);
     _reviewStream = _dataSource.watchReview(widget.requestId);
-  }
-
-  @override
-  void dispose() {
-    _mapController?.dispose();
-    super.dispose();
   }
 
   @override
@@ -159,7 +170,10 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
                         ),
                       if (booking.workerId.isNotEmpty) ...[
                         const SizedBox(height: SkillNovaSpacing.md),
-                        _mapArea(booking),
+                        LiveTrackingPanel(
+                          booking: booking,
+                          tracking: _trackingStream,
+                        ),
                       ],
                       const SizedBox(height: SkillNovaSpacing.md),
                       BookingDetailSection(
@@ -226,90 +240,6 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
     );
   }
 
-  Widget _mapArea(CustomerBooking booking) {
-    final customer = booking.customerCoordinate;
-    final worker = booking.workerTrackingCoordinate;
-    final markers = <Marker>{
-      if (customer != null)
-        Marker(
-          markerId: const MarkerId('customer-location'),
-          position: LatLng(customer.latitude, customer.longitude),
-          infoWindow: const InfoWindow(title: 'Service location'),
-        ),
-      if (worker != null)
-        Marker(
-          markerId: const MarkerId('worker-location'),
-          position: LatLng(worker.latitude, worker.longitude),
-          infoWindow: InfoWindow(title: booking.workerName),
-        ),
-    };
-    return BookingDetailSection(
-      title: 'Location tracking',
-      icon: Icons.map_outlined,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (markers.isEmpty)
-            const EmptyState(
-              icon: Icons.location_off_outlined,
-              title: 'Location unavailable',
-              message:
-                  'No valid service or professional coordinates are available.',
-            )
-          else
-            ClipRRect(
-              borderRadius: BorderRadius.circular(SkillNovaRadius.medium),
-              child: SizedBox(
-                height: 240,
-                child: SkillNovaMap(
-                  label: 'Live map',
-                  builder: (_) => GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: worker != null
-                          ? LatLng(worker.latitude, worker.longitude)
-                          : LatLng(customer!.latitude, customer.longitude),
-                      zoom: markers.length == 1 ? 14 : 12,
-                    ),
-                    markers: markers,
-                    polylines: const {},
-                    myLocationButtonEnabled: false,
-                    mapToolbarEnabled: false,
-                    zoomControlsEnabled: false,
-                    onMapCreated: (controller) {
-                      _mapController = controller;
-                      _fitMarkers(markers);
-                    },
-                  ),
-                ),
-              ),
-            ),
-          const SizedBox(height: SkillNovaSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                worker == null
-                    ? Icons.location_searching_rounded
-                    : Icons.near_me_rounded,
-                color: Theme.of(context).colorScheme.primary,
-                size: 19,
-              ),
-              const SizedBox(width: SkillNovaSpacing.xs),
-              Expanded(
-                child: Text(
-                  worker == null
-                      ? 'Live location is not available yet.'
-                      : 'Professional location last updated ${bookingDateLabel(bookingDate(booking.worker?['locationUpdatedAt']), includeTime: true)}.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _safety(CustomerBooking booking) {
     return BookingDetailSection(
       title: 'Safety & emergency',
@@ -352,36 +282,6 @@ class _RequestTrackingScreenState extends State<RequestTrackingScreen> {
                     ? null
                     : () => _rate(booking),
               ),
-      ),
-    );
-  }
-
-  Future<void> _fitMarkers(Set<Marker> markers) async {
-    final controller = _mapController;
-    if (controller == null || markers.length < 2) return;
-    final points = markers.map((marker) => marker.position).toList();
-    final minLat = points
-        .map((point) => point.latitude)
-        .reduce((a, b) => a < b ? a : b);
-    final maxLat = points
-        .map((point) => point.latitude)
-        .reduce((a, b) => a > b ? a : b);
-    final minLng = points
-        .map((point) => point.longitude)
-        .reduce((a, b) => a < b ? a : b);
-    final maxLng = points
-        .map((point) => point.longitude)
-        .reduce((a, b) => a > b ? a : b);
-    if ((maxLat - minLat).abs() < 0.0001 && (maxLng - minLng).abs() < 0.0001) {
-      return;
-    }
-    await controller.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat, minLng),
-          northeast: LatLng(maxLat, maxLng),
-        ),
-        52,
       ),
     );
   }

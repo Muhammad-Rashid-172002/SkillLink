@@ -21,29 +21,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _index = 0;
   bool _leaving = false;
 
+  // Short sentences and everyday words: many people opening SkillNova are
+  // new to smartphone apps.
   static const _pages = <_OnboardingPageData>[
     _OnboardingPageData(
-      eyebrow: 'Discover',
-      title: 'Skilled pros, right around the corner',
+      eyebrow: 'Find',
+      title: 'Find a trusted worker near you',
       body:
-          'Plumbers, electricians, AC technicians, painters and more — '
-          'find the right person near you in seconds.',
+          'Plumber, electrician, AC repair, painter and more. See nearby '
+          'workers with their photo, stars and reviews. SkillNova is free.',
       visual: _Visual.network,
     ),
     _OnboardingPageData(
-      eyebrow: 'Request',
-      title: 'Describe the job once, get matched fast',
+      eyebrow: 'Book',
+      title: 'Book in 3 easy steps',
       body:
-          'Tell us what you need, where and when. Nearby professionals are '
-          'notified and you choose who to hire.',
+          '1. Pick a service.  2. Say what needs fixing.  3. A worker accepts '
+          'and you can chat or call them. Workers apply for jobs for free.',
       visual: _Visual.request,
     ),
     _OnboardingPageData(
-      eyebrow: 'Trust',
-      title: 'Verified people. Tracked jobs. Real reviews.',
+      eyebrow: 'Track',
+      title: 'See your worker coming',
       body:
-          'Workers verify their identity, every job is tracked from start to '
-          'finish, and you can chat or raise an alert anytime.',
+          'Watch your worker on the map with the arrival time. After the job, '
+          'give stars. Need help? Open Help & Support at any time.',
       visual: _Visual.trust,
     ),
   ];

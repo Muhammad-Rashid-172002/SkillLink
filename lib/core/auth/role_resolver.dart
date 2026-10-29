@@ -1,7 +1,8 @@
 import 'package:skill_link/core/auth/user_role.dart';
 
 /// Where a resolved role came from. Anything other than [stored] means the
-/// `users/{uid}.role` field was missing or malformed and should be repaired.
+/// `users/{uid}.role` field was missing or malformed and must be repaired —
+/// by the server (`initializeAccount` Cloud Function), never by the app.
 enum RoleSource {
   /// `role` field exists and is already in canonical form.
   stored,
@@ -16,11 +17,8 @@ enum RoleSource {
   /// verification defaults, ...).
   profileEvidence,
 
-  /// Role remembered on this device when the account was created.
-  deviceCache,
-
-  /// Role the person explicitly picked on the role selection screen.
-  userSelection,
+  /// Evidence points at both roles. Never guessed.
+  conflict,
 
   /// Nothing usable was found.
   none,
@@ -29,27 +27,28 @@ enum RoleSource {
 class RoleResolution {
   const RoleResolution(this.role, this.source);
 
-  const RoleResolution.none() : role = null, source = RoleSource.none;
+  const RoleResolution.none([this.source = RoleSource.none]) : role = null;
 
   final UserRole? role;
   final RoleSource source;
 
   bool get isResolved => role != null;
 
-  /// True when the stored document must be repaired with the canonical value.
-  bool get needsPersist =>
+  /// True when the stored document must be repaired by the server.
+  bool get needsRepair =>
       role != null && source != RoleSource.stored && source != RoleSource.none;
 
   @override
   String toString() => 'RoleResolution(${role?.value}, $source)';
 }
 
-/// Pure, side-effect free role resolution.
+/// Pure, side-effect free role resolution that mirrors
+/// `functions/accounts.js#resolveStoredRole`.
 ///
-/// This is the root-cause fix for the "Account role is invalid" bug: instead of
-/// rejecting any document whose `role` field is not exactly `customer` or
-/// `worker`, we recover the role from every trustworthy signal, in order of
-/// reliability, and only give up when the account genuinely has no role.
+/// It only reads data stored on the server. A role remembered on the device
+/// or tapped on a login screen is **never** used to decide what an account
+/// is: that is what allowed customers to end up in the worker app (and the
+/// reverse) on a second device.
 abstract final class RoleResolver {
   static const List<String> legacyRoleKeys = [
     'userType',
@@ -61,11 +60,7 @@ abstract final class RoleResolver {
     'type',
   ];
 
-  static RoleResolution resolve(
-    Map<String, dynamic> data, {
-    UserRole? cachedRole,
-    UserRole? selectedRole,
-  }) {
+  static RoleResolution resolve(Map<String, dynamic> data) {
     final raw = data['role'];
     final stored = UserRole.tryParse(raw);
     if (stored != null) {
@@ -81,24 +76,11 @@ abstract final class RoleResolver {
       if (legacy != null) return RoleResolution(legacy, RoleSource.legacyField);
     }
 
-    final evidence = _profileEvidence(data);
-    if (evidence != null) {
-      return RoleResolution(evidence, RoleSource.profileEvidence);
-    }
-
-    if (cachedRole != null && cachedRole.isAppRole) {
-      return RoleResolution(cachedRole, RoleSource.deviceCache);
-    }
-
-    if (selectedRole != null && selectedRole.isAppRole) {
-      return RoleResolution(selectedRole, RoleSource.userSelection);
-    }
-
-    return const RoleResolution.none();
+    return _profileEvidence(data);
   }
 
   /// Fields that only one role's flows ever write.
-  static UserRole? _profileEvidence(Map<String, dynamic> data) {
+  static RoleResolution _profileEvidence(Map<String, dynamic> data) {
     bool present(String key) {
       final value = data[key];
       if (value == null) return false;
@@ -107,33 +89,30 @@ abstract final class RoleResolver {
       return true;
     }
 
-    final identity = data['identityVerificationStatus']
-        ?.toString()
-        .trim()
-        .toLowerCase();
-    final level = data['verificationLevel']?.toString().trim().toLowerCase();
+    final identity =
+        data['identityVerificationStatus']?.toString().trim().toLowerCase() ??
+        '';
+    final level =
+        data['verificationLevel']?.toString().trim().toLowerCase() ?? '';
 
-    // Customer sign-up always writes these exact defaults.
-    if (identity == 'not_required' || level == 'basic') {
-      return UserRole.customer;
-    }
-
-    // Only the worker profile / verification flows write these.
-    final workerSignals = [
-      'skill',
-      'hourlyRate',
-      'experience',
-      'skills',
-    ].any(present);
-    final workerVerification =
-        identity != null && identity.isNotEmpty && identity != 'not_required';
-    if (workerSignals ||
-        workerVerification ||
+    final workerSignals =
+        const ['skill', 'hourlyRate', 'experience', 'skills'].any(present) ||
+        (identity.isNotEmpty && identity != 'not_required') ||
         level == 'unverified' ||
-        level == 'identity_verified') {
-      return UserRole.worker;
-    }
+        level == 'identity_verified';
+    final customerSignals = identity == 'not_required' || level == 'basic';
 
-    return null;
+    if (workerSignals && !customerSignals) {
+      return const RoleResolution(UserRole.worker, RoleSource.profileEvidence);
+    }
+    if (customerSignals && !workerSignals) {
+      return const RoleResolution(
+        UserRole.customer,
+        RoleSource.profileEvidence,
+      );
+    }
+    return RoleResolution.none(
+      workerSignals && customerSignals ? RoleSource.conflict : RoleSource.none,
+    );
   }
 }

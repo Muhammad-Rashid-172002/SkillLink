@@ -52,7 +52,6 @@ class DashboardService {
         query: requests.where('status', isEqualTo: 'completed'),
       ),
       _countCollection('reviews'),
-      _countCollection('transactions'),
       _countCollection('emergency_alerts'),
       _countCollection(
         'emergency_alerts',
@@ -68,10 +67,10 @@ class DashboardService {
             .where('identityStatus', isEqualTo: 'pending'),
       ),
       _countCollection(
-        'payment_requests',
+        'support_requests',
         query: _firestore
-            .collection('payment_requests')
-            .where('status', isEqualTo: 'pending'),
+            .collection('support_requests')
+            .where('status', isEqualTo: 'open'),
       ),
     ]);
 
@@ -84,11 +83,10 @@ class DashboardService {
       activeJobs: results[5],
       completedJobs: results[6],
       totalReviews: results[7],
-      totalTransactions: results[8],
-      totalEmergencyAlerts: results[9],
-      activeEmergencyAlerts: results[10],
-      pendingVerifications: results[11],
-      pendingPayments: results[12],
+      totalEmergencyAlerts: results[8],
+      activeEmergencyAlerts: results[9],
+      pendingVerifications: results[10],
+      openSupportRequests: results[11],
     );
   }
 

@@ -114,8 +114,8 @@ class _BrandPanel extends StatelessWidget {
             (Icons.radar_rounded, 'Job leads from customers near you'),
             (Icons.verified_user_rounded, 'A verified profile customers trust'),
             (
-              Icons.account_balance_wallet_rounded,
-              'Jobs and earnings in one place',
+              Icons.volunteer_activism_rounded,
+              'Free to join, free to accept jobs',
             ),
           ]
         : const [
@@ -191,7 +191,7 @@ class _BrandPanel extends StatelessWidget {
                                     child: Icon(
                                       icon,
                                       size: 19,
-                                      color: const Color(0xFF7DD3FC),
+                                      color: SkillNovaColors.accentBright,
                                     ),
                                   ),
                                   const SizedBox(width: 14),

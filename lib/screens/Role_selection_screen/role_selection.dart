@@ -65,8 +65,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           ),
           const SizedBox(height: SkillNovaSpacing.xs),
           Text(
-            'Pick one to get started. You can always reach us if you need '
-            'to change it later.',
+            'Pick one to start. Both are free. Already have an account? Tap '
+            '“Sign in” below.',
             style: theme.textTheme.bodyLarge?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -76,7 +76,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
             role: UserRole.customer,
             title: 'I need a service',
             subtitle:
-                'Request help at home, compare professionals and track the job.',
+                'Get help at home. Choose a worker, book and watch them arrive.',
             icon: Icons.person_search_rounded,
             highlights: const [
               'Post requests',
@@ -91,9 +91,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
             role: UserRole.worker,
             title: 'I offer a service',
             subtitle:
-                'Receive nearby job leads, manage your work and grow your income.',
+                'Find customers near you. Applying for jobs is always free.',
             icon: Icons.handyman_rounded,
-            highlights: const ['Nearby leads', 'Job manager', 'Earnings'],
+            highlights: const ['Free job leads', 'Accept for free', 'Reviews'],
             selected: _selected == UserRole.worker,
             onTap: () => setState(() => _selected = UserRole.worker),
           ),

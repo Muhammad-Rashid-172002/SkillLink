@@ -73,6 +73,10 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
 
       String assignedWorkerId = '';
 
+      final customerProfile =
+          (await firestore.collection('users').doc(user.uid).get()).data() ??
+          const <String, dynamic>{};
+
       await firestore.runTransaction((transaction) async {
         final requestSnapshot = await transaction.get(requestRef);
 
@@ -111,12 +115,34 @@ class _RateWorkerScreenState extends State<RateWorkerScreen> {
 
         assignedWorkerId = workerId;
 
+        final customerName = (customerProfile['name'] ?? user.displayName ?? '')
+            .toString()
+            .trim();
+        final customerPhoto =
+            (customerProfile['photoUrl'] ??
+                    customerProfile['profileImage'] ??
+                    user.photoURL)
+                ?.toString();
+        final serviceTitle = (requestData['category'] ?? requestData['title'])
+            ?.toString();
         transaction.set(reviewRef, {
           'workerId': assignedWorkerId,
           'customerId': user.uid,
           'requestId': widget.requestId,
           'rating': _selectedRating,
           'review': _reviewController.text.trim(),
+          // Shown next to the review on the worker's profile.
+          'customerName': customerName.isEmpty
+              ? 'SkillNova customer'
+              : customerName.length > 80
+              ? customerName.substring(0, 80)
+              : customerName,
+          if (customerPhoto != null &&
+              customerPhoto.startsWith('https://') &&
+              customerPhoto.length <= 1000)
+            'customerPhotoUrl': customerPhoto,
+          if (serviceTitle != null && serviceTitle.isNotEmpty)
+            'serviceTitle': serviceTitle,
           'createdAt': FieldValue.serverTimestamp(),
         });
 

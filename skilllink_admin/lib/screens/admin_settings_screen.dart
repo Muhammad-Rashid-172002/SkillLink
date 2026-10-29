@@ -364,64 +364,16 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                           ),
                         ),
                         const SizedBox(height: 18),
-                        _SectionCard(
-                          title: 'Credits Configuration',
-                          subtitle:
-                              'How workers get and spend lead credits today.',
-                          icon: Icons.toll_rounded,
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _TextField(
-                                      controller: _defaultCreditsController,
-                                      label: 'Default Credits',
-                                      icon: Icons.wallet_giftcard_rounded,
-                                      numberOnly: true,
-                                      readOnly: true,
-                                      helper:
-                                          'New workers start with 0; credits '
-                                          'are added by approving payments.',
-                                      validator: _numberValidator,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _TextField(
-                                      controller: _creditsPerLeadController,
-                                      label: 'Credits per Lead',
-                                      icon: Icons.remove_circle_outline_rounded,
-                                      numberOnly: true,
-                                      readOnly: true,
-                                      helper: 'Fixed at 1 in the worker app.',
-                                      validator: _numberValidator,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              _TextField(
-                                controller: _lowCreditsController,
-                                label: 'Low Credit Warning',
-                                icon: Icons.warning_amber_rounded,
-                                numberOnly: true,
-                                helper:
-                                    'Saved for reference; the worker app does '
-                                    'not read it yet.',
-                                validator: _numberValidator,
-                              ),
-                              const SizedBox(height: 8),
-                              _SwitchTile(
-                                title: 'Automatic Credit Deduction',
-                                subtitle:
-                                    'Always on: accepting a lead uses 1 credit in the worker app.',
-                                value: true,
-                                icon: Icons.autorenew_rounded,
-                                onChanged: null,
-                                status: 'Always on',
-                              ),
-                            ],
+                        const _SectionCard(
+                          title: 'Pricing',
+                          subtitle: 'SkillNova is free for this release.',
+                          icon: Icons.volunteer_activism_rounded,
+                          child: Text(
+                            'Customers book and workers accept jobs at no '
+                            'cost. Lead credits, payment proofs and fees are '
+                            'switched off in the apps and blocked by the '
+                            'security rules. Historical payment records are '
+                            'kept read-only in Firestore.',
                           ),
                         ),
                       ],
@@ -599,14 +551,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       return 'Enter a valid email address.';
     }
 
-    return null;
-  }
-
-  String? _numberValidator(String? value) {
-    final number = int.tryParse(value?.trim() ?? '');
-    if (number == null || number < 0) {
-      return 'Enter a valid number.';
-    }
     return null;
   }
 }
@@ -838,7 +782,6 @@ class _TextField extends StatelessWidget {
     required this.label,
     required this.icon,
     this.validator,
-    this.numberOnly = false,
     this.readOnly = false,
     this.helper,
   });
@@ -847,7 +790,6 @@ class _TextField extends StatelessWidget {
   final String label;
   final IconData icon;
   final String? Function(String?)? validator;
-  final bool numberOnly;
   final bool readOnly;
   final String? helper;
 
@@ -857,7 +799,7 @@ class _TextField extends StatelessWidget {
       controller: controller,
       validator: validator,
       readOnly: readOnly,
-      keyboardType: numberOnly ? TextInputType.number : TextInputType.text,
+      keyboardType: TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
         helperText: helper,

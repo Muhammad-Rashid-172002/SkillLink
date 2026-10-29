@@ -695,13 +695,13 @@ class _NotificationsHeader extends StatelessWidget {
         title: 'Total Notifications',
         value: '$total',
         icon: Icons.notifications_rounded,
-        color: const Color(0xFF2563EB),
+        color: kAdminBrand,
       ),
       _NotificationStatCard(
         title: 'Unread',
         value: '$unread',
         icon: Icons.mark_email_unread_rounded,
-        color: const Color(0xFFD97706),
+        color: kAdminWarning,
       ),
       _NotificationStatCard(
         title: 'Broadcasts',
@@ -1459,7 +1459,7 @@ class _AudienceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = switch (audience) {
       'workers' => kAdminBrand,
-      'customers' => const Color(0xFF2563EB),
+      'customers' => kAdminBrand,
       _ => const Color(0xFF7C3AED),
     };
 
@@ -1490,7 +1490,7 @@ class _ReadBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Badge(
       text: isRead ? 'READ' : 'UNREAD',
-      color: isRead ? const Color(0xFF64748B) : const Color(0xFFD97706),
+      color: isRead ? const Color(0xFF64748B) : kAdminWarning,
     );
   }
 }
@@ -1796,7 +1796,7 @@ Color _typeColor(String type) {
     case 'alert':
       return const Color(0xFFDC2626);
     case 'update':
-      return const Color(0xFF2563EB);
+      return kAdminBrand;
     default:
       return kAdminSuccess;
   }

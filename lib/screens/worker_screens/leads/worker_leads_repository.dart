@@ -127,9 +127,6 @@ class FirebaseWorkerLeadsRepository implements WorkerLeadsRepository {
     final uid = _uid;
     final workerRef = _firestore.collection('users').doc(uid);
     final requestRef = _firestore.collection('requests').doc(requestId);
-    final transactionRef = _firestore
-        .collection('transactions')
-        .doc('lead_${requestId}_$uid');
 
     try {
       await _firestore.runTransaction((transaction) async {
@@ -145,28 +142,25 @@ class FirebaseWorkerLeadsRepository implements WorkerLeadsRepository {
           requestData: requestData,
         );
 
-        transaction.update(workerRef, {
-          'credits': plan.balanceAfter,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        // Free: only the request changes. Security rules re-check that the
+        // worker is verified, available and that the lead is still open.
         transaction.update(requestRef, {
           'status': plan.nextStatus,
           'workerId': plan.workerId,
           'acceptedAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
-        transaction.set(transactionRef, {
-          'workerId': uid,
-          'requestId': requestId,
-          'title': 'Used 1 lead credit',
-          'amount': '-1 Credit',
-          'type': 'lead_used',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
       });
     } on WorkerLeadAcceptanceException {
       rethrow;
     } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') {
+        throw const WorkerLeadAcceptanceException(
+          WorkerLeadAcceptanceFailure.unavailable,
+          'This job is no longer available, or your profile can’t accept '
+          'jobs right now.',
+        );
+      }
       final network =
           error.code == 'unavailable' ||
           error.code == 'deadline-exceeded' ||
@@ -197,7 +191,7 @@ class FirebaseWorkerLeadsRepository implements WorkerLeadsRepository {
       final chunk = missing.sublist(offset, end);
       try {
         final snapshot = await _firestore
-            .collection('users')
+            .collection('public_profiles')
             .where(FieldPath.documentId, whereIn: chunk)
             .get();
         for (final document in snapshot.docs) {

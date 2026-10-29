@@ -1,0 +1,8 @@
+{
+  "name": "skillnova-rules-tests",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "firebase": "^11.0.0"
+  }
+}

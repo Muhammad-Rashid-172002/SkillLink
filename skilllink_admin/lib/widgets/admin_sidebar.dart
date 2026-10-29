@@ -55,15 +55,15 @@ class AdminSidebar extends StatelessWidget {
       ],
     ),
     (
-      'Finance',
+      'Support',
       [
-        _SidebarItemData(7, 'Credits', Icons.account_balance_wallet_outlined),
         _SidebarItemData(
-          8,
-          'Payment requests',
-          Icons.receipt_long_outlined,
-          pending: _PendingQueue.payments,
+          7,
+          'Support requests',
+          Icons.support_agent_rounded,
+          pending: _PendingQueue.support,
         ),
+        _SidebarItemData(8, 'Audit log', Icons.history_rounded),
       ],
     ),
     (
@@ -233,7 +233,7 @@ class AdminSidebar extends StatelessWidget {
   }
 }
 
-enum _PendingQueue { verifications, payments }
+enum _PendingQueue { verifications, support }
 
 class _SidebarItemData {
   const _SidebarItemData(
@@ -337,10 +337,10 @@ class _PendingBadge extends StatelessWidget {
         firestore
             .collection('verification_requests')
             .where('identityStatus', isEqualTo: 'pending'),
-      _PendingQueue.payments =>
+      _PendingQueue.support =>
         firestore
-            .collection('payment_requests')
-            .where('status', isEqualTo: 'pending'),
+            .collection('support_requests')
+            .where('status', isEqualTo: 'open'),
     };
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: query.limit(99).snapshots(),

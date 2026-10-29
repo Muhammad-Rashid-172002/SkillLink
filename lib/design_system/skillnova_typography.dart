@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:skill_link/design_system/skillnova_tokens.dart';
 
-/// SkillNova type scale (Inter).
+/// SkillNova type scale: Poppins headings, Inter body (UI UX Pro Max
+/// "modern professional / friendly" pairing).
 ///
 /// | Role       | Material slot   | Size / weight |
 /// |------------|-----------------|---------------|
@@ -19,12 +21,14 @@ import 'package:google_fonts/google_fonts.dart';
 abstract final class SkillNovaTypography {
   static TextTheme textTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final primary = isDark ? const Color(0xFFF2F4F7) : const Color(0xFF101828);
+    final primary = isDark
+        ? SkillNovaColors.darkTextPrimary
+        : SkillNovaColors.textPrimary;
     final secondary = isDark
-        ? const Color(0xFFAAB4C5)
-        : const Color(0xFF667085);
+        ? SkillNovaColors.darkTextSecondary
+        : SkillNovaColors.textSecondary;
 
-    return GoogleFonts.interTextTheme(
+    final body = GoogleFonts.interTextTheme(
       TextTheme(
         displayLarge: TextStyle(
           color: primary,
@@ -126,6 +130,20 @@ abstract final class SkillNovaTypography {
           letterSpacing: 0.6,
         ),
       ),
+    );
+
+    // Headings use Poppins (friendly, geometric, premium); body text stays
+    // on Inter for maximum legibility at small sizes.
+    TextStyle? heading(TextStyle? style) =>
+        style == null ? null : GoogleFonts.poppins(textStyle: style);
+    return body.copyWith(
+      displayLarge: heading(body.displayLarge),
+      displayMedium: heading(body.displayMedium),
+      displaySmall: heading(body.displaySmall),
+      headlineLarge: heading(body.headlineLarge),
+      headlineMedium: heading(body.headlineMedium),
+      headlineSmall: heading(body.headlineSmall),
+      titleLarge: heading(body.titleLarge),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:skill_link/config/skillnova_support_config.dart';
+import 'package:skill_link/screens/shared/support_request_screen.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/screens/shared/skillnova_about.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -28,9 +29,9 @@ class SkillNovaHelpSupportScreen extends StatelessWidget {
       ? const [
           _HelpCategoryData(
             icon: Icons.workspace_premium_outlined,
-            title: 'Leads & Lead Credits',
+            title: 'Finding & Accepting Jobs',
             body:
-                'Lead credits are used when accepting eligible service leads. They are not earnings or wallet balance.',
+                'Open the Leads tab to see customer jobs that match your skill. Accepting a job is free — SkillNova never charges workers to apply or accept work.',
           ),
           _HelpCategoryData(
             icon: Icons.verified_user_outlined,
@@ -184,6 +185,7 @@ class SkillNovaHelpSupportScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _SupportActions(
+            onMessage: () => _open(context, const SupportRequestScreen()),
             onEmail: () => _email(context),
             onPrivacy: () => _open(
               context,
@@ -342,8 +344,10 @@ class _SupportActions extends StatelessWidget {
     required this.onTerms,
     required this.onSafety,
     required this.onAbout,
+    this.onMessage,
   });
 
+  final VoidCallback? onMessage;
   final VoidCallback onEmail;
   final VoidCallback onPrivacy;
   final VoidCallback onTerms;
@@ -359,6 +363,8 @@ class _SupportActions extends StatelessWidget {
       (Icons.description_outlined, 'Terms of Service', onTerms),
       (Icons.health_and_safety_outlined, 'Safety Information', onSafety),
       (Icons.info_outline_rounded, 'About SkillNova', onAbout),
+      if (onMessage != null)
+        (Icons.chat_bubble_outline_rounded, 'Send us a message', onMessage!),
     ];
     return Material(
       color: colors.surface,

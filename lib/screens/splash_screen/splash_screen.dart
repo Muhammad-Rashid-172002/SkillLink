@@ -97,7 +97,7 @@ class _SplashScreenState extends State<SplashScreen>
                 gradient: RadialGradient(
                   center: Alignment(0, -0.25),
                   radius: 1.1,
-                  colors: [Color(0xFF13305E), SkillNovaColors.ink],
+                  colors: [Color(0xFF0B3D20), SkillNovaColors.ink],
                 ),
               ),
             ),
@@ -156,7 +156,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: LinearProgressIndicator(
                         minHeight: 3,
                         backgroundColor: Colors.white.withValues(alpha: 0.12),
-                        color: const Color(0xFF4FD1C5),
+                        color: SkillNovaColors.accentBright,
                       ),
                     ),
                   ),

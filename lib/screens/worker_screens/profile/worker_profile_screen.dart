@@ -7,7 +7,6 @@ import 'package:skill_link/screens/customer_screens/profile/customer_account_scr
 import 'package:skill_link/screens/customer_screens/profile/customer_profile_components.dart';
 import 'package:skill_link/screens/verification/worker_verification_center.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
-import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_jobs_screen.dart';
 import 'package:skill_link/screens/worker_screens/menuTiles/ReviewsScreen.dart';
@@ -31,7 +30,6 @@ class WorkerProfileScreen extends StatefulWidget {
     this.onSettings,
     this.onVerification,
     this.onPublicProfile,
-    this.onCredits,
     this.onReviews,
     this.onCompletedJobs,
     this.onLoggedOut,
@@ -42,7 +40,6 @@ class WorkerProfileScreen extends StatefulWidget {
   final VoidCallback? onSettings;
   final VoidCallback? onVerification;
   final VoidCallback? onPublicProfile;
-  final VoidCallback? onCredits;
   final VoidCallback? onReviews;
   final VoidCallback? onCompletedJobs;
   final VoidCallback? onLoggedOut;
@@ -286,14 +283,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                   widget.onVerification,
                   const WorkerVerificationCenterScreen(),
                 ),
-              ),
-              const Divider(height: 1),
-              ProfileMenuTile(
-                icon: Icons.toll_outlined,
-                title: 'Lead credits',
-                subtitle:
-                    '${profile.credits} available · 1 credit per accepted lead',
-                onTap: () => _runOrOpen(widget.onCredits, const WallatScreen()),
               ),
               const Divider(height: 1),
               ProfileMenuTile(

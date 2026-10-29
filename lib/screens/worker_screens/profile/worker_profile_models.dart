@@ -85,7 +85,7 @@ class WorkerProfile {
     return legacyLocation;
   }
 
-  int get credits => eligibilityProfile.credits;
+  int get completedJobs => eligibilityProfile.completedJobs ?? 0;
   double get rating => eligibilityProfile.rating ?? 0;
   int get reviewCount => eligibilityProfile.reviewCount ?? 0;
   bool get canAcceptJobs => data['canAcceptJobs'] == true;

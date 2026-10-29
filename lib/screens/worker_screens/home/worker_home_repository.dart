@@ -155,7 +155,7 @@ class FirebaseWorkerHomeRepository implements WorkerHomeRepository {
     return _customerNames.putIfAbsent(customerId, () async {
       try {
         final snapshot = await _firestore
-            .collection('users')
+            .collection('public_profiles')
             .doc(customerId)
             .get();
         return workerText(snapshot.data() ?? const {}, const [

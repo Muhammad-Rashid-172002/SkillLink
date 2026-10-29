@@ -487,7 +487,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       final reference = FirebaseStorage.instance.ref(
         'chat_media/${widget.chatId}/${DateTime.now().millisecondsSinceEpoch}.$extension',
       );
-      await reference.putFile(File(image.path));
+      await reference.putFile(
+        File(image.path),
+        SettableMetadata(
+          contentType: switch (extension) {
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'heic' || 'heif' => 'image/heic',
+            _ => 'image/jpeg',
+          },
+        ),
+      );
       final url = await reference.getDownloadURL();
       await _send(workerId, service, {
         'type': 'image',

@@ -71,12 +71,9 @@ abstract final class SessionRouter {
   }
 
   /// Resolves the current session and replaces the whole stack with the right
-  /// destination. [selectedRole] only helps recover legacy accounts.
-  static Future<SessionSnapshot> continueSession(
-    BuildContext context, {
-    UserRole? selectedRole,
-  }) async {
-    final session = await _service.resolve(selectedRole: selectedRole);
+  /// destination. The role always comes from the server.
+  static Future<SessionSnapshot> continueSession(BuildContext context) async {
+    final session = await _service.resolve();
     if (context.mounted) go(context, session);
     return session;
   }

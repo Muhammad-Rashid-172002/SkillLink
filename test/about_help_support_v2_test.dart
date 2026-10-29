@@ -102,13 +102,16 @@ void main() {
       ),
     );
 
-    expect(SkillNovaSupportConfig.supportEmail, 'support@korvenzatech.com');
-    expect(find.text('support@korvenzatech.com'), findsOneWidget);
+    expect(
+      SkillNovaSupportConfig.supportEmail,
+      'MuhammadRashid172002@gmail.com',
+    );
+    expect(find.text('MuhammadRashid172002@gmail.com'), findsOneWidget);
     expect(find.textContaining('muhammadrashid172002@gmail.com'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('email-support')));
     await tester.pump();
     expect(launched?.scheme, 'mailto');
-    expect(launched?.path, 'support@korvenzatech.com');
+    expect(launched?.path, 'MuhammadRashid172002@gmail.com');
     expect(launched?.queryParameters['subject'], 'SkillNova Support Request');
   });
 
@@ -132,7 +135,7 @@ void main() {
       'Account & Profile',
       'Safety',
     ]);
-    expect(find.text('Leads & Lead Credits'), findsNothing);
+    expect(find.text('Finding & Accepting Jobs'), findsNothing);
 
     await tester.pumpWidget(
       _app(
@@ -144,7 +147,7 @@ void main() {
       ),
     );
     await _expectHelpTopics(tester, const [
-      'Leads & Lead Credits',
+      'Finding & Accepting Jobs',
       'Verification',
       'Accepting Jobs / Readiness',
       'Jobs & Job Status',

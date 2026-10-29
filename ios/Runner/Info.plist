@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Skill Link</string>
+	<string>SkillNova</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -24,6 +24,38 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GMSApiKey</key>
+	<string>$(MAPS_API_KEY)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SkillNova uses your location to find professionals near you and, for workers, to show the customer where you are while you travel to an active job.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>SkillNova uses the camera for your profile photo, identity verification selfie and photos you send in chat.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SkillNova lets you choose photos for your profile, service requests and chat messages.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SkillNova uses the microphone to record voice messages you send in chat.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Firebase Phone Auth reCAPTCHA fallback (encoded iOS app id). -->
+				<string>app-1-941379228912-ios-a40c9da41d5b89e68f1e35</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>comgooglemaps</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

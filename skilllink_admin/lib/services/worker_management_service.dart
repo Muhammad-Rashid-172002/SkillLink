@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class WorkerManagementService {
   WorkerManagementService({FirebaseFirestore? firestore})
@@ -60,11 +61,19 @@ class WorkerManagementService {
     required bool isBlocked,
   }) async {
     // The app restricts sign-in by accountStatus; isBlocked is legacy.
-    await _users.doc(workerId).update({
+    final batch = _firestore.batch();
+    batch.update(_users.doc(workerId), {
       'accountStatus': isBlocked ? 'blocked' : 'active',
       'isBlocked': isBlocked,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    batch.set(_firestore.collection('admin_audit_logs').doc(), {
+      'action': isBlocked ? 'worker_blocked' : 'worker_reactivated',
+      'targetUid': workerId,
+      'adminUid': FirebaseAuth.instance.currentUser?.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
   }
 }
 

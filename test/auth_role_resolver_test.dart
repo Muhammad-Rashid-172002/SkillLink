@@ -32,44 +32,29 @@ void main() {
       final r = RoleResolver.resolve({'role': 'customer'});
       expect(r.role, UserRole.customer);
       expect(r.source, RoleSource.stored);
-      expect(r.needsPersist, isFalse);
+      expect(r.needsRepair, isFalse);
     });
 
     test('non-canonical stored role is normalised and repaired', () {
       final r = RoleResolver.resolve({'role': 'Worker '});
       expect(r.role, UserRole.worker);
       expect(r.source, RoleSource.storedNonCanonical);
-      expect(r.needsPersist, isTrue);
-    });
-
-    test('stored role always beats the role picked on the login screen', () {
-      final r = RoleResolver.resolve(
-        {'role': 'worker'},
-        selectedRole: UserRole.customer,
-      );
-      expect(r.role, UserRole.worker);
+      expect(r.needsRepair, isTrue);
     });
 
     test('legacy userType field is recovered', () {
       final r = RoleResolver.resolve({'userType': 'customer'});
       expect(r.role, UserRole.customer);
       expect(r.source, RoleSource.legacyField);
-      expect(r.needsPersist, isTrue);
+      expect(r.needsRepair, isTrue);
     });
 
-    test(
-      'half-created document (only fcmToken, the original bug) falls back '
-      'to the role remembered at sign-up',
-      () {
-        final r = RoleResolver.resolve(
-          {'fcmToken': 'abc'},
-          cachedRole: UserRole.worker,
-          selectedRole: UserRole.customer,
-        );
-        expect(r.role, UserRole.worker);
-        expect(r.source, RoleSource.deviceCache);
-      },
-    );
+    test('half-created document (only fcmToken, the original bug) is NOT '
+        'resolved on the device: the server decides', () {
+      final r = RoleResolver.resolve({'fcmToken': 'abc'});
+      expect(r.isResolved, isFalse);
+      expect(r.source, RoleSource.none);
+    });
 
     test('customer sign-up defaults identify a customer', () {
       final r = RoleResolver.resolve({
@@ -81,42 +66,24 @@ void main() {
     });
 
     test('worker-only fields identify a worker', () {
+      expect(RoleResolver.resolve({'skill': 'Plumber'}).role, UserRole.worker);
       expect(
-        RoleResolver.resolve({'skill': 'Plumber'}).role,
-        UserRole.worker,
-      );
-      expect(
-        RoleResolver.resolve({
-          'identityVerificationStatus': 'pending',
-        }).role,
+        RoleResolver.resolve({'identityVerificationStatus': 'pending'}).role,
         UserRole.worker,
       );
     });
 
-    test('profile evidence beats a mismatched login selection', () {
-      final r = RoleResolver.resolve(
-        {'hourlyRate': '1500'},
-        selectedRole: UserRole.customer,
-      );
-      expect(r.role, UserRole.worker);
-    });
-
-    test('login selection is the last resort', () {
-      final r = RoleResolver.resolve(
-        const {},
-        selectedRole: UserRole.customer,
-      );
-      expect(r.role, UserRole.customer);
-      expect(r.source, RoleSource.userSelection);
-    });
-
-    test('admin selection is never used to recover an account', () {
-      final r = RoleResolver.resolve(
-        const {},
-        cachedRole: UserRole.admin,
-        selectedRole: UserRole.admin,
-      );
+    test('contradictory evidence is never guessed', () {
+      final r = RoleResolver.resolve({
+        'skill': 'Plumber',
+        'identityVerificationStatus': 'not_required',
+      });
       expect(r.isResolved, isFalse);
+      expect(r.source, RoleSource.conflict);
+    });
+
+    test('admin stored role is reported as admin (app then refuses it)', () {
+      expect(RoleResolver.resolve({'role': 'admin'}).role, UserRole.admin);
     });
 
     test('nothing to go on -> unresolved (role recovery screen)', () {

@@ -523,8 +523,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                             icon: const Icon(Icons.priority_high_rounded),
                             label: const Text('Change priority'),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFD97706),
-                              side: const BorderSide(color: Color(0xFFD97706)),
+                              foregroundColor: kAdminWarning,
+                              side: const BorderSide(color: kAdminWarning),
                               padding: const EdgeInsets.symmetric(vertical: 15),
                             ),
                           ),
@@ -683,13 +683,13 @@ class _ReportsHeader extends StatelessWidget {
         title: 'Total Reports',
         value: '$total',
         icon: Icons.report_rounded,
-        color: const Color(0xFF2563EB),
+        color: kAdminBrand,
       ),
       _ReportStatCard(
         title: 'Open',
         value: '$open',
         icon: Icons.mark_email_unread_rounded,
-        color: const Color(0xFFD97706),
+        color: kAdminWarning,
       ),
       _ReportStatCard(
         title: 'Investigating',
@@ -1492,7 +1492,7 @@ class _PriorityBadge extends StatelessWidget {
     final color = switch (priority.toLowerCase()) {
       'high' => const Color(0xFFDC2626),
       'low' => kAdminBrand,
-      _ => const Color(0xFFD97706),
+      _ => kAdminWarning,
     };
 
     return Container(
@@ -1790,7 +1790,7 @@ Color _statusColor(String status) {
     case 'dismissed':
       return const Color(0xFF64748B);
     default:
-      return const Color(0xFFD97706);
+      return kAdminWarning;
   }
 }
 

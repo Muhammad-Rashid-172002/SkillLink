@@ -73,7 +73,6 @@ enum WorkerVerificationState { notStarted, pending, approved, rejected }
 
 enum WorkerReadinessState {
   ready,
-  needsCredits,
   incompleteProfile,
   verificationPending,
   verificationRejected,
@@ -118,7 +117,6 @@ class WorkerHomeProfile {
       data['isDisabled'] == true;
   String get accountStatus =>
       workerText(data, const ['accountStatus']).toLowerCase();
-  int get credits => workerInt(data['credits'] ?? data['leadCredits']);
   double? get rating => workerDouble(
     data['rating'] ?? data['averageRating'] ?? data['avgRating'],
   );
@@ -181,9 +179,7 @@ class WorkerReadiness {
   final String title;
   final String message;
 
-  bool get canReceiveLeads =>
-      state == WorkerReadinessState.ready ||
-      state == WorkerReadinessState.needsCredits;
+  bool get canReceiveLeads => state == WorkerReadinessState.ready;
   bool get canAcceptLead => state == WorkerReadinessState.ready;
   bool get needsVerification => switch (state) {
     WorkerReadinessState.verificationPending ||
@@ -205,25 +201,17 @@ abstract final class WorkerEligibilityAdapter {
             'Your profile is verified, but job acceptance is currently disabled.',
       );
     }
-    if (worker.credits <= 0) {
-      return const WorkerReadiness(
-        state: WorkerReadinessState.needsCredits,
-        title: 'Add lead credits to accept jobs',
-        message:
-            'Your profile can receive eligible leads, but accepting one requires a lead credit.',
-      );
-    }
     return const WorkerReadiness(
       state: WorkerReadinessState.ready,
       title: 'Ready for new jobs',
       message:
-          'Your verified profile can receive and accept eligible customer leads.',
+          'Your verified profile can receive and accept customer jobs for '
+          'free.',
     );
   }
 
   /// Returns the authoritative blocker that prevents a worker from enabling
-  /// `canAcceptJobs`. Credits are intentionally excluded: a verified worker may
-  /// receive leads at zero credits, but still needs a credit to accept one.
+  /// `canAcceptJobs`. SkillNova is free: there is no credit or fee check.
   static WorkerReadiness? availabilityBlocker(WorkerHomeProfile worker) {
     if (worker.explicitlyBlocked ||
         worker.accountStatus == 'blocked' ||

@@ -6,7 +6,6 @@ import 'package:skill_link/Notification_screen/notification_screen.dart';
 import 'package:skill_link/screens/verification/worker_verification_center.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/messages/worker_messages_screen.dart';
-import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_components.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_repository.dart';
@@ -132,10 +131,9 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           const SizedBox(height: 20),
           WorkerReadinessCard(
             readiness: readiness,
-            onAction: readiness.state == WorkerReadinessState.needsCredits
-                ? () => _open(const WallatScreen())
-                : readiness.state == WorkerReadinessState.blocked ||
-                      readiness.state == WorkerReadinessState.inactive
+            onAction:
+                readiness.state == WorkerReadinessState.blocked ||
+                    readiness.state == WorkerReadinessState.inactive
                 ? () => _tab(4, const WorkerProfileScreen())
                 : () => _open(const WorkerVerificationCenterScreen()),
           ),
@@ -226,10 +224,7 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
               },
             ),
           const SizedBox(height: 12),
-          LeadCreditCard(
-            credits: worker.credits,
-            onTap: () => _open(const WallatScreen()),
-          ),
+          const FreeJobsCard(),
           const SizedBox(height: 12),
           VerificationSummaryCard(
             worker: worker,

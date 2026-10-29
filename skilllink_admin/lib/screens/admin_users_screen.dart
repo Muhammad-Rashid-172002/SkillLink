@@ -451,7 +451,7 @@ class _UsersHeader extends StatelessWidget {
                 label: 'Total Users',
                 value: '$totalUsers',
                 icon: Icons.groups_2_rounded,
-                color: const Color(0xFF2563EB),
+                color: kAdminBrand,
               ),
               _MiniStatCard(
                 label: 'Workers',
@@ -1248,7 +1248,7 @@ class _VerifiedBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF2563EB).withOpacity(0.09),
+        color: kAdminBrand.withOpacity(0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1256,7 +1256,7 @@ class _VerifiedBadge extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 8.5,
           fontWeight: FontWeight.w700,
-          color: const Color(0xFF2563EB),
+          color: kAdminBrand,
         ),
       ),
     );

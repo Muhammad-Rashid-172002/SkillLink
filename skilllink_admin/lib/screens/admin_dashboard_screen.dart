@@ -3,12 +3,12 @@ import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skilllink_admin/models/dashboard_stats.dart';
-import 'package:skilllink_admin/screens/admin_credits_screen.dart';
+import 'package:skilllink_admin/screens/admin_support_screen.dart';
 import 'package:skilllink_admin/screens/admin_emergency_alerts_screen.dart';
 import 'package:skilllink_admin/screens/admin_jobs_screen.dart';
 import 'package:skilllink_admin/screens/admin_login_screen.dart';
 import 'package:skilllink_admin/screens/admin_notifications_screen.dart';
-import 'package:skilllink_admin/screens/admin_payment_requests_screen.dart';
+import 'package:skilllink_admin/screens/admin_audit_log_screen.dart';
 import 'package:skilllink_admin/screens/admin_reports_screen.dart';
 import 'package:skilllink_admin/screens/admin_reviews_screen.dart';
 import 'package:skilllink_admin/screens/admin_settings_screen.dart';
@@ -48,8 +48,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     'Reviews',
     'Reports',
     'Emergency alerts',
-    'Credits',
-    'Payment requests',
+    'Support requests',
+    'Audit log',
     'Notifications',
     'Verifications',
     'Settings',
@@ -146,9 +146,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                 6 => const AdminEmergencyAlertsScreen(),
 
-                7 => const AdminCreditsScreen(),
+                7 => const AdminSupportScreen(),
 
-                8 => const AdminPaymentRequestsScreen(),
+                8 => const AdminAuditLogScreen(),
 
                 9 => const AdminNotificationsScreen(),
 
@@ -204,9 +204,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                         6 => const AdminEmergencyAlertsScreen(),
 
-                        7 => const AdminCreditsScreen(),
+                        7 => const AdminSupportScreen(),
 
-                        8 => const AdminPaymentRequestsScreen(),
+                        8 => const AdminAuditLogScreen(),
 
                         9 => const AdminNotificationsScreen(),
 
@@ -442,12 +442,12 @@ class _NeedsAttention extends StatelessWidget {
         10,
       ),
       (
-        'Payment proofs',
-        stats.pendingPayments,
-        'waiting for approval',
-        Icons.receipt_long_outlined,
+        'Support requests',
+        stats.openSupportRequests,
+        'waiting for a reply',
+        Icons.support_agent_rounded,
         kAdminWarning,
-        8,
+        7,
       ),
       (
         'Active SOS alerts',
@@ -627,12 +627,12 @@ class _KpiGrid extends StatelessWidget {
         onTap: () => onOpen(4),
       ),
       DashboardStatCard(
-        title: 'Credit transactions',
-        value: '${stats.totalTransactions}',
-        icon: Icons.account_balance_wallet_outlined,
+        title: 'Customers',
+        value: '${stats.totalCustomers}',
+        icon: Icons.people_alt_outlined,
         accent: kAdminBrand,
-        subtitle: 'Purchases and lead spends',
-        onTap: () => onOpen(7),
+        subtitle: 'Free accounts — no payments',
+        onTap: () => onOpen(1),
       ),
       DashboardStatCard(
         title: 'SOS alerts',
@@ -1083,6 +1083,6 @@ Color _statusColor(String status) {
     case 'rejected':
       return const Color(0xFFDC2626);
     default:
-      return const Color(0xFFD97706);
+      return kAdminWarning;
   }
 }

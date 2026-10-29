@@ -330,7 +330,7 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                                     const SizedBox(width: 7),
                                     const Icon(
                                       Icons.verified_rounded,
-                                      color: Color(0xFF2563EB),
+                                      color: kAdminBrand,
                                       size: 21,
                                     ),
                                   ],
@@ -587,7 +587,7 @@ class _WorkersHeader extends StatelessWidget {
         title: 'Total Workers',
         value: '$total',
         icon: Icons.engineering_rounded,
-        color: const Color(0xFF2563EB),
+        color: kAdminBrand,
       ),
       _WorkerStatCard(
         title: 'Verified',
@@ -599,7 +599,7 @@ class _WorkersHeader extends StatelessWidget {
         title: 'Pending',
         value: '$pending',
         icon: Icons.hourglass_top_rounded,
-        color: const Color(0xFFD97706),
+        color: kAdminWarning,
       ),
       _WorkerStatCard(
         title: 'Blocked',
@@ -979,7 +979,7 @@ class _WorkersTable extends StatelessWidget {
                                         const Icon(
                                           Icons.verified_rounded,
                                           size: 15,
-                                          color: Color(0xFF2563EB),
+                                          color: kAdminBrand,
                                         ),
                                       ],
                                     ],
@@ -1174,7 +1174,7 @@ class _WorkerCard extends StatelessWidget {
                 const SizedBox(width: 5),
                 const Icon(
                   Icons.verified_rounded,
-                  color: Color(0xFF2563EB),
+                  color: kAdminBrand,
                   size: 17,
                 ),
               ],
@@ -1423,7 +1423,7 @@ class _VerificationBadge extends StatelessWidget {
     final color = switch (normalized) {
       'verified' => kAdminBrand,
       'rejected' => const Color(0xFFDC2626),
-      _ => const Color(0xFFD97706),
+      _ => kAdminWarning,
     };
 
     final text = switch (normalized) {

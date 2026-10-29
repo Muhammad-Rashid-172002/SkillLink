@@ -55,6 +55,7 @@ void main() {
     'credits': credits,
     'rating': 4.8,
     'totalReviews': 19,
+    'completedJobs': 7,
     'isOnline': true,
   };
 
@@ -189,11 +190,11 @@ void main() {
     );
   });
 
-  test('zero credits permits lead receipt but not acceptance', () {
+  test('zero credits does not block anything: SkillNova is free', () {
     final value = readiness(workerData(credits: 0));
-    expect(value.state, WorkerReadinessState.needsCredits);
+    expect(value.state, WorkerReadinessState.ready);
     expect(value.canReceiveLeads, isTrue);
-    expect(value.canAcceptLead, isFalse);
+    expect(value.canAcceptLead, isTrue);
   });
 
   test('fully eligible funded worker is ready', () {
@@ -206,14 +207,14 @@ void main() {
   });
 
   testWidgets(
-    'profile presents incomplete pending rejected inactive and zero-credit states',
+    'profile presents incomplete pending rejected and inactive states',
     (tester) async {
       final cases = <(Map<String, dynamic>, String)>[
         (workerData(profileCompleted: false), 'Complete your worker profile'),
         (workerData(verification: 'pending'), 'Verification under review'),
         (workerData(verification: 'rejected'), 'Verification needs attention'),
         (workerData(accountStatus: 'inactive'), 'Account is not active'),
-        (workerData(credits: 0), 'Add lead credits to accept jobs'),
+        (workerData(credits: 0), 'Ready for new jobs'),
       ];
       for (final item in cases) {
         await tester.pumpWidget(
@@ -244,8 +245,9 @@ void main() {
     );
     expect(find.text('4.8'), findsOneWidget);
     expect(find.text('19 reviews'), findsOneWidget);
-    expect(find.text('4'), findsOneWidget);
-    expect(find.text('Lead credits'), findsWidgets);
+    expect(find.text('7'), findsOneWidget);
+    expect(find.text('Jobs completed'), findsWidgets);
+    expect(find.text('Lead credits'), findsNothing);
     expect(find.textContaining('Earnings'), findsNothing);
     expect(find.textContaining('ONLINE'), findsNothing);
     expect(find.textContaining('completed job count'), findsNothing);
@@ -352,7 +354,6 @@ void main() {
 
   testWidgets('profile integrations use canonical callbacks', (tester) async {
     var verification = 0;
-    var credits = 0;
     var reviews = 0;
     var completed = 0;
     var public = 0;
@@ -361,7 +362,6 @@ void main() {
         WorkerProfileScreen(
           repository: _FakeWorkerProfileRepository(profile()),
           onVerification: () => verification++,
-          onCredits: () => credits++,
           onReviews: () => reviews++,
           onCompletedJobs: () => completed++,
           onPublicProfile: () => public++,
@@ -372,7 +372,6 @@ void main() {
     for (final label in [
       'Public profile preview',
       'Verification: Approved',
-      'Lead credits',
       'Reviews',
       'Completed jobs',
     ]) {
@@ -387,10 +386,7 @@ void main() {
       await tester.tap(target);
       await tester.pump();
     }
-    expect(
-      (public, verification, credits, reviews, completed),
-      (1, 1, 1, 1, 1),
-    );
+    expect((public, verification, reviews, completed), (1, 1, 1, 1));
   });
 
   testWidgets('profile logout confirms, signs out, and delegates navigation', (

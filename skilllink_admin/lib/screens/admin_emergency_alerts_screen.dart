@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skilllink_admin/services/admin_emergency_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,9 +17,9 @@ class _AdminEmergencyAlertsScreenState
     extends State<AdminEmergencyAlertsScreen> {
   static const _danger = Color(0xFFDC2626);
   static const _dangerDark = Color(0xFF991B1B);
-  static const _warning = Color(0xFFD97706);
+  static const _warning = kAdminWarning;
   static const _success = Color(0xFF059669);
-  static const _primary = Color(0xFF2563EB);
+  static const _primary = kAdminBrand;
   static const _text = Color(0xFF0F172A);
   static const _muted = Color(0xFF64748B);
   static const _border = Color(0xFFE2E8F0);

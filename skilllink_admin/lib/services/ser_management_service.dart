@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserManagementService {
   UserManagementService({FirebaseFirestore? firestore})
@@ -17,12 +18,22 @@ class UserManagementService {
     required String userId,
     required bool isBlocked,
   }) async {
-    await _users.doc(userId).update({
-      // The app restricts sign-in by accountStatus; isBlocked is legacy.
+    // The app restricts sign-in by accountStatus; isBlocked is legacy. The
+    // syncAccountState Cloud Function also disables the Firebase Auth user
+    // and revokes their sessions. Every change is written to the audit log.
+    final batch = _firestore.batch();
+    batch.update(_users.doc(userId), {
       'accountStatus': isBlocked ? 'blocked' : 'active',
       'isBlocked': isBlocked,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    batch.set(_firestore.collection('admin_audit_logs').doc(), {
+      'action': isBlocked ? 'account_blocked' : 'account_reactivated',
+      'targetUid': userId,
+      'adminUid': FirebaseAuth.instance.currentUser?.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
   }
 
   Future<void> setWorkerVerified({
@@ -36,7 +47,15 @@ class UserManagementService {
   }
 
   Future<void> deleteUserDocument(String userId) async {
-    await _users.doc(userId).delete();
+    final batch = _firestore.batch();
+    batch.delete(_users.doc(userId));
+    batch.set(_firestore.collection('admin_audit_logs').doc(), {
+      'action': 'user_document_deleted',
+      'targetUid': userId,
+      'adminUid': FirebaseAuth.instance.currentUser?.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
   }
 }
 

@@ -11,8 +11,11 @@
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.CAMERA" />
+<!-- Live tracking uses foreground location only (while the worker has the
+     job open). No background-location permission is requested. -->
     <application
-        android:label="SKILLNOVA"
+        android:label="SkillNova"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

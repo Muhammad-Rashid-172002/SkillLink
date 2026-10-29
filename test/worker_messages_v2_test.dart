@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skill_link/design_system/skillnova_theme.dart';
-import 'package:skill_link/screens/customer_screens/chat/chat_models.dart';
+import 'package:skill_link/screens/customer_screens/Chat/chat_models.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_jobs_repository.dart';
 import 'package:skill_link/screens/worker_screens/messages/worker_chat_detail_screen.dart';
 import 'package:skill_link/screens/worker_screens/messages/worker_chat_models.dart';

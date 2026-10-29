@@ -37,7 +37,6 @@ class FirebaseWorkerPublicProfileDataSource
 
   final FirebaseFirestore _firestore;
   final Map<String, Map<String, dynamic>> _customerCache = {};
-  final Map<String, Map<String, dynamic>> _requestCache = {};
 
   @override
   Stream<Map<String, dynamic>?> watchWorker(String workerId) {
@@ -81,26 +80,18 @@ class FirebaseWorkerPublicProfileDataSource
         .map((document) => _text(document.data()['customerId']))
         .where((id) => id.isNotEmpty && !_customerCache.containsKey(id))
         .toSet();
-    final requestIds = visible
-        .map((document) => _text(document.data()['requestId']))
-        .where((id) => id.isNotEmpty && !_requestCache.containsKey(id))
-        .toSet();
-
-    await Future.wait([
-      _loadDocuments('users', customerIds, _customerCache),
-      _loadDocuments('requests', requestIds, _requestCache),
-    ]);
+    // Customer names/photos come from public_profiles: customer profiles
+    // and other people's requests are private under the security rules.
+    await _loadDocuments('public_profiles', customerIds, _customerCache);
 
     final reviews = visible.map((document) {
       final data = document.data();
       final customerId = _text(data['customerId']);
       final requestId = _text(data['requestId']);
       final customer = _customerCache[customerId] ?? const <String, dynamic>{};
-      final request = _requestCache[requestId] ?? const <String, dynamic>{};
-      final requestMatches =
-          request['status'] == 'completed' &&
-          request['workerId'] == workerId &&
-          request['customerId'] == customerId;
+      // Security rules only accept a review stored under the id of a
+      // completed request, by that request's customer, for its worker.
+      final requestMatches = requestId.isNotEmpty && requestId == document.id;
       final timestamp = data['createdAt'];
 
       return PublicWorkerReview(
@@ -116,15 +107,16 @@ class FirebaseWorkerPublicProfileDataSource
           ], fallback: 'SkillNova customer'),
         ),
         customerPhotoUrl: _firstText(customer, const [
+          'photoUrl',
           'profileImage',
           'profileImageUrl',
-          'photoUrl',
-        ]),
+        ], fallback: _firstText(data, const ['customerPhotoUrl'])),
         createdAt: timestamp is Timestamp ? timestamp.toDate() : null,
-        service: _firstText(request, const [
+        service: _firstText(data, const [
+          'serviceTitle',
           'category',
-          'serviceName',
-        ], fallback: _firstText(data, const ['category', 'service'])),
+          'service',
+        ]),
         verifiedBooking: requestMatches,
       );
     }).toList();
@@ -147,12 +139,16 @@ class FirebaseWorkerPublicProfileDataSource
       final end = math.min(start + 30, values.length);
       final chunk = values.sublist(start, end);
       if (chunk.isEmpty) continue;
-      final snapshot = await _firestore
-          .collection(collection)
-          .where(FieldPath.documentId, whereIn: chunk)
-          .get();
-      for (final document in snapshot.docs) {
-        cache[document.id] = document.data();
+      try {
+        final snapshot = await _firestore
+            .collection(collection)
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final document in snapshot.docs) {
+          cache[document.id] = document.data();
+        }
+      } on FirebaseException {
+        // Names are optional; reviews still show with the stored name.
       }
       for (final id in chunk) {
         cache.putIfAbsent(id, () => const <String, dynamic>{});
@@ -163,7 +159,6 @@ class FirebaseWorkerPublicProfileDataSource
   @override
   Future<void> refresh(String workerId) async {
     _customerCache.clear();
-    _requestCache.clear();
     await Future.wait([
       _firestore.collection('users').doc(workerId).get(),
       _firestore

@@ -5,21 +5,23 @@ import 'package:google_fonts/google_fonts.dart';
 // `SkillNovaColors` so the console and the product read as one brand.
 // Top-level consts so they work inside existing `const` widget trees.
 
-/// Brand blue for primary actions, selection and focus.
-const Color kAdminBrand = Color(0xFF155EEF);
-const Color kAdminBrandDark = Color(0xFF0B3A91);
-const Color kAdminBrandSoft = Color(0xFFEAF1FF);
+/// Brand green for primary actions, selection and focus (5.0:1 on white).
+const Color kAdminBrand = Color(0xFF15803D);
+const Color kAdminBrandDark = Color(0xFF14532D);
+const Color kAdminBrandSoft = Color(0xFFDCFCE7);
 
-/// Semantic colors. Green means success only, never "brand".
-const Color kAdminSuccess = Color(0xFF079455);
-const Color kAdminWarning = Color(0xFFDC6803);
+/// Semantic colors. Success uses a distinct emerald so it never reads as a
+/// plain brand accent; warning is darkened to stay AA on white.
+const Color kAdminSuccess = Color(0xFF067647);
+const Color kAdminWarning = Color(0xFFB45309);
 const Color kAdminDanger = Color(0xFFD92D20);
+const Color kAdminInfo = Color(0xFF0369A1);
 
-const Color kAdminInk = Color(0xFF0B1B33);
-const Color kAdminText = Color(0xFF101828);
-const Color kAdminTextMuted = Color(0xFF667085);
-const Color kAdminBorder = Color(0xFFE4E7EC);
-const Color kAdminCanvas = Color(0xFFF7F8FA);
+const Color kAdminInk = Color(0xFF052E16);
+const Color kAdminText = Color(0xFF0F1A14);
+const Color kAdminTextMuted = Color(0xFF52615A);
+const Color kAdminBorder = Color(0xFFDDE7E0);
+const Color kAdminCanvas = Color(0xFFF6FAF7);
 
 abstract final class AdminTheme {
   static ThemeData get light {

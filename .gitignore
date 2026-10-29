@@ -51,3 +51,18 @@ android/app/google-services.json
 
 # Google Maps API Key
 android/local.properties
+
+# iOS Google Maps key
+ios/Flutter/Secrets.xcconfig
+
+# Signing secrets
+android/key.properties
+*.jks
+*.keystore
+
+# Local tooling / backups
+_backups/
+_claude_tmp/
+firebase-debug.log
+firestore-debug.log
+firestore-tests/node_modules/

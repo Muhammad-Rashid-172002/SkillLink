@@ -79,7 +79,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
           'Email verified. Nice!',
           tone: SkillNovaTone.success,
         );
-        await SessionRouter.continueSession(context, selectedRole: _role);
+        await SessionRouter.continueSession(context);
       } else if (manual && mounted) {
         SkillNovaToast.show(
           context,
@@ -205,7 +205,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                   ),
                 ),
                 const TextSpan(
-                  text: '. Open it on any device to confirm your address.',
+                  text:
+                      '. Open it on any device to confirm your email address.',
                 ),
               ],
             ),
@@ -213,7 +214,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
           const SizedBox(height: SkillNovaSpacing.lg),
           const InfoRow(
             icon: Icons.autorenew_rounded,
-            text: 'This screen updates automatically once you’re verified.',
+            text: "This screen updates automatically once you're verified.",
           ),
           const InfoRow(
             icon: Icons.folder_special_outlined,

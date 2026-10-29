@@ -151,6 +151,7 @@ class FirebaseCustomerBookingsRepository
       }
       transaction.update(reference, {
         'status': 'cancelled',
+        'cancelledBy': 'customer',
         'cancelledAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });

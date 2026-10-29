@@ -235,10 +235,13 @@ test("users: sign-up cannot grant privileges", async () => {
   const intruder = await account("intruder");
   await denied(as(intruder).create(`users/${fresh.uid}`,
       {role: "customer"}), "create someone else's profile");
-  await allowed(as(fresh).create(`users/${fresh.uid}`, {
+  // Profiles are created only by the initializeAccount Cloud Function.
+  await denied(as(fresh).create(`users/${fresh.uid}`, {
     role: "worker", name: "New", identityVerificationStatus: "not_submitted",
     canAcceptJobs: false,
-  }), "normal worker sign up");
+  }), "client-side sign up (server creates profiles)");
+  await denied(as(fresh).create(`users/${fresh.uid}`, {fcmToken: "abc"}),
+      "half-created profile without a role (the original bug)");
 });
 
 test("users: workers cannot verify, unblock or pay themselves", async () => {
@@ -260,7 +263,8 @@ test("users: workers cannot verify, unblock or pay themselves", async () => {
   await denied(self.update(path, {isBlocked: false}), "legacy unblock");
   await denied(self.update(path, {credits: 500}), "add credits");
   await denied(self.update(path, {leadCredits: 500}), "legacy credits");
-  await allowed(self.update(path, {credits: 4}), "spend a credit");
+  await denied(self.update(path, {credits: 4}),
+      "spend a credit (platform is free; credits are frozen)");
   await allowed(self.update(path, {
     identityVerificationStatus: "pending", verificationLevel: "unverified",
   }), "submit verification (stays pending)");
@@ -337,8 +341,10 @@ test("requests: customers cannot fake progress or assign workers",
 
       await seed("requests/r_c2", openRequest(customer.uid,
           {workerId: worker.uid, status: "accepted"}));
-      await denied(me.update("requests/r_c2", {status: "cancelled"}),
-          "customer cancels after a worker accepted");
+      await seed("requests/r_c3", openRequest(customer.uid,
+          {workerId: worker.uid, status: "on_the_way"}));
+      await denied(me.update("requests/r_c3", {status: "cancelled"}),
+          "customer cancels while the worker is on the way");
       await allowed(me.update("requests/r_c2",
           {hasActiveEmergency: true, lastEmergencyAt: new Date()}),
       "customer raises SOS on a live job");
@@ -366,10 +372,33 @@ test("requests: workers accept and progress only their own jobs",
           {status: "accepted", workerId: otherWorker.uid}),
       "worker takes a direct request meant for another worker");
 
+      await denied(as(worker).update("requests/r_w1", {
+        status: "completed", completedAt: new Date(),
+        reviewPending: true, reviewed: false,
+      }), "worker jumps straight from accepted to completed");
+      await allowed(as(worker).update("requests/r_w1",
+          {status: "on_the_way", onTheWayAt: new Date()}),
+      "worker starts travelling");
+      await allowed(as(worker).update("requests/r_w1",
+          {status: "in_progress", startedAt: new Date()}),
+      "worker starts the work");
       await allowed(as(worker).update("requests/r_w1", {
         status: "completed", completedAt: new Date(),
         reviewPending: true, reviewed: false,
       }), "assigned worker completes the job");
+      await denied(as(worker).update("requests/r_w1", {status: "in_progress"}),
+          "worker re-opens a completed job");
+
+      await seed("requests/r_pending", openRequest(customer.uid));
+      const unverified = await account("unverified");
+      await seed(`users/${unverified.uid}`, workerProfile({
+        identityVerificationStatus: "pending", canAcceptJobs: false}));
+      await denied(as(unverified).update("requests/r_pending",
+          {status: "accepted", workerId: unverified.uid}),
+      "unverified worker accepts a lead");
+      await denied(as(customer).update("requests/r_pending",
+          {status: "accepted", workerId: customer.uid}),
+      "customer accepts their own lead");
       await denied(as(worker).update("requests/r_w1", {reviewed: true}),
           "worker marks the job as reviewed");
       await denied(as(worker).update("requests/r_w1",
@@ -502,9 +531,11 @@ test("payments, credits and verification stay with admins", async () => {
       {status: "approved"}), "worker approves own payment");
   await denied(as(worker).create("payment_requests/p2",
       {workerId: worker.uid, status: "approved"}), "submit approved payment");
-  await allowed(as(worker).create("payment_requests/p3",
+  await denied(as(worker).create("payment_requests/p3",
       {workerId: worker.uid, status: "pending", credits: 10}),
-  "submit a pending payment");
+  "submit a payment (platform is free)");
+  await allowed(as(worker).get("payment_requests/p1"),
+      "worker still reads own payment history");
   await denied(as(otherWorker).get("payment_requests/p1"),
       "read another worker's payment");
 
@@ -521,4 +552,109 @@ test("payments, credits and verification stay with admins", async () => {
   await allowed(as(worker).set(`verification_requests/${worker.uid}`,
       {workerId: worker.uid, status: "pending", identityStatus: "pending"}),
   "worker submits verification");
+});
+
+// ======================================================= privacy & identity
+test("privacy: workers cannot read customer profiles", async () => {
+  await denied(as(worker).get(`users/${customer.uid}`),
+      "worker reads a customer's private profile");
+  await allowed(as(customer).get(`users/${customer.uid}`),
+      "customer reads own profile");
+  await seed(`public_profiles/${customer.uid}`,
+      {uid: customer.uid, role: "customer", name: "Cara"});
+  await allowed(as(worker).get(`public_profiles/${customer.uid}`),
+      "worker reads the customer's public profile");
+  await denied(as(customer).set(`public_profiles/${customer.uid}`,
+      {name: "x"}), "client writes a public profile");
+});
+
+test("identity: phone/email verification cannot be forged", async () => {
+  await denied(as(customer).update(`users/${customer.uid}`,
+      {phoneVerified: true, phoneNumber: "+923001234567"}),
+  "set phoneVerified without a linked phone");
+  await denied(as(customer).update(`users/${customer.uid}`,
+      {emailVerified: true}), "set emailVerified with an unverified token");
+  await denied(as(customer).update(`users/${customer.uid}`,
+      {accountStatus: "active"}), "edit own account status");
+  await denied(as(customer).update(`users/${customer.uid}`,
+      {userType: "worker"}), "write a legacy role field");
+});
+
+test("requests: private contact is only for the assigned worker", async () => {
+  await seed("requests/r_contact", openRequest(customer.uid,
+      {workerId: worker.uid, status: "accepted"}));
+  await seed("requests/r_contact/private/contact",
+      {customerPhone: "+923001234567", customerId: customer.uid});
+  await allowed(as(worker).get("requests/r_contact/private/contact"),
+      "assigned worker reads customer contact");
+  await allowed(as(customer).get("requests/r_contact/private/contact"),
+      "customer reads own contact");
+  await denied(as(otherWorker).get("requests/r_contact/private/contact"),
+      "another worker reads customer contact");
+  await denied(as(worker).set("requests/r_contact/private/contact",
+      {customerPhone: "x"}), "client writes contact");
+});
+
+// =========================================================== live tracking
+const trackingWrite = (requestId, customerId, workerId, lat = 33.6, lng = 73.0) => ({
+  requestId, customerId, workerId, isActive: true,
+});
+
+async function writeLocation(user, requestId, customerId, workerId,
+    location = {latitude: 33.6, longitude: 73.0}) {
+  // Mirrors the app: set(merge) with server timestamps.
+  return call("POST", `http://${FIRESTORE}/v1/${DOCS}:commit`, user.token, {
+    writes: [{
+      update: {
+        name: `${DOCS}/live_tracking/${requestId}`,
+        fields: fields({
+          ...trackingWrite(requestId, customerId, workerId),
+          workerLocation: location,
+        }),
+      },
+      updateMask: {fieldPaths: ["requestId", "customerId", "workerId",
+        "isActive", "workerLocation"]},
+      updateTransforms: [
+        {fieldPath: "workerLocation.updatedAt", setToServerValue: "REQUEST_TIME"},
+        {fieldPath: "updatedAt", setToServerValue: "REQUEST_TIME"},
+        {fieldPath: "workerLocationUpdatedAt", setToServerValue: "REQUEST_TIME"},
+      ],
+    }],
+  });
+}
+
+test("live tracking: only the assigned worker shares, only parties read",
+    async () => {
+      await seed("requests/r_track", openRequest(customer.uid,
+          {workerId: worker.uid, status: "on_the_way"}));
+      await allowed(writeLocation(worker, "r_track", customer.uid, worker.uid),
+          "assigned worker shares location");
+      await allowed(as(customer).get("live_tracking/r_track"),
+          "customer reads the worker location");
+      await allowed(as(worker).get("live_tracking/r_track"),
+          "worker reads own tracking");
+      await denied(as(otherCustomer).get("live_tracking/r_track"),
+          "another customer tracks the worker");
+      await denied(as(otherWorker).get("live_tracking/r_track"),
+          "another worker reads the tracking");
+      await denied(writeLocation(otherWorker, "r_track", customer.uid,
+          otherWorker.uid), "unassigned worker writes location");
+      await denied(writeLocation(customer, "r_track", customer.uid,
+          worker.uid), "customer fakes the worker position");
+      await denied(writeLocation(worker, "r_track", customer.uid, worker.uid,
+          {latitude: 120, longitude: 73.0}), "invalid latitude");
+      await denied(writeLocation(worker, "r_track", otherCustomer.uid,
+          worker.uid), "worker points tracking at another customer");
+
+      await seed("requests/r_track_done", openRequest(customer.uid,
+          {workerId: worker.uid, status: "completed"}));
+      await denied(writeLocation(worker, "r_track_done", customer.uid,
+          worker.uid), "sharing after the job is completed");
+    });
+
+test("reviews: customer name and photo may be shown", async () => {
+  await completedJob("rv_named");
+  await allowed(submitReview(customer, "rv_named", review("rv_named",
+      {customerName: "Cara", customerPhotoUrl: "https://x/y.jpg"})),
+  "review with customer name and photo");
 });

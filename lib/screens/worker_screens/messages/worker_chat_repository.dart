@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:skill_link/screens/customer_screens/chat/chat_models.dart';
+import 'package:skill_link/screens/customer_screens/Chat/chat_models.dart';
 
 import 'worker_chat_models.dart';
 
@@ -109,7 +109,7 @@ class FirebaseWorkerChatRepository implements WorkerChatDataSource {
       final chunk = missing.sublist(offset, end);
       if (chunk.isEmpty) continue;
       final snapshot = await _firestore
-          .collection('users')
+          .collection('public_profiles')
           .where(FieldPath.documentId, whereIn: chunk)
           .get();
       for (final document in snapshot.docs) {
@@ -138,12 +138,14 @@ class FirebaseWorkerChatRepository implements WorkerChatDataSource {
   @override
   Stream<WorkerChatCustomer?> watchCustomer(String customerId) {
     if (customerId.isEmpty) return Stream.value(null);
-    return _firestore.collection('users').doc(customerId).snapshots().map((
-      doc,
-    ) {
-      final data = doc.data();
-      return data == null ? null : WorkerChatCustomer.from(doc.id, data);
-    });
+    return _firestore
+        .collection('public_profiles')
+        .doc(customerId)
+        .snapshots()
+        .map((doc) {
+          final data = doc.data();
+          return data == null ? null : WorkerChatCustomer.from(doc.id, data);
+        });
   }
 
   @override

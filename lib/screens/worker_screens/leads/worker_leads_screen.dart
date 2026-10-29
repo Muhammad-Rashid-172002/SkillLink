@@ -3,7 +3,6 @@ import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/design_system/widgets/skillnova_map.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
-import 'package:skill_link/screens/worker_screens/Wallat/Wallat_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_lead_components.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_lead_detail_screen.dart';
@@ -211,13 +210,7 @@ class _WorkerLeadsScreenState extends State<WorkerLeadsScreen> {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 14),
-        WorkerLeadReadinessBanner(
-          readiness: readiness,
-          onCredits: () => Navigator.push(
-            context,
-            MaterialPageRoute<void>(builder: (_) => const WallatScreen()),
-          ),
-        ),
+        WorkerLeadReadinessBanner(readiness: readiness),
         if (readiness.state != WorkerReadinessState.ready)
           const SizedBox(height: 12),
         SegmentedButton<WorkerLeadsView>(

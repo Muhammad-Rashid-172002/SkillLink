@@ -71,7 +71,7 @@ class _WorkerJobDetailV2ScreenState extends State<WorkerJobDetailV2Screen> {
     }
     if (_locationTimer != null) return;
     _locationTimer = Timer.periodic(
-      const Duration(seconds: 15),
+      const Duration(seconds: 10),
       (_) => _shareLocation(job.id),
     );
     _shareLocation(job.id);
@@ -84,9 +84,11 @@ class _WorkerJobDetailV2ScreenState extends State<WorkerJobDetailV2Screen> {
       setState(() {
         _locationMessage = switch (result) {
           WorkerLocationUpdateResult.shared =>
-            'Foreground location shared for this active journey.',
+            'The customer can see you on the map. Keep this screen open '
+                'while you travel.',
           WorkerLocationUpdateResult.permissionDenied =>
-            'Location permission is denied. Enable it to share your position.',
+            'Location permission is off. Allow location for SkillNova so the '
+                'customer can see you are on the way.',
           WorkerLocationUpdateResult.serviceDisabled =>
             'Location services are off. Turn them on to share your position.',
         };
@@ -389,12 +391,14 @@ class _WorkerJobDetailV2ScreenState extends State<WorkerJobDetailV2Screen> {
     final hasMap = service != null || workerCoordinate != null;
     final statusMessage = switch (job.status.status) {
       WorkerJobStatus.accepted =>
-        'Foreground location sharing starts only after you select “On my way”.',
+        'When you leave for the job, tap “On my way”. The customer will then '
+            'see your live location until you start the work.',
       WorkerJobStatus.onTheWay =>
         _locationMessage ??
-            'Foreground location sharing is active while this screen is open.',
+            'Sharing your live location with the customer while this screen '
+                'is open.',
       WorkerJobStatus.inProgress =>
-        'Journey location sharing has stopped because the service is in progress.',
+        'Location sharing has stopped because the work has started.',
       _ => 'No active journey location sharing.',
     };
     return WorkerJobSection(

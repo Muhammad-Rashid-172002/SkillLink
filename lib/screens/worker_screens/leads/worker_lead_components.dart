@@ -151,14 +151,9 @@ class WorkerLeadCard extends StatelessWidget {
 }
 
 class WorkerLeadReadinessBanner extends StatelessWidget {
-  const WorkerLeadReadinessBanner({
-    super.key,
-    required this.readiness,
-    this.onCredits,
-  });
+  const WorkerLeadReadinessBanner({super.key, required this.readiness});
 
   final WorkerReadiness readiness;
-  final VoidCallback? onCredits;
 
   @override
   Widget build(BuildContext context) {
@@ -166,23 +161,17 @@ class WorkerLeadReadinessBanner extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final colors = Theme.of(context).colorScheme;
-    final needsCredits = readiness.state == WorkerReadinessState.needsCredits;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: needsCredits ? colors.tertiaryContainer : colors.errorContainer,
+        color: colors.errorContainer,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            needsCredits ? Icons.toll_outlined : Icons.lock_outline_rounded,
-            color: needsCredits
-                ? colors.onTertiaryContainer
-                : colors.onErrorContainer,
-          ),
+          Icon(Icons.lock_outline_rounded, color: colors.onErrorContainer),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
@@ -196,13 +185,6 @@ class WorkerLeadReadinessBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(readiness.message),
-                if (needsCredits && onCredits != null) ...[
-                  const SizedBox(height: 6),
-                  TextButton(
-                    onPressed: onCredits,
-                    child: const Text('Get credits'),
-                  ),
-                ],
               ],
             ),
           ),

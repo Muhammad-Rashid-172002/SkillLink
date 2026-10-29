@@ -175,11 +175,7 @@ class WorkerReadinessCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: onAction,
-                    child: Text(
-                      readiness.state == WorkerReadinessState.needsCredits
-                          ? 'View lead credits'
-                          : 'Review requirements',
-                    ),
+                    child: const Text('Review requirements'),
                   ),
                 ],
               ],
@@ -354,10 +350,9 @@ class WorkerLeadPreviewCard extends StatelessWidget {
   }
 }
 
-class LeadCreditCard extends StatelessWidget {
-  const LeadCreditCard({super.key, required this.credits, required this.onTap});
-  final int credits;
-  final VoidCallback onTap;
+/// Tells workers plainly that finding and accepting jobs costs nothing.
+class FreeJobsCard extends StatelessWidget {
+  const FreeJobsCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -372,7 +367,10 @@ class LeadCreditCard extends StatelessWidget {
               color: colors.primary.withValues(alpha: .1),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(Icons.bolt_rounded, color: colors.primary),
+            child: Icon(
+              Icons.volunteer_activism_rounded,
+              color: colors.primary,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -380,33 +378,13 @@ class LeadCreditCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Lead credits',
+                  'Jobs are free on SkillNova',
                   style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$credits available',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: credits == 0
-                        ? SkillNovaColors.warning
-                        : colors.onSurface,
-                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Credits are used when accepting eligible leads.',
+                  'No fees, no credits. Accept any job that matches your skill.',
                   style: Theme.of(context).textTheme.bodySmall,
-                ),
-                // Stacked under the copy so narrow phones and large text
-                // sizes never squeeze the balance column to zero width.
-                const SizedBox(height: 6),
-                TextButton(
-                  onPressed: onTap,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: const Text('View credits'),
                 ),
               ],
             ),

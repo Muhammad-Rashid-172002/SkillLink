@@ -278,9 +278,9 @@ class WorkerProfileSummary extends StatelessWidget {
         const SizedBox(width: SkillNovaSpacing.xs),
         Expanded(
           child: _SummaryItem(
-            icon: Icons.toll_outlined,
-            value: '${profile.credits}',
-            label: 'Lead credits',
+            icon: Icons.task_alt_rounded,
+            value: '${profile.completedJobs}',
+            label: 'Jobs completed',
           ),
         ),
       ],
@@ -459,7 +459,6 @@ class _StatusPill extends StatelessWidget {
 
 IconData _readinessIcon(WorkerReadinessState state) => switch (state) {
   WorkerReadinessState.ready => Icons.check_circle_outline_rounded,
-  WorkerReadinessState.needsCredits => Icons.toll_outlined,
   WorkerReadinessState.blocked ||
   WorkerReadinessState.inactive => Icons.block_outlined,
   WorkerReadinessState.verificationPending ||

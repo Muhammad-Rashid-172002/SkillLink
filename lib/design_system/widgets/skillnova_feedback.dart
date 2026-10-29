@@ -27,7 +27,7 @@ abstract final class SkillNovaToast {
       SkillNovaTone.success => const Color(0xFF47CD89),
       SkillNovaTone.warning => const Color(0xFFFDB022),
       SkillNovaTone.error => const Color(0xFFF97066),
-      SkillNovaTone.info => const Color(0xFF84ADFF),
+      SkillNovaTone.info => const Color(0xFF7DD3FC),
       SkillNovaTone.neutral => null,
     };
     messenger

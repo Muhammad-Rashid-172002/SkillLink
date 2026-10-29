@@ -602,13 +602,13 @@ class _JobsHeader extends StatelessWidget {
         title: 'Total Jobs',
         value: '$total',
         icon: Icons.work_rounded,
-        color: const Color(0xFF2563EB),
+        color: kAdminBrand,
       ),
       _JobStatCard(
         title: 'Pending',
         value: '$pending',
         icon: Icons.schedule_rounded,
-        color: const Color(0xFFD97706),
+        color: kAdminWarning,
       ),
       _JobStatCard(
         title: 'Active',
@@ -1694,7 +1694,7 @@ Color _statusColor(String status) {
     case 'rejected':
       return const Color(0xFFDC2626);
     default:
-      return const Color(0xFFD97706);
+      return kAdminWarning;
   }
 }
 

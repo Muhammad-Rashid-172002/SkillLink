@@ -16,7 +16,7 @@ class CategoryCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 35, color: Color(0xFF2563EB)),
+          Icon(icon, size: 35, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 10),
           Text(
             title,

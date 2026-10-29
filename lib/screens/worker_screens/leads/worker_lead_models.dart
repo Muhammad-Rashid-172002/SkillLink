@@ -228,7 +228,6 @@ enum WorkerLeadAcceptanceFailure {
   signedOut,
   workerMissing,
   workerIneligible,
-  insufficientCredits,
   leadMissing,
   unavailable,
   skillMismatch,
@@ -245,15 +244,11 @@ class WorkerLeadAcceptanceException implements Exception {
   String toString() => message;
 }
 
+/// Accepting a lead is free: the plan only assigns the worker.
 class WorkerLeadAcceptancePlan {
-  const WorkerLeadAcceptancePlan({
-    required this.workerId,
-    required this.balanceBefore,
-  });
+  const WorkerLeadAcceptancePlan({required this.workerId});
 
   final String workerId;
-  final int balanceBefore;
-  int get balanceAfter => balanceBefore - 1;
   String get nextStatus => 'accepted';
 }
 
@@ -283,12 +278,6 @@ WorkerLeadAcceptancePlan planWorkerLeadAcceptance({
   }
   final worker = WorkerHomeProfile(uid: workerId, data: workerData);
   final readiness = WorkerEligibilityAdapter.evaluate(worker);
-  if (readiness.state == WorkerReadinessState.needsCredits) {
-    throw const WorkerLeadAcceptanceException(
-      WorkerLeadAcceptanceFailure.insufficientCredits,
-      'You need at least 1 lead credit to accept this lead.',
-    );
-  }
   if (!readiness.canAcceptLead) {
     throw WorkerLeadAcceptanceException(
       WorkerLeadAcceptanceFailure.workerIneligible,
@@ -309,16 +298,7 @@ WorkerLeadAcceptancePlan planWorkerLeadAcceptance({
       'This lead no longer matches your primary skill.',
     );
   }
-  if (worker.credits < 1) {
-    throw const WorkerLeadAcceptanceException(
-      WorkerLeadAcceptanceFailure.insufficientCredits,
-      'You need at least 1 lead credit to accept this lead.',
-    );
-  }
-  return WorkerLeadAcceptancePlan(
-    workerId: workerId,
-    balanceBefore: worker.credits,
-  );
+  return WorkerLeadAcceptancePlan(workerId: workerId);
 }
 
 class WorkerLeadEligibility {
@@ -326,11 +306,9 @@ class WorkerLeadEligibility {
     required this.canAccept,
     required this.title,
     required this.message,
-    this.needsCredits = false,
   });
 
   final bool canAccept;
-  final bool needsCredits;
   final String title;
   final String message;
 
@@ -342,7 +320,6 @@ class WorkerLeadEligibility {
     if (!readiness.canAcceptLead) {
       return WorkerLeadEligibility(
         canAccept: false,
-        needsCredits: readiness.state == WorkerReadinessState.needsCredits,
         title: readiness.title,
         message: readiness.message,
       );
@@ -372,7 +349,7 @@ class WorkerLeadEligibility {
     return const WorkerLeadEligibility(
       canAccept: true,
       title: 'Eligible to accept',
-      message: 'Accepting this lead uses 1 lead credit.',
+      message: 'Accepting this job is free.',
     );
   }
 }

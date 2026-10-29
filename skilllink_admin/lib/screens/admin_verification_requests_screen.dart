@@ -305,12 +305,12 @@ class _Stats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = [
-      ('Total', requests.length, Icons.badge_rounded, const Color(0xFF2563EB)),
+      ('Total', requests.length, Icons.badge_rounded, kAdminBrand),
       (
         'Pending',
         requests.where((e) => e.isPending).length,
         Icons.schedule_rounded,
-        const Color(0xFFD97706),
+        kAdminWarning,
       ),
       (
         'Approved',
@@ -848,6 +848,6 @@ Color _statusColor(String status) {
     case 'more_information_required':
       return const Color(0xFF7C3AED);
     default:
-      return const Color(0xFFD97706);
+      return kAdminWarning;
   }
 }

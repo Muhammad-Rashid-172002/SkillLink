@@ -1,4 +1,4 @@
-import 'package:skill_link/screens/customer_screens/chat/chat_models.dart';
+import 'package:skill_link/screens/customer_screens/Chat/chat_models.dart';
 
 class WorkerChatCustomerSummary {
   const WorkerChatCustomerSummary({

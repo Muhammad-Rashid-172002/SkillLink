@@ -282,8 +282,8 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                               review.isFlagged ? 'Remove flag' : 'Flag review',
                             ),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFD97706),
-                              side: const BorderSide(color: Color(0xFFD97706)),
+                              foregroundColor: kAdminWarning,
+                              side: const BorderSide(color: kAdminWarning),
                               padding: const EdgeInsets.symmetric(vertical: 15),
                             ),
                           ),
@@ -445,7 +445,7 @@ class _ReviewsHeader extends StatelessWidget {
         title: 'Total Reviews',
         value: '$total',
         icon: Icons.reviews_rounded,
-        color: const Color(0xFF2563EB),
+        color: kAdminBrand,
       ),
       _ReviewStatCard(
         title: 'Average Rating',
@@ -469,7 +469,7 @@ class _ReviewsHeader extends StatelessWidget {
         title: 'Flagged',
         value: '$flagged',
         icon: Icons.flag_rounded,
-        color: const Color(0xFFD97706),
+        color: kAdminWarning,
       ),
     ];
 
@@ -1269,7 +1269,7 @@ class _FlaggedBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFD97706).withOpacity(0.09),
+        color: kAdminWarning.withOpacity(0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1277,7 +1277,7 @@ class _FlaggedBadge extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 8.5,
           fontWeight: FontWeight.w700,
-          color: const Color(0xFFD97706),
+          color: kAdminWarning,
         ),
       ),
     );

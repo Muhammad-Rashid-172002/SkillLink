@@ -8,8 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
-import 'package:skill_link/screens/customer_screens/chat/chat_components.dart';
-import 'package:skill_link/screens/customer_screens/chat/chat_models.dart';
+import 'package:skill_link/screens/customer_screens/Chat/chat_components.dart';
+import 'package:skill_link/screens/customer_screens/Chat/chat_models.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_detail_screen.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -535,7 +535,17 @@ class _WorkerChatDetailV2ScreenState extends State<WorkerChatDetailV2Screen> {
       final reference = FirebaseStorage.instance.ref(
         'chat_media/${widget.chatId}/${DateTime.now().millisecondsSinceEpoch}.$extension',
       );
-      await reference.putFile(File(image.path));
+      await reference.putFile(
+        File(image.path),
+        SettableMetadata(
+          contentType: switch (extension) {
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'heic' || 'heif' => 'image/heic',
+            _ => 'image/jpeg',
+          },
+        ),
+      );
       final url = await reference.getDownloadURL();
       await _send(customerId, service, {
         'type': 'image',

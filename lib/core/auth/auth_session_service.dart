@@ -62,6 +62,26 @@ class SessionException implements Exception {
   String toString() => message;
 }
 
+enum AccountInitStatus { ok, needsRole, admin }
+
+/// Response of the `initializeAccount` Cloud Function.
+@immutable
+class AccountInitResult {
+  const AccountInitResult(this.status, this.role);
+
+  factory AccountInitResult.fromMap(Map<String, dynamic> data) {
+    final status = switch (data['status']?.toString()) {
+      'ok' => AccountInitStatus.ok,
+      'admin' => AccountInitStatus.admin,
+      _ => AccountInitStatus.needsRole,
+    };
+    return AccountInitResult(status, UserRole.tryParse(data['role']));
+  }
+
+  final AccountInitStatus status;
+  final UserRole? role;
+}
+
 /// Single source of truth for authentication state and the account role.
 ///
 /// Every entry point (splash/session restore, email login, Google sign-in,
@@ -71,23 +91,29 @@ class AuthSessionService {
   AuthSessionService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
     Future<SharedPreferences> Function()? preferences,
   }) : _authOverride = auth,
        _firestoreOverride = firestore,
+       _functionsOverride = functions,
        _preferences = preferences ?? SharedPreferences.getInstance;
 
   static final AuthSessionService instance = AuthSessionService();
 
-  static const String _roleCachePrefix = 'skillnova.session.role.';
+  static const String _legacyRoleCachePrefix = 'skillnova.session.role.';
   static const String _pendingRoleKey = 'skillnova.session.pendingRole';
 
   final FirebaseAuth? _authOverride;
   final FirebaseFirestore? _firestoreOverride;
+  final FirebaseFunctions? _functionsOverride;
   final Future<SharedPreferences> Function() _preferences;
 
   FirebaseAuth get _auth => _authOverride ?? FirebaseAuth.instance;
   FirebaseFirestore get _firestore =>
       _firestoreOverride ?? FirebaseFirestore.instance;
+  FirebaseFunctions get _functions =>
+      _functionsOverride ??
+      FirebaseFunctions.instanceFor(region: 'us-central1');
 
   DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
       _firestore.collection('users').doc(uid);
@@ -122,12 +148,13 @@ class AuthSessionService {
 
   /// Works out where the current person belongs.
   ///
-  /// [selectedRole] is the role picked on the role-selection screen. It is only
-  /// used to *recover* accounts whose stored role is missing; it never
-  /// overrides a valid stored role.
+  /// The role always comes from the server: the stored `users/{uid}.role`, or
+  /// the `initializeAccount` Cloud Function for brand-new or legacy accounts.
+  /// [selectedRole] is ignored for existing accounts; it is kept only so
+  /// older call sites compile.
   Future<SessionSnapshot> resolve({UserRole? selectedRole}) async {
     try {
-      return await _resolve(selectedRole);
+      return await _resolve();
     } on FirebaseException catch (error) {
       debugPrint('Session resolve failed: ${error.code}');
       return SessionSnapshot(
@@ -143,7 +170,7 @@ class AuthSessionService {
     }
   }
 
-  Future<SessionSnapshot> _resolve(UserRole? selectedRole) async {
+  Future<SessionSnapshot> _resolve() async {
     var user = _auth.currentUser;
     if (user == null) {
       verifiedRole.value = null;
@@ -156,8 +183,11 @@ class AuthSessionService {
     } on FirebaseAuthException catch (error) {
       if (_isDeadSession(error.code)) {
         await signOut(clearDeviceToken: false);
-        return const SessionSnapshot.signedOut(
-          message: 'Your session has expired. Please sign in again.',
+        return SessionSnapshot.signedOut(
+          message: error.code == 'user-disabled'
+              ? 'This account is currently restricted. Please contact '
+                    'SkillNova support so we can help.'
+              : 'Your session has expired. Please sign in again.',
         );
       }
       // Offline or transient: continue with the cached user.
@@ -171,7 +201,7 @@ class AuthSessionService {
       return const SessionSnapshot.signedOut();
     }
 
-    final DocumentSnapshot<Map<String, dynamic>> snapshot;
+    DocumentSnapshot<Map<String, dynamic>> snapshot;
     try {
       snapshot = await _userDoc(
         user.uid,
@@ -189,31 +219,48 @@ class AuthSessionService {
       );
     }
 
-    final cachedRole = await _cachedRole(user.uid);
     var data = snapshot.data() ?? <String, dynamic>{};
+    var resolution = RoleResolver.resolve(data);
 
-    final resolution = RoleResolver.resolve(
-      data,
-      cachedRole: cachedRole,
-      selectedRole: selectedRole,
-    );
-
-    if (!resolution.isResolved) {
-      verifiedRole.value = null;
-      return SessionSnapshot(stage: SessionStage.roleRequired, data: data);
+    // Brand-new account whose profile was never created (app killed during
+    // sign-up), or a legacy account with a missing / malformed role: ask the
+    // server. It only accepts the role picked during sign-up on THIS device
+    // for an account that has no role and no contrary evidence.
+    if (!snapshot.exists || resolution.needsRepair || !resolution.isResolved) {
+      final pending = await _pendingRoleFor(user.uid);
+      final AccountInitResult result;
+      try {
+        result = await initializeAccount(role: pending);
+      } on SessionException catch (error) {
+        return SessionSnapshot(
+          stage: SessionStage.error,
+          message: error.message,
+        );
+      }
+      if (result.status == AccountInitStatus.admin) {
+        await signOut();
+        return const SessionSnapshot(
+          stage: SessionStage.restricted,
+          role: UserRole.admin,
+          message:
+              'Admin accounts sign in through the SkillNova Admin console, '
+              'not the mobile app.',
+        );
+      }
+      if (result.status == AccountInitStatus.needsRole) {
+        verifiedRole.value = null;
+        return SessionSnapshot(stage: SessionStage.roleRequired, data: data);
+      }
+      snapshot = await _userDoc(user.uid).get();
+      data = snapshot.data() ?? data;
+      resolution = RoleResolver.resolve(data);
+      if (!resolution.isResolved) {
+        verifiedRole.value = null;
+        return SessionSnapshot(stage: SessionStage.roleRequired, data: data);
+      }
     }
 
     final role = resolution.role!;
-
-    if (!snapshot.exists) {
-      // Auth account exists but the profile write never landed (e.g. app was
-      // killed or offline during sign-up). Recreate it instead of failing.
-      await _writeInitialProfile(user, role, recovered: true);
-      data = (await _userDoc(user.uid).get()).data() ?? data;
-    } else if (resolution.needsPersist) {
-      await _repairRole(user.uid, role, resolution.source);
-      data = {...data, 'role': role.value};
-    }
 
     if (role == UserRole.admin) {
       await signOut();
@@ -238,7 +285,7 @@ class AuthSessionService {
       );
     }
 
-    await _rememberRole(user.uid, role);
+    await _clearPendingRole();
     verifiedRole.value = role;
 
     if (!user.emailVerified) {
@@ -250,8 +297,9 @@ class AuthSessionService {
     }
 
     if (data['emailVerified'] != true) {
+      final verifiedUser = user;
       unawaited(
-        _safeMerge(user.uid, {
+        _refreshThenMerge(verifiedUser, {
           'emailVerified': true,
           'emailVerifiedAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -259,11 +307,24 @@ class AuthSessionService {
       );
     }
 
-    if (data['phoneVerified'] != true || user.phoneNumber == null) {
+    // The phone is verified only if Firebase Auth itself holds the number
+    // (it is linked after a real SMS code check).
+    if (user.phoneNumber == null || user.phoneNumber!.isEmpty) {
       return SessionSnapshot(
         stage: SessionStage.phoneVerification,
         role: role,
         data: data,
+      );
+    }
+    if (data['phoneVerified'] != true) {
+      unawaited(
+        _refreshThenMerge(user, {
+          'phoneNumber': user.phoneNumber,
+          'phone': user.phoneNumber,
+          'phoneVerified': true,
+          'phoneVerifiedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }),
       );
     }
 
@@ -287,30 +348,34 @@ class AuthSessionService {
     return SessionSnapshot(stage: SessionStage.home, role: role, data: data);
   }
 
-  /// Persists a role chosen on the recovery screen. Never changes a role that
-  /// is already valid.
+  /// Persists a role chosen on the recovery screen. The server accepts it
+  /// only for an account that has no role and no contrary evidence; it can
+  /// never change a valid role.
   Future<void> assignMissingRole(UserRole role) async {
-    final user = _auth.currentUser;
-    if (user == null) {
+    if (_auth.currentUser == null) {
       throw const SessionException('Please sign in again to continue.');
     }
     if (!role.isAppRole) {
       throw const SessionException('Choose Customer or Worker to continue.');
     }
-    final reference = _userDoc(user.uid);
-    final snapshot = await reference.get();
-    if (!snapshot.exists) {
-      await _writeInitialProfile(user, role, recovered: true);
-    } else {
-      final existing = UserRole.tryParse(snapshot.data()?['role']);
-      if (existing != null && existing != role) {
-        throw SessionException(
-          'This account is already registered as a ${existing.label}.',
+    final result = await initializeAccount(role: role);
+    switch (result.status) {
+      case AccountInitStatus.ok:
+        if (result.role != null && result.role != role) {
+          throw SessionException(
+            'This account is already registered as a ${result.role!.label}.',
+          );
+        }
+      case AccountInitStatus.needsRole:
+        throw const SessionException(
+          'We couldn’t confirm this account type automatically. Please '
+          'contact SkillNova support so we can fix it for you.',
         );
-      }
-      await _repairRole(user.uid, role, RoleSource.userSelection);
+      case AccountInitStatus.admin:
+        throw const SessionException(
+          'Admin accounts sign in through the SkillNova Admin console.',
+        );
     }
-    await _rememberRole(user.uid, role);
   }
 
   // ---------------------------------------------------------------------------
@@ -318,7 +383,8 @@ class AuthSessionService {
   // ---------------------------------------------------------------------------
 
   /// Remembers the role chosen for sign-up before the auth account exists, so
-  /// that an interrupted sign-up can still be recovered correctly.
+  /// that an interrupted sign-up can be finished. It is only ever sent to the
+  /// server, which ignores it for accounts that already have a role.
   Future<void> rememberPendingRole(UserRole role) async {
     try {
       final prefs = await _preferences();
@@ -328,68 +394,64 @@ class AuthSessionService {
     }
   }
 
-  /// Creates `users/{uid}` for a new account with the canonical role.
+  /// Creates `users/{uid}` for a new account through the server.
   Future<void> createProfile({
     required User user,
     required UserRole role,
     String? name,
     String authProvider = 'password',
   }) async {
-    await _writeInitialProfile(
-      user,
-      role,
-      name: name,
-      authProvider: authProvider,
-    );
-    await _rememberRole(user.uid, role);
+    await rememberPendingRole(role);
+    final result = await initializeAccount(role: role, name: name);
+    if (result.status != AccountInitStatus.ok) {
+      throw const SessionException(
+        'We couldn’t finish creating your account. Please try again.',
+      );
+    }
   }
 
-  Future<void> _writeInitialProfile(
-    User user,
-    UserRole role, {
+  /// Calls the `initializeAccount` Cloud Function, which is the only place a
+  /// role is ever written. Refreshes the ID token when the role claim changed
+  /// so security rules see it immediately.
+  Future<AccountInitResult> initializeAccount({
+    UserRole? role,
     String? name,
-    String authProvider = 'password',
-    bool recovered = false,
   }) async {
-    final isWorker = role == UserRole.worker;
-    final displayName = (name ?? user.displayName ?? '').trim();
-    final emailVerified = user.emailVerified || authProvider == 'google';
-    await _userDoc(user.uid).set({
-      'uid': user.uid,
-      'name': displayName.isEmpty ? 'SkillNova member' : displayName,
-      'email': user.email,
-      if (user.photoURL != null) 'photoUrl': user.photoURL,
-      'role': role.value,
-      'authProvider': authProvider,
-      'emailVerified': emailVerified,
-      if (emailVerified) 'emailVerifiedAt': FieldValue.serverTimestamp(),
-      'phoneVerified': false,
-      'phoneNumber': user.phoneNumber,
-      'profileCompleted': false,
-      'identityVerificationStatus': isWorker ? 'not_submitted' : 'not_required',
-      'backgroundVerificationStatus': isWorker
-          ? 'not_submitted'
-          : 'not_required',
-      'verificationLevel': isWorker ? 'unverified' : 'basic',
-      'canAcceptJobs': false,
-      'accountStatus': 'active',
-      if (recovered) 'profileRecoveredAt': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
-
-  Future<void> _repairRole(String uid, UserRole role, RoleSource source) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const SessionException('Please sign in again to continue.');
+    }
     try {
-      await _userDoc(uid).set({
-        'role': role.value,
-        'roleRecoveredFrom': source.name,
-        'roleRecoveredAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } on FirebaseException catch (error) {
-      // Routing still works for this session; repair is retried next launch.
-      debugPrint('Role repair deferred: ${error.code}');
+      final response = await _functions
+          .httpsCallable('initializeAccount')
+          .call(<String, dynamic>{
+            if (role != null && role.isAppRole) 'role': role.value,
+            if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+          })
+          .timeout(const Duration(seconds: 25));
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final result = AccountInitResult.fromMap(data);
+      if (result.status == AccountInitStatus.ok) {
+        // Always refresh: the role claim must be on the token before any
+        // role-protected read or write.
+        await user.getIdToken(true);
+      }
+      return result;
+    } on FirebaseFunctionsException catch (error) {
+      debugPrint('initializeAccount failed: ${error.code}');
+      throw SessionException(switch (error.code) {
+        'unavailable' || 'deadline-exceeded' =>
+          'You appear to be offline. Check your connection and try again.',
+        'unauthenticated' => 'Please sign in again to continue.',
+        _ =>
+          'We couldn’t set up your account right now. Please try again in a '
+              'moment.',
+      });
+    } on TimeoutException {
+      throw const SessionException(
+        'SkillNova is taking too long to respond. Check your connection and '
+        'try again.',
+      );
     }
   }
 
@@ -403,7 +465,7 @@ class AuthSessionService {
   Future<void> sendPasswordReset(String email) async {
     final address = email.trim().toLowerCase();
     try {
-      await FirebaseFunctions.instanceFor(region: 'us-central1')
+      await _functions
           .httpsCallable('sendCustomPasswordResetEmail')
           .call(<String, dynamic>{'email': address})
           .timeout(const Duration(seconds: 20));
@@ -481,24 +543,39 @@ class AuthSessionService {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  Future<UserRole?> _cachedRole(String uid) async {
+  /// The role picked during sign-up on this device, if the sign-up has not
+  /// finished yet. Only ever forwarded to the server.
+  Future<UserRole?> _pendingRoleFor(String uid) async {
     try {
       final prefs = await _preferences();
-      return UserRole.tryParse(prefs.getString('$_roleCachePrefix$uid')) ??
-          UserRole.tryParse(prefs.getString(_pendingRoleKey));
+      return UserRole.tryParse(prefs.getString(_pendingRoleKey));
     } catch (_) {
       return null;
     }
   }
 
-  Future<void> _rememberRole(String uid, UserRole role) async {
+  Future<void> _clearPendingRole() async {
     try {
       final prefs = await _preferences();
-      await prefs.setString('$_roleCachePrefix$uid', role.value);
       await prefs.remove(_pendingRoleKey);
+      // Legacy per-account role cache from older builds; no longer trusted.
+      for (final key in prefs.getKeys().toList()) {
+        if (key.startsWith(_legacyRoleCachePrefix)) await prefs.remove(key);
+      }
     } catch (error) {
-      debugPrint('Role cache failed: $error');
+      debugPrint('Pending role cleanup skipped: $error');
     }
+  }
+
+  /// Security rules accept `emailVerified` / `phoneVerified` only when the
+  /// ID token proves them, so refresh the token before syncing the flags.
+  Future<void> _refreshThenMerge(User user, Map<String, Object?> values) async {
+    try {
+      await user.getIdToken(true);
+    } catch (error) {
+      debugPrint('Token refresh skipped: $error');
+    }
+    await _safeMerge(user.uid, values);
   }
 
   Future<void> _safeMerge(String uid, Map<String, Object?> values) async {

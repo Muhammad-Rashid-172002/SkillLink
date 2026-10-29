@@ -18,6 +18,29 @@ plugins {
 // Release Signing Configuration
 // ---------------------------------------------------------
 
+// ---------------------------------------------------------
+// Google Maps API key
+// ---------------------------------------------------------
+// Read from (first match wins): android/local.properties `MAPS_API_KEY=...`
+// (git-ignored), a Gradle property (-PMAPS_API_KEY / ~/.gradle/gradle.properties)
+// or the MAPS_API_KEY environment variable (CI). Gradle's findProperty() does
+// NOT read local.properties, which is why the map used to render blank.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val mapsApiKey: String =
+    (localProperties.getProperty("MAPS_API_KEY")
+        ?: project.findProperty("MAPS_API_KEY") as String?
+        ?: System.getenv("MAPS_API_KEY")
+        ?: "").trim()
+if (mapsApiKey.isEmpty()) {
+    logger.warn(
+        "MAPS_API_KEY is not set: Google Maps will show a blank map. " +
+            "Add MAPS_API_KEY=<android key> to android/local.properties."
+    )
+}
+
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 
@@ -62,8 +85,7 @@ android {
         versionName = flutter.versionName
 
         // Google Maps API key
-        manifestPlaceholders["MAPS_API_KEY"] =
-            project.findProperty("MAPS_API_KEY") as String? ?: ""
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
     // -----------------------------------------------------

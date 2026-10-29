@@ -127,10 +127,11 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       await _session.createProfile(user: user, role: role, name: name);
-    } on FirebaseException catch (error) {
-      // The auth account exists; the session resolver recreates the profile
-      // from the remembered role on the next step, so don't strand the user.
-      debugPrint('Profile write deferred: ${error.code}');
+    } on SessionException catch (error) {
+      // The auth account exists; the session resolver asks the server to
+      // finish the profile (with the role picked here) on the next step, so
+      // don't strand the user.
+      debugPrint('Profile creation deferred: ${error.message}');
     }
 
     unawaited(saveFcmToken());
@@ -186,12 +187,18 @@ class _AuthScreenState extends State<AuthScreen> {
           .doc(user.uid);
       final snapshot = await reference.get();
       if (!snapshot.exists) {
-        await _session.createProfile(
-          user: user,
-          role: _role,
-          name: user.displayName ?? account.displayName,
-          authProvider: 'google',
-        );
+        // New Google account: the server creates it with the role of the
+        // tab the person chose. Existing accounts keep their stored role.
+        try {
+          await _session.createProfile(
+            user: user,
+            role: _role,
+            name: user.displayName ?? account.displayName,
+            authProvider: 'google',
+          );
+        } on SessionException catch (error) {
+          debugPrint('Profile creation deferred: ${error.message}');
+        }
       } else {
         await reference.set({
           'photoUrl': user.photoURL ?? snapshot.data()?['photoUrl'],
@@ -232,7 +239,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   /// Resolves the account's stored role and opens the right place.
   Future<void> _routeAfterAuth() async {
-    final session = await _session.resolve(selectedRole: _role);
+    final session = await _session.resolve();
     if (!mounted) return;
 
     if (session.stage == SessionStage.error) {

@@ -75,7 +75,8 @@ abstract final class NotificationRouter {
 
     if (uid == workerId) {
       final customer =
-          (await firestore.collection('users').doc(customerId).get()).data() ??
+          (await firestore.collection('public_profiles').doc(customerId).get())
+              .data() ??
           const <String, dynamic>{};
       return WorkerChatDetailV2Screen(
         chatId: chatId,

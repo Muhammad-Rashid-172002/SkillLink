@@ -43,6 +43,12 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
   int _resendIn = 0;
   Timer? _resendTimer;
 
+  /// Wrong codes entered for the current SMS. After [_maxAttempts] the code
+  /// is discarded and a new one must be requested (abuse protection on top
+  /// of Firebase's own server-side limits).
+  int _failedAttempts = 0;
+  static const int _maxAttempts = 5;
+
   UserRole get _role => UserRole.tryParse(widget.role) ?? UserRole.customer;
   bool get _codeSent => _verificationId != null || _webConfirmation != null;
 
@@ -134,6 +140,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       _webConfirmation = webConfirmation;
       _phone = phone;
       _sending = false;
+      _failedAttempts = 0;
       _otpController.clear();
       _resendIn = 60;
     });
@@ -152,8 +159,15 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
     final code = _otpController.text.trim();
     final phone = _phone;
     if (phone == null || _verifying) return;
-    if (code.length != 6) {
+    if (code.length != 6 || int.tryParse(code) == null) {
       setState(() => _error = 'Enter the 6-digit code from the SMS.');
+      return;
+    }
+    if (_failedAttempts >= _maxAttempts) {
+      setState(
+        () => _error =
+            'Too many wrong codes. Tap “Resend code” to get a new one.',
+      );
       return;
     }
     if (_webConfirmation != null) {
@@ -165,6 +179,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
         await _webConfirmation!.confirm(code);
         await _markVerified(phone);
       } on FirebaseAuthException catch (error) {
+        if (error.code == 'invalid-verification-code') _failedAttempts++;
         if (mounted) {
           setState(() {
             _verifying = false;
@@ -202,6 +217,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       }
       await _markVerified(phone);
     } on FirebaseAuthException catch (error) {
+      if (error.code == 'invalid-verification-code') _failedAttempts++;
       if (!mounted) return;
       setState(() {
         _verifying = false;
@@ -221,6 +237,9 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
     final user = _auth.currentUser;
     if (user == null) return;
     await user.reload();
+    // The refreshed token carries `phone_number`, which security rules
+    // require before `phoneVerified` may be set.
+    await user.getIdToken(true);
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
       'phoneNumber': phone,
       'phone': phone,
@@ -236,7 +255,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       'Phone number verified.',
       tone: SkillNovaTone.success,
     );
-    await SessionRouter.continueSession(context, selectedRole: _role);
+    await SessionRouter.continueSession(context);
   }
 
   String _messageFor(String code) => switch (code) {
@@ -251,6 +270,13 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       'You appear to be offline. Check your connection and try again.',
     'too-many-requests' =>
       'Too many attempts. For your security, please wait a few minutes.',
+    'missing-client-identifier' ||
+    'app-not-authorized' ||
+    'invalid-app-credential' =>
+      'This version of SkillNova couldn’t be verified for SMS. Update the app '
+          'or contact support.',
+    'captcha-check-failed' || 'web-context-cancelled' =>
+      'The security check didn’t finish. Please try again.',
     'quota-exceeded' =>
       'SMS verification is busy right now. Please try again shortly.',
     'credential-already-in-use' || 'account-exists-with-different-credential' =>

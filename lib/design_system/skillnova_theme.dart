@@ -24,26 +24,25 @@ abstract final class SkillNovaTheme {
 
     final scheme = ColorScheme(
       brightness: brightness,
-      primary: isDark ? const Color(0xFF528BFF) : SkillNovaColors.primary,
-      // In dark mode the lighter blue keeps links readable (5.3:1 on the
-      // surface); dark text on it keeps filled buttons AA too (5.8:1), where
-      // white would only reach 3.2:1.
-      onPrimary: isDark ? SkillNovaColors.darkBackground : Colors.white,
+      primary: isDark ? SkillNovaColors.darkPrimary : SkillNovaColors.primary,
+      // In dark mode the light green keeps links readable (10:1 on the
+      // surface) and deep-forest text on it keeps filled buttons AA (8.5:1).
+      onPrimary: isDark ? SkillNovaColors.secondary : Colors.white,
       primaryContainer: isDark
-          ? const Color(0xFF14284F)
+          ? const Color(0xFF123B24)
           : SkillNovaColors.primarySoft,
       onPrimaryContainer: isDark
-          ? const Color(0xFFD6E4FF)
+          ? const Color(0xFFBBF7D0)
           : SkillNovaColors.primaryDark,
       secondary: SkillNovaColors.accent,
       onSecondary: Colors.white,
       // Tonal buttons and selected segments use secondaryContainer; keep
-      // them in the brand blue family so every tonal control matches.
+      // them in the brand green family so every tonal control matches.
       secondaryContainer: isDark
-          ? const Color(0xFF1B2F55)
-          : const Color(0xFFE3ECFF),
+          ? const Color(0xFF173D28)
+          : const Color(0xFFE3F5E9),
       onSecondaryContainer: isDark
-          ? const Color(0xFFD6E4FF)
+          ? const Color(0xFFBBF7D0)
           : SkillNovaColors.primaryDark,
       tertiary: SkillNovaColors.worker,
       onTertiary: Colors.white,
@@ -68,11 +67,11 @@ abstract final class SkillNovaTheme {
           ? SkillNovaColors.darkSurfaceMuted
           : SkillNovaColors.surfaceMuted,
       surfaceContainerHigh: isDark
-          ? const Color(0xFF223047)
-          : const Color(0xFFEAEEF3),
+          ? const Color(0xFF1C3326)
+          : const Color(0xFFE6EFE9),
       surfaceContainerHighest: isDark
-          ? const Color(0xFF2A3A52)
-          : const Color(0xFFE3E8EF),
+          ? const Color(0xFF243D2F)
+          : const Color(0xFFDDE9E1),
       inverseSurface: isDark
           ? SkillNovaColors.surface
           : SkillNovaColors.secondary,

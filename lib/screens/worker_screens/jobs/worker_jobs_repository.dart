@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:skill_link/services/live_tracking/live_tracking.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_models.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
 
@@ -66,6 +67,7 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
   final FirebaseFirestore _firestore;
   final Map<String, WorkerJobCustomer> _customerCache = {};
   final Map<String, WorkerJobReview?> _reviewCache = {};
+  final LiveTrackingPublisher _trackingPublisher = LiveTrackingPublisher();
 
   @override
   String? get currentWorkerId => _auth.currentUser?.uid;
@@ -169,8 +171,24 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
           }
           final workerPoint = await _workerCoordinate();
           final servicePoint = job.serviceCoordinate;
+          var customer = _customerCache[job.customerId];
+          if (job.status.isActive) {
+            // The customer's phone is shared only with the assigned worker
+            // of an active job (requests/{id}/private/contact).
+            final phone = await _customerContactPhone(requestId);
+            if (phone.isNotEmpty) {
+              customer = WorkerJobCustomer(
+                id: job.customerId,
+                name: customer?.name ?? 'Customer',
+                photoUrl: customer?.photoUrl ?? '',
+                city: customer?.city ?? '',
+                area: customer?.area ?? '',
+                phone: phone,
+              );
+            }
+          }
           return job.copyWith(
-            customer: _customerCache[job.customerId],
+            customer: customer,
             review: review,
             preserveReview: false,
             distanceKm: workerPoint == null || servicePoint == null
@@ -274,27 +292,45 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
         permission == LocationPermission.deniedForever) {
       return WorkerLocationUpdateResult.permissionDenied;
     }
-    final position = await Geolocator.getCurrentPosition();
-    final requestRef = _firestore.collection('requests').doc(requestId);
-    final workerRef = _firestore.collection('users').doc(_uid);
-    await _firestore.runTransaction((transaction) async {
-      final request = await transaction.get(requestRef);
-      final data = request.data();
-      if (data == null ||
-          workerText(data, const ['workerId']) != _uid ||
-          workerJobStatusOf(data['status']).status !=
-              WorkerJobStatus.onTheWay) {
-        throw const WorkerJobTransitionException(
-          WorkerJobTransitionFailure.stale,
-          'Location sharing stopped because this job is no longer on the way.',
-        );
-      }
-      transaction.update(workerRef, {
-        'lat': position.latitude,
-        'lng': position.longitude,
-        'locationUpdatedAt': FieldValue.serverTimestamp(),
-      });
-    });
+    final snapshot = await _firestore
+        .collection('requests')
+        .doc(requestId)
+        .get();
+    final data = snapshot.data();
+    if (data == null ||
+        workerText(data, const ['workerId']) != _uid ||
+        workerJobStatusOf(data['status']).status != WorkerJobStatus.onTheWay) {
+      throw const WorkerJobTransitionException(
+        WorkerJobTransitionFailure.stale,
+        'Location sharing stopped because this job is no longer on the way.',
+      );
+    }
+    // A recent cached fix saves battery; otherwise ask for a fresh one.
+    final cached = await Geolocator.getLastKnownPosition();
+    final position =
+        cached != null &&
+            DateTime.now().difference(cached.timestamp) <
+                const Duration(seconds: 10) &&
+            cached.accuracy <= 50
+        ? cached
+        : await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 15),
+            ),
+          );
+    // Live position goes ONLY to live_tracking/{requestId}, which security
+    // rules expose to this job's customer and worker — never to the public
+    // worker profile.
+    await _trackingPublisher.publish(
+      requestId: requestId,
+      customerId: workerText(data, const ['customerId']),
+      workerId: _uid,
+      point: TrackingPoint(position.latitude, position.longitude),
+      heading: position.heading,
+      speed: position.speed,
+      accuracy: position.accuracy,
+    );
     return WorkerLocationUpdateResult.shared;
   }
 
@@ -428,6 +464,23 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
     );
   }
 
+  Future<String> _customerContactPhone(String requestId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('requests')
+          .doc(requestId)
+          .collection('private')
+          .doc('contact')
+          .get();
+      return workerText(snapshot.data() ?? const {}, const [
+        'customerPhone',
+        'phone',
+      ]);
+    } on FirebaseException {
+      return '';
+    }
+  }
+
   Future<WorkerCoordinate?> _workerCoordinate() async {
     final snapshot = await _firestore.collection('users').doc(_uid).get();
     final data = snapshot.data();
@@ -449,7 +502,7 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
       final chunk = missing.sublist(offset, end);
       try {
         final snapshot = await _firestore
-            .collection('users')
+            .collection('public_profiles')
             .where(FieldPath.documentId, whereIn: chunk)
             .get();
         for (final document in snapshot.docs) {

@@ -25,7 +25,7 @@ void main() {
     expect(settings.defaultWorkerCredits, 0);
     expect(settings.creditsPerLead, 1);
     expect(settings.supportEmail, kSkillNovaSupportEmail);
-    expect(settings.supportEmail, 'support@korvenzatech.com');
+    expect(settings.supportEmail, 'MuhammadRashid172002@gmail.com');
   });
 
   test('defaults match real behavior', () {

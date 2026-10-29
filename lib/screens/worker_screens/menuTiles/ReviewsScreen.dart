@@ -92,7 +92,7 @@ class _ReviewsRatingsScreenState extends State<ReviewsRatingsScreen> {
     for (var i = 0; i < missing.length; i += 10) {
       final chunk = missing.sublist(i, (i + 10).clamp(0, missing.length));
       _firestore
-          .collection('users')
+          .collection('public_profiles')
           .where(FieldPath.documentId, whereIn: chunk)
           .get()
           .then((snapshot) {
@@ -360,11 +360,14 @@ class _ReviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
-    final name =
-        customerName ??
-        (data['customerName'] ?? data['reviewerName'])?.toString().trim() ??
-        'Customer';
+    final stored = (data['customerName'] ?? data['reviewerName'])
+        ?.toString()
+        .trim();
+    final name = (stored != null && stored.isNotEmpty)
+        ? stored
+        : customerName ?? 'Customer';
     final body = (data['review'] ?? data['comment'])?.toString().trim() ?? '';
+    final photo = (data['customerPhotoUrl'] ?? '').toString().trim();
     final service =
         (data['jobTitle'] ?? data['serviceTitle'] ?? data['category'])
             ?.toString()
@@ -388,6 +391,12 @@ class _ReviewCard extends StatelessWidget {
               CircleAvatar(
                 radius: 18,
                 backgroundColor: colors.primaryContainer,
+                foregroundImage: photo.startsWith('https://')
+                    ? NetworkImage(photo)
+                    : null,
+                onForegroundImageError: photo.startsWith('https://')
+                    ? (_, _) {}
+                    : null,
                 child: Text(
                   name.isEmpty ? '?' : name[0].toUpperCase(),
                   style: text.titleSmall?.copyWith(color: colors.primary),
