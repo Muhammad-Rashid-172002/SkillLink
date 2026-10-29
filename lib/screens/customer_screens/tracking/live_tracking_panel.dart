@@ -36,11 +36,12 @@ class LiveTrackingPanel extends StatefulWidget {
 
 class _LiveTrackingPanelState extends State<LiveTrackingPanel>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _glide = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  )..addListener(() => setState(() {}));
-  late final Stream<LiveTrackingSnapshot> _stream = widget.tracking;
+  // Created eagerly in initState: a lazy `late final` controller would be
+  // constructed on first access, which for a panel that never received a
+  // worker position is dispose() itself — creating a Ticker on a deactivated
+  // element ("Looking up a deactivated widget's ancestor is unsafe").
+  late final AnimationController _glide;
+  late final Stream<LiveTrackingSnapshot> _stream;
   GoogleMapController? _map;
   TrackingPoint? _from;
   TrackingPoint? _to;
@@ -52,6 +53,11 @@ class _LiveTrackingPanelState extends State<LiveTrackingPanel>
   @override
   void initState() {
     super.initState();
+    _stream = widget.tracking;
+    _glide = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..addListener(_onGlideTick);
     // Keeps "updated 20 s ago" honest without new data arriving.
     _ticker = Timer.periodic(const Duration(seconds: 20), (_) {
       if (mounted) setState(() {});
@@ -61,9 +67,18 @@ class _LiveTrackingPanelState extends State<LiveTrackingPanel>
   @override
   void dispose() {
     _ticker?.cancel();
-    _glide.dispose();
+    _ticker = null;
+    _glide
+      ..removeListener(_onGlideTick)
+      ..stop()
+      ..dispose();
     _map?.dispose();
+    _map = null;
     super.dispose();
+  }
+
+  void _onGlideTick() {
+    if (mounted) setState(() {});
   }
 
   void _moveTo(TrackingPoint target) {

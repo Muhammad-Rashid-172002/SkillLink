@@ -8,7 +8,7 @@ import 'package:skill_link/screens/auth_screens/phone_verification_screen.dart';
 import 'package:skill_link/screens/auth_screens/session_screens.dart';
 import 'package:skill_link/screens/customer_screens/navigation/customer_navigation_shell.dart';
 import 'package:skill_link/screens/customer_screens/profile/customer_profile_setup_screen.dart';
-import 'package:skill_link/screens/onboarding_screen/OnboardingScreen.dart';
+import 'package:skill_link/screens/onboarding_screen/onboarding_screen.dart';
 import 'package:skill_link/screens/verification/worker_verification_center.dart';
 import 'package:skill_link/screens/worker_screens/navigation/worker_navigation_shell.dart';
 import 'package:skill_link/screens/worker_screens/profile/worker_profile_setup.dart';

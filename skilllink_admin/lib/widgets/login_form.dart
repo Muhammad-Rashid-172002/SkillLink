@@ -81,7 +81,7 @@ class _LoginFormState extends State<LoginForm> {
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
-                          color: kAdminBrand.withOpacity(0.22),
+                          color: kAdminBrand.withValues(alpha: 0.22),
                           blurRadius: 24,
                           offset: const Offset(0, 10),
                         ),
@@ -199,7 +199,9 @@ class _LoginFormState extends State<LoginForm> {
                       onPressed: widget.isLoading ? null : _submit,
                       style: FilledButton.styleFrom(
                         backgroundColor: kAdminBrand,
-                        disabledBackgroundColor: kAdminBrand.withOpacity(0.55),
+                        disabledBackgroundColor: kAdminBrand.withValues(
+                          alpha: 0.55,
+                        ),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(17),

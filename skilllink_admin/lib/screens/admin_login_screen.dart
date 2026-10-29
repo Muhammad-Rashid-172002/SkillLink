@@ -327,9 +327,11 @@ class _DesktopBrandPanel extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.13),
+                  color: Colors.white.withValues(alpha: 0.13),
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white.withOpacity(0.16)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.16),
+                  ),
                 ),
                 child: Text(
                   'POWERING TRUSTED LOCAL SERVICES',
@@ -359,7 +361,7 @@ class _DesktopBrandPanel extends StatelessWidget {
                   fontSize: 14.5,
                   height: 1.7,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white.withOpacity(0.80),
+                  color: Colors.white.withValues(alpha: 0.80),
                 ),
               ),
               const SizedBox(height: 30),
@@ -391,7 +393,7 @@ class _DesktopBrandPanel extends StatelessWidget {
                   Text(
                     'Secured with Firebase Authentication',
                     style: GoogleFonts.inter(
-                      color: Colors.white.withOpacity(0.75),
+                      color: Colors.white.withValues(alpha: 0.75),
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -441,7 +443,7 @@ class _BrandLogo extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: kAdminBrand.withOpacity(0.35),
+                color: kAdminBrand.withValues(alpha: 0.35),
                 blurRadius: 28,
                 spreadRadius: 4,
               ),
@@ -500,9 +502,9 @@ class _FeatureBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.11),
+        color: Colors.white.withValues(alpha: 0.11),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.14)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -535,7 +537,7 @@ class _GlowCircle extends StatelessWidget {
       height: size,
       width: size,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(opacity),
+        color: Colors.white.withValues(alpha: opacity),
         shape: BoxShape.circle,
       ),
     );
@@ -557,7 +559,7 @@ class _BackgroundDecoration extends StatelessWidget {
             width: 400,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: kAdminBrand.withOpacity(0.08),
+              color: kAdminBrand.withValues(alpha: 0.08),
             ),
           ),
         ),
@@ -569,7 +571,7 @@ class _BackgroundDecoration extends StatelessWidget {
             width: 430,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF0EA5E9).withOpacity(0.07),
+              color: const Color(0xFF0EA5E9).withValues(alpha: 0.07),
             ),
           ),
         ),

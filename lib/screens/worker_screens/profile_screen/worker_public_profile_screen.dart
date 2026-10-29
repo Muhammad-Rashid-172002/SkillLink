@@ -6,7 +6,7 @@ import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
 import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
 import 'package:skill_link/screens/customer_screens/Chat/customer_chat_service.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore_models.dart';
-import 'package:skill_link/screens/customer_screens/Request/Request.dart';
+import 'package:skill_link/screens/customer_screens/Request/request.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/worker_public_profile_components.dart';
 import 'package:skill_link/screens/worker_screens/profile_screen/worker_public_profile_repository.dart';
 import 'package:url_launcher/url_launcher.dart';

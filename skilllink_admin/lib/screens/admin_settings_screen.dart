@@ -737,7 +737,7 @@ class _SectionCard extends StatelessWidget {
                 height: 46,
                 width: 46,
                 decoration: BoxDecoration(
-                  color: kAdminBrand.withOpacity(0.10),
+                  color: kAdminBrand.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: kAdminBrand, size: 22),
@@ -846,7 +846,10 @@ class _DropdownField extends StatelessWidget {
     final safeValue = items.contains(value) ? value : items.first;
 
     return DropdownButtonFormField<String>(
-      value: safeValue,
+      // initialValue + key: reloading or resetting settings still updates
+      // the visible selection, exactly like the old `value:`.
+      key: ValueKey('$label-$safeValue'),
+      initialValue: safeValue,
       decoration: InputDecoration(
         labelText: label,
         helperText: helper,
@@ -911,7 +914,7 @@ class _SwitchTile extends StatelessWidget {
             height: 40,
             width: 40,
             decoration: BoxDecoration(
-              color: kAdminBrand.withOpacity(0.09),
+              color: kAdminBrand.withValues(alpha: 0.09),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, size: 19, color: kAdminBrand),
@@ -948,7 +951,11 @@ class _SwitchTile extends StatelessWidget {
               ],
             ),
           ),
-          Switch(value: value, activeColor: kAdminBrand, onChanged: onChanged),
+          Switch(
+            value: value,
+            activeThumbColor: kAdminBrand,
+            onChanged: onChanged,
+          ),
         ],
       ),
     );
@@ -1018,7 +1025,7 @@ class _DangerSwitchTile extends StatelessWidget {
           ),
           Switch(
             value: value,
-            activeColor: const Color(0xFFDC2626),
+            activeThumbColor: const Color(0xFFDC2626),
             onChanged: onChanged,
           ),
         ],

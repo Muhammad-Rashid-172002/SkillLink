@@ -23,8 +23,9 @@ class TrackingPoint {
       longitude.abs() <= 180;
 
   static TrackingPoint? tryParse(Object? value) {
-    if (value is GeoPoint)
+    if (value is GeoPoint) {
       return TrackingPoint(value.latitude, value.longitude);
+    }
     if (value is! Map) return null;
     final lat = value['latitude'] ?? value['lat'];
     final lng = value['longitude'] ?? value['lng'];

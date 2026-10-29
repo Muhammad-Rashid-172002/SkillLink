@@ -7,7 +7,7 @@ import 'package:skill_link/screens/customer_screens/Chat/chat_detail_screen.dart
 import 'package:skill_link/screens/customer_screens/bookings/booking_detail_screen.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_detail_screen.dart';
 import 'package:skill_link/screens/worker_screens/leads/worker_lead_detail_screen.dart';
-import 'package:skill_link/screens/worker_screens/menuTiles/ReviewsScreen.dart';
+import 'package:skill_link/screens/worker_screens/menuTiles/reviews_screen.dart';
 import 'package:skill_link/screens/worker_screens/messages/worker_chat_detail_screen.dart';
 
 /// Decides where a notification leads, for both push-notification taps and

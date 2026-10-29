@@ -126,7 +126,28 @@ green design system for app + admin; rules/functions test suites.
 - Bundled fonts (Poppins/Inter still load at runtime through `google_fonts`).
 - Paging for very large admin user lists.
 
-## 9. Run locally
+## 9. Java 21 for the Firebase emulators (macOS)
+
+firebase-tools (v14+) refuses to start the emulators with Java < 21. On your Mac:
+
+```bash
+brew install openjdk@21
+# Make it visible to /usr/libexec/java_home (one time, needs your password):
+sudo ln -sfn "$(brew --prefix)/opt/openjdk@21/libexec/openjdk.jdk" /Library/Java/JavaVirtualMachines/openjdk-21.jdk
+/usr/libexec/java_home -v 21        # should print the JDK 21 path
+java -version                        # (optional) default java
+```
+
+`tool/verify.sh` picks JDK 21 automatically for the emulator steps only and leaves the
+Android build on Flutter's configured JDK. To run the suites by hand:
+
+```bash
+export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
+sh firestore-tests/run.sh
+(cd firestore-tests && npm install) && sh firestore-tests/run_storage.sh
+```
+
+## 10. Run locally
 
 ```bash
 cd ~/Desktop/My_Project/skill_link

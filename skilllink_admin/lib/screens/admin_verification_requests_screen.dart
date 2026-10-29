@@ -349,7 +349,7 @@ class _Stats extends StatelessWidget {
                       height: 44,
                       width: 44,
                       decoration: BoxDecoration(
-                        color: item.$4.withOpacity(0.10),
+                        color: item.$4.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(item.$3, color: item.$4),
@@ -792,7 +792,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

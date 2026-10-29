@@ -113,7 +113,7 @@ void main() {
   );
 
   testWidgets(
-    'approved dashboard shows truthful active work, leads, credits, and metrics',
+    'approved dashboard shows truthful active work, leads, free jobs, and metrics',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -170,7 +170,15 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Posted budget: Rs 1,800'), findsOneWidget);
-      expect(find.text('5 available'), findsOneWidget);
+      // Lead credits were removed (SkillNova is free): the balance card is
+      // replaced by the free-jobs card, and no credit balance is shown.
+      await tester.scrollUntilVisible(
+        find.text('Jobs are free on SkillNova'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Jobs are free on SkillNova'), findsOneWidget);
+      expect(find.text('5 available'), findsNothing);
       await tester.scrollUntilVisible(
         find.text('4.9'),
         300,

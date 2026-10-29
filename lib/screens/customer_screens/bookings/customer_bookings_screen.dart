@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
-import 'package:skill_link/screens/customer_screens/customer_my_request_scree/RateWorkerScreen.dart';
+import 'package:skill_link/screens/customer_screens/customer_my_request_scree/rate_worker_screen.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/request_tracking_screen.dart';
 
 import 'booking_components.dart';

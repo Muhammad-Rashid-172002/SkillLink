@@ -4,9 +4,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
 import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
-import 'package:skill_link/screens/customer_screens/customer_my_request_scree/RateWorkerScreen.dart';
+import 'package:skill_link/screens/customer_screens/customer_my_request_scree/rate_worker_screen.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/request_tracking_screen.dart';
-import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
+import 'package:skill_link/screens/worker_screens/profile_screen/worker_public_profile_screen.dart';
 
 import 'booking_actions.dart';
 import 'booking_components.dart';

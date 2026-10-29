@@ -9,8 +9,8 @@ import 'package:skill_link/screens/customer_screens/bookings/booking_components.
 import 'package:skill_link/screens/customer_screens/bookings/booking_models.dart';
 import 'package:skill_link/screens/customer_screens/bookings/booking_repository.dart';
 import 'package:skill_link/screens/customer_screens/bookings/booking_status.dart';
-import 'package:skill_link/screens/customer_screens/customer_my_request_scree/RateWorkerScreen.dart';
-import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
+import 'package:skill_link/screens/customer_screens/customer_my_request_scree/rate_worker_screen.dart';
+import 'package:skill_link/screens/worker_screens/profile_screen/worker_public_profile_screen.dart';
 import 'package:skill_link/screens/customer_screens/tracking/live_tracking_panel.dart';
 import 'package:skill_link/services/live_tracking/live_tracking.dart';
 

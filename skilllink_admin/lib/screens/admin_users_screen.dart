@@ -515,7 +515,7 @@ class _MiniStatCard extends StatelessWidget {
             height: 45,
             width: 45,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.10),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -626,7 +626,7 @@ class _UsersToolbar extends StatelessWidget {
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_filterLabel(filter)),
                 backgroundColor: const Color(0xFFF8FAFC),
-                selectedColor: kAdminBrand.withOpacity(0.12),
+                selectedColor: kAdminBrand.withValues(alpha: 0.12),
                 side: BorderSide(
                   color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
                 ),
@@ -1198,7 +1198,7 @@ class _RoleBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.09),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1225,7 +1225,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.09),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1248,7 +1248,7 @@ class _VerifiedBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: kAdminBrand.withOpacity(0.09),
+        color: kAdminBrand.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

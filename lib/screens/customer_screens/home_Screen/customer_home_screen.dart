@@ -7,12 +7,12 @@ import 'package:skill_link/design_system/skillnova_tokens.dart';
 import 'package:skill_link/design_system/widgets/skillnova_cards.dart';
 import 'package:skill_link/design_system/widgets/skillnova_inputs.dart';
 import 'package:skill_link/models/service_data.dart';
-import 'package:skill_link/screens/customer_screens/Request/Request.dart';
+import 'package:skill_link/screens/customer_screens/Request/request.dart';
 import 'package:skill_link/screens/customer_screens/customer_my_request_scree/request_tracking_screen.dart';
-import 'package:skill_link/screens/customer_screens/home_Screen/AllServicesScreen.dart';
+import 'package:skill_link/screens/customer_screens/home_Screen/all_services_screen.dart';
 import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_repository.dart';
 import 'package:skill_link/screens/customer_screens/muneTile/edit_profile.dart';
-import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
+import 'package:skill_link/screens/worker_screens/profile_screen/worker_public_profile_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key, this.onSelectTab, this.dataSource});

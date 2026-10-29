@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:skill_link/design_system/skillnova_theme.dart';
 import 'package:skill_link/services/notification_router.dart';
-import 'package:skill_link/services/saveFcmToken.dart';
+import 'package:skill_link/services/save_fcm_token.dart';
 import 'package:skill_link/screens/splash_screen/splash_screen.dart';
 import 'package:skill_link/services/skillnova_preferences.dart';
 

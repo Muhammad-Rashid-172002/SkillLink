@@ -10,8 +10,8 @@ import 'package:skill_link/models/service_data.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore_filter_sheets.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore_models.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore_repository.dart';
-import 'package:skill_link/screens/customer_screens/Request/Request.dart';
-import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
+import 'package:skill_link/screens/customer_screens/Request/request.dart';
+import 'package:skill_link/screens/worker_screens/profile_screen/worker_public_profile_screen.dart';
 
 class Explore extends StatefulWidget {
   const Explore({super.key, this.dataSource, this.locationService});

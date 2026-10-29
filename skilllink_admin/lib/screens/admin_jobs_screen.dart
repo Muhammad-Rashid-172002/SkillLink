@@ -107,7 +107,9 @@ class _AdminJobsScreenState extends State<AdminJobsScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: statuses.contains(value) ? value : 'pending',
+                      initialValue: statuses.contains(value)
+                          ? value
+                          : 'pending',
                       items: statuses.map((status) {
                         return DropdownMenuItem(
                           value: status,
@@ -706,7 +708,7 @@ class _JobStatCard extends StatelessWidget {
             height: 44,
             width: 44,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.10),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -816,7 +818,7 @@ class _JobsToolbar extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_jobFilterLabel(filter)),
-                selectedColor: kAdminBrand.withOpacity(0.12),
+                selectedColor: kAdminBrand.withValues(alpha: 0.12),
                 backgroundColor: const Color(0xFFF8FAFC),
                 side: BorderSide(
                   color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
@@ -1402,7 +1404,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1506,7 +1508,7 @@ class _InfoTile extends StatelessWidget {
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color: kAdminBrand.withOpacity(0.10),
+              color: kAdminBrand.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, size: 19, color: kAdminBrand),

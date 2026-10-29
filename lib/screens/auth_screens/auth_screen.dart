@@ -16,7 +16,7 @@ import 'package:skill_link/design_system/widgets/skillnova_feedback.dart';
 import 'package:skill_link/design_system/widgets/skillnova_text_field.dart';
 import 'package:skill_link/screens/auth_screens/auth_layout.dart';
 import 'package:skill_link/screens/shared/skillnova_about.dart';
-import 'package:skill_link/services/saveFcmToken.dart';
+import 'package:skill_link/services/save_fcm_token.dart';
 
 /// Sign in / create account for customers and workers.
 ///

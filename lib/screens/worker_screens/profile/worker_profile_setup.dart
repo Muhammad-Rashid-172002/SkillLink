@@ -152,7 +152,9 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
       }
 
       return Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
     } catch (error) {
       _showMessage(
@@ -220,9 +222,7 @@ class _WorkerProfileSetupScreenState extends State<WorkerProfileSetupScreen> {
     try {
       Position? position = _currentPosition;
 
-      if (position == null) {
-        position = await _getCurrentLocation();
-      }
+      position ??= await _getCurrentLocation();
 
       String? profileImageUrl = _existingProfileImageUrl;
 

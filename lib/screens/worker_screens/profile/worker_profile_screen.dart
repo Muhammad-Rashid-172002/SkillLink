@@ -9,8 +9,8 @@ import 'package:skill_link/screens/verification/worker_verification_center.dart'
 import 'package:skill_link/screens/worker_screens/Bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_job_models.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_jobs_screen.dart';
-import 'package:skill_link/screens/worker_screens/menuTiles/ReviewsScreen.dart';
-import 'package:skill_link/screens/worker_screens/profile_screen/WorkerPublicProfileScreen.dart';
+import 'package:skill_link/screens/worker_screens/menuTiles/reviews_screen.dart';
+import 'package:skill_link/screens/worker_screens/profile_screen/worker_public_profile_screen.dart';
 
 import 'worker_account_screen.dart';
 import 'worker_edit_profile_screen.dart';

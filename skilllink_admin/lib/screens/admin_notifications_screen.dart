@@ -98,7 +98,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                               height: 54,
                               width: 54,
                               decoration: BoxDecoration(
-                                color: kAdminBrand.withOpacity(0.1),
+                                color: kAdminBrand.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(17),
                               ),
                               child: const Icon(
@@ -171,7 +171,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: audience,
+                                initialValue: audience,
                                 decoration: InputDecoration(
                                   labelText: 'Audience',
                                   filled: true,
@@ -203,7 +203,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: type,
+                                initialValue: type,
                                 decoration: InputDecoration(
                                   labelText: 'Type',
                                   filled: true,
@@ -851,7 +851,7 @@ class _NotificationStatCard extends StatelessWidget {
             height: 46,
             width: 46,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.10),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -963,7 +963,7 @@ class _NotificationsToolbar extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_filterLabel(filter)),
-                selectedColor: kAdminBrand.withOpacity(0.12),
+                selectedColor: kAdminBrand.withValues(alpha: 0.12),
                 backgroundColor: const Color(0xFFF8FAFC),
                 side: BorderSide(
                   color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
@@ -1442,7 +1442,7 @@ class _NotificationIcon extends StatelessWidget {
       height: size,
       width: size,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(size * 0.30),
       ),
       child: Icon(icon, color: color, size: size * 0.47),
@@ -1506,7 +1506,7 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.09),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

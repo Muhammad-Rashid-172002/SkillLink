@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:skill_link/design_system/widgets/skillnova_adaptive_nav.dart';
 import 'package:skill_link/screens/customer_screens/Chat/chat_screen.dart';
 import 'package:skill_link/screens/customer_screens/Explore/explore.dart';
-import 'package:skill_link/screens/customer_screens/Profile_screen/Profile_scree.dart';
+import 'package:skill_link/screens/customer_screens/Profile_screen/profile_scree.dart';
 import 'package:skill_link/screens/customer_screens/bottom_bar/bottom_bar.dart';
 import 'package:skill_link/screens/customer_screens/home_Screen/customer_home_screen.dart';
-import 'package:skill_link/screens/customer_screens/muneTile/My_request.dart';
+import 'package:skill_link/screens/customer_screens/muneTile/my_request.dart';
 
 /// Persistent navigation root for the customer experience.
 ///

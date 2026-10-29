@@ -87,8 +87,8 @@ class _WorkerJobDetailV2ScreenState extends State<WorkerJobDetailV2Screen> {
             'The customer can see you on the map. Keep this screen open '
                 'while you travel.',
           WorkerLocationUpdateResult.permissionDenied =>
-            'Location permission is off. Allow location for SkillNova so the '
-                'customer can see you are on the way.',
+            'Location permission is denied. Allow location for SkillNova so '
+                'the customer can see you are on the way.',
           WorkerLocationUpdateResult.serviceDisabled =>
             'Location services are off. Turn them on to share your position.',
         };

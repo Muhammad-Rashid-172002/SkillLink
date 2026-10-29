@@ -37,7 +37,7 @@ void main() {
 
     test('posting a request does not fan out notifications', () {
       final request = source(
-        'lib/screens/customer_screens/Request/Request.dart',
+        'lib/screens/customer_screens/Request/request.dart',
       );
       expect(request, isNot(contains("collection('notifications')")));
       expect(request, isNot(contains("isEqualTo: 'worker'")));
@@ -46,7 +46,7 @@ void main() {
     test('rating a worker submits a review only', () {
       final rate = source(
         'lib/screens/customer_screens/customer_my_request_scree/'
-        'RateWorkerScreen.dart',
+        'rate_worker_screen.dart',
       );
       expect(rate, contains("collection('reviews')"));
       expect(rate, isNot(contains("'totalReviews'")));

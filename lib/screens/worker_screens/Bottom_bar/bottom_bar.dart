@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skill_link/screens/worker_screens/Map/Map_screen.dart';
+import 'package:skill_link/screens/worker_screens/Map/map_screen.dart';
 import 'package:skill_link/screens/worker_screens/home/worker_home_screen.dart';
 import 'package:skill_link/screens/worker_screens/jobs/worker_jobs_screen.dart';
 import 'package:skill_link/screens/worker_screens/messages/worker_messages_screen.dart';

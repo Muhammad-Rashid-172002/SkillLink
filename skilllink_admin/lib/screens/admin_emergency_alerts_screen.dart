@@ -133,7 +133,7 @@ class _AdminEmergencyAlertsScreenState
           if (_busy)
             Positioned.fill(
               child: ColoredBox(
-                color: Colors.black.withOpacity(0.18),
+                color: Colors.black.withValues(alpha: 0.18),
                 child: const Center(
                   child: Card(
                     child: Padding(
@@ -162,7 +162,7 @@ class _AdminEmergencyAlertsScreenState
         borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
-            color: _danger.withOpacity(0.24),
+            color: _danger.withValues(alpha: 0.24),
             blurRadius: 28,
             offset: const Offset(0, 14),
           ),
@@ -176,7 +176,7 @@ class _AdminEmergencyAlertsScreenState
             child: Icon(
               Icons.sos_rounded,
               size: 150,
-              color: Colors.white.withOpacity(0.09),
+              color: Colors.white.withValues(alpha: 0.09),
             ),
           ),
           Row(
@@ -185,9 +185,11 @@ class _AdminEmergencyAlertsScreenState
                 height: 68,
                 width: 68,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: Colors.white.withOpacity(0.18)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
                 ),
                 child: const Icon(
                   Icons.emergency_share_rounded,
@@ -215,7 +217,7 @@ class _AdminEmergencyAlertsScreenState
                           ? 'No active SOS alert right now.'
                           : '$active active SOS ${active == 1 ? 'alert needs' : 'alerts need'} immediate attention.',
                       style: GoogleFonts.inter(
-                        color: Colors.white.withOpacity(0.84),
+                        color: Colors.white.withValues(alpha: 0.84),
                         fontSize: 12.5,
                         height: 1.5,
                         fontWeight: FontWeight.w600,
@@ -230,7 +232,7 @@ class _AdminEmergencyAlertsScreenState
                   vertical: 11,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
@@ -308,7 +310,7 @@ class _AdminEmergencyAlertsScreenState
             height: 48,
             width: 48,
             decoration: BoxDecoration(
-              color: item.color.withOpacity(0.10),
+              color: item.color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(item.icon, color: item.color),
@@ -377,7 +379,10 @@ class _AdminEmergencyAlertsScreenState
           );
 
           final filter = DropdownButtonFormField<String>(
-            value: _filter,
+            // initialValue + key: the field follows _filter if it is changed
+            // from outside the dropdown, exactly like the old `value:`.
+            key: ValueKey('alert-filter-$_filter'),
+            initialValue: _filter,
             decoration: InputDecoration(
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
@@ -438,13 +443,13 @@ class _AdminEmergencyAlertsScreenState
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: status == 'active' ? _danger.withOpacity(0.35) : _border,
+          color: status == 'active' ? _danger.withValues(alpha: 0.35) : _border,
           width: status == 'active' ? 1.4 : 1,
         ),
         boxShadow: status == 'active'
             ? [
                 BoxShadow(
-                  color: _danger.withOpacity(0.08),
+                  color: _danger.withValues(alpha: 0.08),
                   blurRadius: 22,
                   offset: const Offset(0, 10),
                 ),
@@ -460,7 +465,7 @@ class _AdminEmergencyAlertsScreenState
                 height: 54,
                 width: 54,
                 decoration: BoxDecoration(
-                  color: design.color.withOpacity(0.10),
+                  color: design.color.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(17),
                 ),
                 child: Icon(design.icon, color: design.color, size: 27),
@@ -569,7 +574,7 @@ class _AdminEmergencyAlertsScreenState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: design.color.withOpacity(0.10),
+        color: design.color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -630,7 +635,7 @@ class _AdminEmergencyAlertsScreenState
             height: 80,
             width: 80,
             decoration: BoxDecoration(
-              color: _success.withOpacity(0.09),
+              color: _success.withValues(alpha: 0.09),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -811,7 +816,7 @@ class _AdminEmergencyAlertsScreenState
                             height: 50,
                             width: 50,
                             decoration: BoxDecoration(
-                              color: _danger.withOpacity(0.10),
+                              color: _danger.withValues(alpha: 0.10),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: const Icon(
@@ -960,7 +965,7 @@ class _AdminEmergencyAlertsScreenState
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: _primary.withOpacity(0.10),
+            backgroundColor: _primary.withValues(alpha: 0.10),
             child: Text(name.isEmpty ? '?' : name[0].toUpperCase()),
           ),
           const SizedBox(width: 12),

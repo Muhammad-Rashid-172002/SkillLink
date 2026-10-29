@@ -243,7 +243,7 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                 height: 44,
                 width: 44,
                 decoration: BoxDecoration(
-                  color: confirmColor.withOpacity(0.10),
+                  color: confirmColor.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: confirmColor),
@@ -683,7 +683,7 @@ class _WorkerStatCard extends StatelessWidget {
             height: 46,
             width: 46,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.10),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -793,7 +793,7 @@ class _WorkersToolbar extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_workerFilterLabel(filter)),
-                selectedColor: kAdminBrand.withOpacity(0.12),
+                selectedColor: kAdminBrand.withValues(alpha: 0.12),
                 backgroundColor: const Color(0xFFF8FAFC),
                 side: BorderSide(
                   color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
@@ -1435,7 +1435,7 @@ class _VerificationBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.09),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1462,7 +1462,7 @@ class _BlockedBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.09),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1566,7 +1566,7 @@ class _InfoTile extends StatelessWidget {
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color: kAdminBrand.withOpacity(0.10),
+              color: kAdminBrand.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, size: 19, color: kAdminBrand),
@@ -1664,7 +1664,7 @@ class _DocumentPreview extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.58),
+                      color: Colors.black.withValues(alpha: 0.58),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(

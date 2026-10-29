@@ -11,7 +11,6 @@ import 'package:skill_link/design_system/widgets/skillnova_feedback.dart';
 import 'package:skill_link/design_system/widgets/skillnova_surfaces.dart';
 import 'package:skill_link/design_system/widgets/skillnova_text_field.dart';
 import 'package:skill_link/screens/auth_screens/verification_widgets.dart';
-import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 
 class CustomerProfileSetupScreen extends StatefulWidget {

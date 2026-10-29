@@ -87,7 +87,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               content: SizedBox(
                 width: 430,
                 child: DropdownButtonFormField<String>(
-                  value: statuses.contains(value) ? value : 'open',
+                  initialValue: statuses.contains(value) ? value : 'open',
                   items: statuses.map((status) {
                     return DropdownMenuItem(
                       value: status,
@@ -259,7 +259,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               content: SizedBox(
                 width: 420,
                 child: DropdownButtonFormField<String>(
-                  value: priorities.contains(value) ? value : 'medium',
+                  initialValue: priorities.contains(value) ? value : 'medium',
                   items: priorities.map((priority) {
                     return DropdownMenuItem(
                       value: priority,
@@ -787,7 +787,7 @@ class _ReportStatCard extends StatelessWidget {
             height: 44,
             width: 44,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.10),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -897,7 +897,7 @@ class _ReportsToolbar extends StatelessWidget {
                 selected: selected,
                 onSelected: (_) => onFilterChanged(filter),
                 label: Text(_filterLabel(filter)),
-                selectedColor: kAdminBrand.withOpacity(0.12),
+                selectedColor: kAdminBrand.withValues(alpha: 0.12),
                 backgroundColor: const Color(0xFFF8FAFC),
                 side: BorderSide(
                   color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
@@ -1467,7 +1467,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1498,7 +1498,7 @@ class _PriorityBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.09),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1523,7 +1523,7 @@ class _TypeBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF7C3AED).withOpacity(0.09),
+        color: const Color(0xFF7C3AED).withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1607,7 +1607,7 @@ class _InfoTile extends StatelessWidget {
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color: kAdminBrand.withOpacity(0.10),
+              color: kAdminBrand.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, size: 19, color: kAdminBrand),
