@@ -187,8 +187,12 @@ class _CustomerProfileSetupScreenState
         'address': _addressController.text.trim(),
         'profileCompleted': true,
         'updatedAt': FieldValue.serverTimestamp(),
-        'lat': _currentPosition?.latitude,
-        'lng': _currentPosition?.longitude,
+        // Only overwrite the saved coordinates when a new fix was taken on
+        // this screen; editing other fields must not erase the location.
+        if (_currentPosition != null) ...{
+          'lat': _currentPosition!.latitude,
+          'lng': _currentPosition!.longitude,
+        },
         'locationAdded': _locationAdded,
       }, SetOptions(merge: true));
 

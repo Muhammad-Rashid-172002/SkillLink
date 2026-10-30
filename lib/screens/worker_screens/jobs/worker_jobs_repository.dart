@@ -68,6 +68,7 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
   final Map<String, WorkerJobCustomer> _customerCache = {};
   final Map<String, WorkerJobReview?> _reviewCache = {};
   final LiveTrackingPublisher _trackingPublisher = LiveTrackingPublisher();
+  final Map<String, String> _contactPhones = {};
 
   @override
   String? get currentWorkerId => _auth.currentUser?.uid;
@@ -141,6 +142,61 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
 
   @override
   Stream<WorkerJob?> watchJob(String requestId) {
+    // The customer's phone is copied into requests/{id}/private/contact by a
+    // Cloud Function a moment *after* the worker accepts, so the contact doc
+    // is watched too and the job is re-emitted when it arrives.
+    late final StreamController<WorkerJob?> controller;
+    StreamSubscription<WorkerJob?>? jobSub;
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? contactSub;
+    WorkerJob? last;
+    controller = StreamController<WorkerJob?>(
+      onListen: () {
+        jobSub = _watchJobBase(requestId).listen((job) {
+          last = job;
+          controller.add(job);
+        }, onError: controller.addError);
+        contactSub = _firestore
+            .collection('requests')
+            .doc(requestId)
+            .collection('private')
+            .doc('contact')
+            .snapshots()
+            .listen((snapshot) {
+              final phone = workerText(snapshot.data() ?? const {}, const [
+                'customerPhone',
+                'phone',
+              ]);
+              final previous = _contactPhones[requestId] ?? '';
+              _contactPhones[requestId] = phone;
+              final job = last;
+              if (phone == previous || job == null || !job.status.isActive) {
+                return;
+              }
+              last = job.copyWith(customer: _withPhone(job, phone));
+              controller.add(last);
+            }, onError: (Object _) {});
+      },
+      onCancel: () async {
+        await jobSub?.cancel();
+        await contactSub?.cancel();
+      },
+    );
+    return controller.stream;
+  }
+
+  WorkerJobCustomer _withPhone(WorkerJob job, String phone) {
+    final customer = job.customer ?? _customerCache[job.customerId];
+    return WorkerJobCustomer(
+      id: job.customerId,
+      name: customer?.name ?? 'Customer',
+      photoUrl: customer?.photoUrl ?? '',
+      city: customer?.city ?? '',
+      area: customer?.area ?? '',
+      phone: phone,
+    );
+  }
+
+  Stream<WorkerJob?> _watchJobBase(String requestId) {
     return _firestore
         .collection('requests')
         .doc(requestId)
@@ -175,7 +231,10 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
           if (job.status.isActive) {
             // The customer's phone is shared only with the assigned worker
             // of an active job (requests/{id}/private/contact).
-            final phone = await _customerContactPhone(requestId);
+            final cached = _contactPhones[requestId] ?? '';
+            final phone = cached.isNotEmpty
+                ? cached
+                : await _customerContactPhone(requestId);
             if (phone.isNotEmpty) {
               customer = WorkerJobCustomer(
                 id: job.customerId,
@@ -306,7 +365,14 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
       );
     }
     // A recent cached fix saves battery; otherwise ask for a fresh one.
-    final cached = await Geolocator.getLastKnownPosition();
+    // Some platforms (web) do not support a cached fix and throw instead of
+    // returning null, so the cache is strictly optional.
+    Position? cached;
+    try {
+      cached = await Geolocator.getLastKnownPosition();
+    } catch (_) {
+      cached = null;
+    }
     final position =
         cached != null &&
             DateTime.now().difference(cached.timestamp) <
@@ -346,6 +412,9 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
     final historical = await _firestore
         .collection('chats')
         .where('requestId', isEqualTo: job.id)
+        // Rules only allow listing chats the query proves are this
+        // worker's, so the participant filter is required.
+        .where('workerId', isEqualTo: uid)
         .limit(10)
         .get();
     String? historicalId;
@@ -361,6 +430,19 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
       }
     }
     final historicalCandidate = historicalId;
+    final deterministicId = deterministicWorkerRequestChatId(job.id);
+    final chatRef = _firestore.collection('chats').doc(deterministicId);
+    // Rules let only participants read a chat, so a chat that does not exist
+    // yet is refused like someone else's. Read it before the transaction and
+    // treat "refused" as "not visible": creating it below then succeeds only
+    // if it is new (an existing foreign chat would be an update the rules
+    // reject).
+    Map<String, dynamic>? visibleChat;
+    try {
+      visibleChat = (await chatRef.get()).data();
+    } on FirebaseException catch (error) {
+      if (error.code != 'permission-denied') rethrow;
+    }
     final requestRef = _firestore.collection('requests').doc(job.id);
     final resolvedId = await _firestore.runTransaction<String>((
       transaction,
@@ -413,12 +495,9 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
         }
       }
 
-      final deterministicId = deterministicWorkerRequestChatId(job.id);
-      final chatRef = _firestore.collection('chats').doc(deterministicId);
-      final chat = await transaction.get(chatRef);
-      if (chat.exists &&
+      if (visibleChat != null &&
           !isValidWorkerRequestChat(
-            data: chat.data(),
+            data: visibleChat,
             workerId: uid,
             customerId: job.customerId,
             requestId: job.id,
@@ -428,7 +507,7 @@ class FirebaseWorkerJobsRepository implements WorkerJobsRepository {
           'Messaging is unavailable because this job changed.',
         );
       }
-      if (!chat.exists) {
+      if (visibleChat == null) {
         transaction.set(chatRef, {
           'participants': [job.customerId, uid],
           'customerId': job.customerId,

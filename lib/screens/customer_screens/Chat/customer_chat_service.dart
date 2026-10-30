@@ -43,12 +43,28 @@ class CustomerChatService {
   Future<CustomerChatDestination?> loadExisting(String chatId) async {
     final uid = customerId;
     if (uid.isEmpty || chatId.trim().isEmpty) return null;
-    final snapshot = await _firestore.collection('chats').doc(chatId).get();
-    final data = snapshot.data();
+    final reference = _firestore.collection('chats').doc(chatId);
+    final data = await _visibleChat(reference);
     if (data == null || chatText(data, const ['customerId']) != uid) {
       return null;
     }
-    return _destination(snapshot.id, data);
+    return _destination(reference.id, data);
+  }
+
+  /// Reads a chat this customer may not be allowed to see. Security rules
+  /// only let participants read a chat, so a chat that does not exist yet is
+  /// refused exactly like someone else's chat. Both come back as `null`; the
+  /// caller then creates the chat, which the rules accept only when it is
+  /// new and this customer is a participant.
+  Future<Map<String, dynamic>?> _visibleChat(
+    DocumentReference<Map<String, dynamic>> reference,
+  ) async {
+    try {
+      return (await reference.get()).data();
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') return null;
+      rethrow;
+    }
   }
 
   Future<CustomerChatDestination> resolveDirect({
@@ -93,10 +109,8 @@ class CustomerChatService {
     final reference = _firestore
         .collection('chats')
         .doc('direct_${uid}_$workerId');
-    await _firestore.runTransaction((transaction) async {
-      final existing = await transaction.get(reference);
-      if (existing.exists) return;
-      transaction.set(reference, {
+    if (await _visibleChat(reference) == null) {
+      await reference.set({
         'participants': [uid, workerId],
         'customerId': uid,
         'workerId': workerId,
@@ -114,7 +128,7 @@ class CustomerChatService {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-    });
+    }
     return CustomerChatDestination(
       chatId: reference.id,
       workerId: workerId,
@@ -155,6 +169,9 @@ class CustomerChatService {
     final historical = await _firestore
         .collection('chats')
         .where('requestId', isEqualTo: requestId)
+        // Rules only allow listing chats the query proves are this
+        // customer's, so the participant filter is required.
+        .where('customerId', isEqualTo: uid)
         .limit(10)
         .get();
     for (final document in historical.docs) {
@@ -167,30 +184,27 @@ class CustomerChatService {
     }
 
     final reference = _firestore.collection('chats').doc('request_$requestId');
-    await _firestore.runTransaction((transaction) async {
-      final chatSnapshot = await transaction.get(reference);
-      if (!chatSnapshot.exists) {
-        transaction.set(reference, {
-          'participants': [uid, workerId],
-          'customerId': uid,
-          'workerId': workerId,
-          'workerName': workerName,
-          'workerSkill': service,
-          'workerImageUrl': workerImageUrl,
-          'requestId': requestId,
-          'service': service,
-          'lastMessage': '',
-          'customerUnreadCount': 0,
-          'unreadCountCustomer': 0,
-          'workerUnreadCount': 0,
-          'unreadCountWorker': 0,
-          'archivedByCustomer': false,
-          'archivedByWorker': false,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-    });
+    if (await _visibleChat(reference) == null) {
+      await reference.set({
+        'participants': [uid, workerId],
+        'customerId': uid,
+        'workerId': workerId,
+        'workerName': workerName,
+        'workerSkill': service,
+        'workerImageUrl': workerImageUrl,
+        'requestId': requestId,
+        'service': service,
+        'lastMessage': '',
+        'customerUnreadCount': 0,
+        'unreadCountCustomer': 0,
+        'workerUnreadCount': 0,
+        'unreadCountWorker': 0,
+        'archivedByCustomer': false,
+        'archivedByWorker': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
     await _linkRequest(requestId, reference.id, workerId);
     return CustomerChatDestination(
       chatId: reference.id,

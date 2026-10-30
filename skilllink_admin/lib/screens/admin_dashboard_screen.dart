@@ -627,12 +627,12 @@ class _KpiGrid extends StatelessWidget {
         onTap: () => onOpen(4),
       ),
       DashboardStatCard(
-        title: 'Customers',
-        value: '${stats.totalCustomers}',
-        icon: Icons.people_alt_outlined,
+        title: 'Support requests',
+        value: '${stats.openSupportRequests}',
+        icon: Icons.support_agent_rounded,
         accent: kAdminBrand,
-        subtitle: 'Free accounts — no payments',
-        onTap: () => onOpen(1),
+        subtitle: 'Open messages from the app',
+        onTap: () => onOpen(7),
       ),
       DashboardStatCard(
         title: 'SOS alerts',

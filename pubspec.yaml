@@ -101,6 +101,9 @@ flutter:
     - assets/app_icon_512x512(1).png
     - assets/skillNove_customer.png
     - assets/onboarding/pro_hero.jpg
+    # Bundled Google Fonts (OFL): text renders in the brand fonts on first
+    # launch and offline; google_fonts loads these before any network fetch.
+    - assets/google_fonts/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

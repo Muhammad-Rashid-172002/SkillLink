@@ -164,7 +164,7 @@ class AdminSidebar extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(color: Color(0xFF1D2939), height: 1),
+            const Divider(color: kAdminBrandDark, height: 1),
             Padding(
               padding: EdgeInsets.all(compact ? 12 : 16),
               child: compact
@@ -273,7 +273,7 @@ class _SidebarTile extends StatelessWidget {
         ? const Color(0xFFFDA29B)
         : const Color(0xFFD0D5DD);
     final tile = Material(
-      color: selected ? const Color(0xFF1D2939) : Colors.transparent,
+      color: selected ? kAdminBrandDark : Colors.transparent,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,

@@ -12,7 +12,6 @@ step "flutter --version" flutter --version
 step "app: pub get" flutter pub get
 step "app: analyze" flutter analyze
 step "app: test" flutter test
-step "diag: worker home (temporary)" flutter test tool/diag/worker_home_diag_test.dart
 step "admin: pub get" sh -c "cd skilllink_admin && flutter pub get"
 step "admin: analyze" sh -c "cd skilllink_admin && flutter analyze"
 step "admin: test" sh -c "cd skilllink_admin && flutter test"

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:skilllink_admin/screens/admin_login_screen.dart';
@@ -33,6 +34,15 @@ Future<void> main() async {
       const int.fromEnvironment(
         'FIREBASE_FIRESTORE_EMULATOR_PORT',
         defaultValue: 8080,
+      ),
+    );
+    // Verification photos live in Storage; without this the console tried
+    // to load them from production while in emulator mode.
+    await FirebaseStorage.instance.useStorageEmulator(
+      host,
+      const int.fromEnvironment(
+        'FIREBASE_STORAGE_EMULATOR_PORT',
+        defaultValue: 9199,
       ),
     );
   }

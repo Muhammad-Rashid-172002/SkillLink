@@ -238,6 +238,11 @@ void main() {
     );
     expect(find.text('No new leads'), findsOneWidget);
     expect(repository.leadWatchCount, 1);
+    // scrollUntilVisible ends with Scrollable.ensureVisible, which jumps the
+    // list without laying out a new frame. Without this pump the next
+    // finder judges visibility from the stale layout, and its 300px drags
+    // carry the list past the card to the end of the list.
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Jobs are free on SkillNova'),
       300,

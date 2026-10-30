@@ -18,7 +18,9 @@ List<(double, double)> decodePolyline(String encoded) {
         result |= (byte & 0x1f) << shift;
         shift += 5;
       } while (byte >= 0x20);
-      return (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      // `-(n) - 1` instead of `~n`: on the web `~` yields an unsigned 32-bit
+      // value, which broke negative deltas.
+      return (result & 1) != 0 ? -(result >> 1) - 1 : (result >> 1);
     }
 
     lat += decodeValue();

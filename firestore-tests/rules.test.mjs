@@ -552,6 +552,21 @@ test("payments, credits and verification stay with admins", async () => {
   await allowed(as(worker).set(`verification_requests/${worker.uid}`,
       {workerId: worker.uid, status: "pending", identityStatus: "pending"}),
   "worker submits verification");
+  const drafter = await account("drafter");
+  await seed(`users/${drafter.uid}`, workerProfile({
+    identityVerificationStatus: "not_submitted", canAcceptJobs: false}));
+  await allowed(as(drafter).set(`verification_requests/${drafter.uid}`, {
+    workerId: drafter.uid, identityStatus: "not_submitted",
+    cnicFrontPath: "private_verifications/workers/x/front.jpg",
+  }), "worker saves a CNIC draft (as the app does)");
+  await denied(as(drafter).update(`verification_requests/${drafter.uid}`,
+      {identityStatus: "approved"}), "worker approves their own draft");
+  await denied(as(drafter).update(`verification_requests/${drafter.uid}`,
+      {reviewedBy: drafter.uid}), "worker writes review fields");
+  await seed(`verification_requests/${otherWorker.uid}`,
+      {workerId: otherWorker.uid, identityStatus: "approved"});
+  await denied(as(otherWorker).update(`verification_requests/${otherWorker.uid}`,
+      {identityStatus: "pending"}), "worker re-opens an approved request");
 });
 
 // ======================================================= privacy & identity

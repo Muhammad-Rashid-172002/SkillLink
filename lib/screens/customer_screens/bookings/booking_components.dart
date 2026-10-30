@@ -5,6 +5,16 @@ import 'package:skill_link/design_system/widgets/skillnova_buttons.dart';
 import 'booking_models.dart';
 import 'booking_status.dart';
 
+/// Status colours are tuned for light surfaces. On dark surfaces the same
+/// greens/reds fall below readable contrast, so they are lifted toward white.
+Color bookingStatusTone(
+  BuildContext context,
+  BookingStatusPresentation status,
+) {
+  if (Theme.of(context).brightness != Brightness.dark) return status.color;
+  return Color.lerp(status.color, Colors.white, 0.45)!;
+}
+
 class BookingStatusBadge extends StatelessWidget {
   const BookingStatusBadge({super.key, required this.status});
 
@@ -12,19 +22,20 @@ class BookingStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tone = bookingStatusTone(context, status);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: SkillNovaSpacing.sm,
         vertical: SkillNovaSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: status.color.withValues(alpha: 0.09),
+        color: tone.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(SkillNovaRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(status.icon, color: status.color, size: 16),
+          Icon(status.icon, color: tone, size: 16),
           const SizedBox(width: SkillNovaSpacing.xxs),
           Flexible(
             child: Text(
@@ -32,7 +43,7 @@ class BookingStatusBadge extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: Theme.of(
                 context,
-              ).textTheme.labelMedium?.copyWith(color: status.color),
+              ).textTheme.labelMedium?.copyWith(color: tone),
             ),
           ),
         ],
@@ -48,17 +59,18 @@ class BookingProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tone = bookingStatusTone(context, status);
     if (status.group == BookingGroup.cancelled) {
       return Row(
         children: [
-          Icon(Icons.cancel_rounded, color: status.color, size: 18),
+          Icon(Icons.cancel_rounded, color: tone, size: 18),
           const SizedBox(width: SkillNovaSpacing.xs),
           Expanded(
             child: Text(
               'Request closed',
               style: Theme.of(
                 context,
-              ).textTheme.labelMedium?.copyWith(color: status.color),
+              ).textTheme.labelMedium?.copyWith(color: tone),
             ),
           ),
         ],
@@ -73,7 +85,7 @@ class BookingProgressIndicator extends StatelessWidget {
             margin: EdgeInsets.only(right: index == 4 ? 0 : 4),
             decoration: BoxDecoration(
               color: reached
-                  ? status.color
+                  ? tone
                   : Theme.of(context).colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(SkillNovaRadius.pill),
             ),

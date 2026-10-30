@@ -150,104 +150,112 @@ class _AdminEmergencyAlertsScreenState
   }
 
   Widget _hero(int active) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(26),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_dangerDark, _danger, Color(0xFFEF4444)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: [
-          BoxShadow(
-            color: _danger.withValues(alpha: 0.24),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // On phone widths the icon tile and the count pill squeezed the
+        // title until it broke mid-word, so they stack instead.
+        final compact = constraints.maxWidth < 520;
+        final pill = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(16),
           ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -22,
-            top: -35,
-            child: Icon(
-              Icons.sos_rounded,
-              size: 150,
-              color: Colors.white.withValues(alpha: 0.09),
+          child: Text(
+            '$active ACTIVE',
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          Row(
-            children: [
-              Container(
-                height: 68,
-                width: 68,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.18),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.emergency_share_rounded,
-                  color: Colors.white,
-                  size: 34,
-                ),
-              ),
-              const SizedBox(width: 18),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Emergency Control Center',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.7,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      active == 0
-                          ? 'No active SOS alert right now.'
-                          : '$active active SOS ${active == 1 ? 'alert needs' : 'alerts need'} immediate attention.',
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.84),
-                        fontSize: 12.5,
-                        height: 1.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 15,
-                  vertical: 11,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  '$active ACTIVE',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+        );
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(compact ? 20 : 26),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [_dangerDark, _danger, Color(0xFFEF4444)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: [
+              BoxShadow(
+                color: _danger.withValues(alpha: 0.24),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
               ),
             ],
           ),
-        ],
-      ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -22,
+                top: -35,
+                child: Icon(
+                  Icons.sos_rounded,
+                  size: 150,
+                  color: Colors.white.withValues(alpha: 0.09),
+                ),
+              ),
+              Row(
+                children: [
+                  if (!compact) ...[
+                    Container(
+                      height: 68,
+                      width: 68,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.emergency_share_rounded,
+                        color: Colors.white,
+                        size: 34,
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Emergency Control Center',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: compact ? 20 : 24,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.7,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          active == 0
+                              ? 'No active SOS alert right now.'
+                              : '$active active SOS ${active == 1 ? 'alert needs' : 'alerts need'} immediate attention.',
+                          style: GoogleFonts.inter(
+                            color: Colors.white.withValues(alpha: 0.84),
+                            fontSize: 12.5,
+                            height: 1.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (compact) ...[const SizedBox(height: 12), pill],
+                      ],
+                    ),
+                  ),
+                  if (!compact) pill,
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

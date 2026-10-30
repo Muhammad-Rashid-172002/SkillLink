@@ -77,12 +77,26 @@ class AdminEmergencyService {
       );
     }
 
-    await _firestore.collection('emergency_alerts').doc(alertId).update({
+    final batch = _firestore.batch();
+    batch.update(_firestore.collection('emergency_alerts').doc(alertId), {
       'status': 'investigating',
       'investigatingBy': adminId,
       'investigatingAt': FieldValue.serverTimestamp(),
       'investigationNote': note?.trim(),
       'updatedAt': FieldValue.serverTimestamp(),
+    });
+    _audit(batch, 'emergency_alert_investigating', alertId, adminId);
+    await batch.commit();
+  }
+
+  /// Every SOS decision is recorded in the append-only admin audit log,
+  /// like verification and support decisions.
+  void _audit(WriteBatch batch, String action, String alertId, String adminId) {
+    batch.set(_firestore.collection('admin_audit_logs').doc(), {
+      'action': action,
+      'targetId': alertId,
+      'adminUid': adminId,
+      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -120,6 +134,12 @@ class AdminEmergencyService {
       }, SetOptions(merge: true));
     }
 
+    _audit(
+      batch,
+      falseAlarm ? 'emergency_alert_false_alarm' : 'emergency_alert_resolved',
+      alertId,
+      adminId,
+    );
     await batch.commit();
   }
 

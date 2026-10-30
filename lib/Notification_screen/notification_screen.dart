@@ -400,8 +400,8 @@ class _NotificationRow extends StatelessWidget {
       child: Semantics(
         button: true,
         label:
-            '${item.isRead ? '' : 'Unread. '}${item.title}. ${item.message}. '
-            '$time',
+            '${item.isRead ? '' : 'Unread. '}${_sentence(item.title)} '
+            '${_sentence(item.message)} $time',
         excludeSemantics: true,
         child: InkWell(
           onTap: busy ? null : onTap,
@@ -521,4 +521,12 @@ class _NotificationSkeleton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Ends [text] with a full stop for screen readers, without doubling the
+/// punctuation that notification titles and messages often already have.
+String _sentence(String text) {
+  final value = text.trim();
+  if (value.isEmpty) return value;
+  return RegExp(r'[.!?…]$').hasMatch(value) ? value : '$value.';
 }

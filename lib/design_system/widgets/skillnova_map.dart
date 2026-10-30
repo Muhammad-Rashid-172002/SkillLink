@@ -32,37 +32,51 @@ class SkillNovaMap extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final hasPoint = latitude != null && longitude != null;
-    return Container(
-      color: colors.surfaceContainer,
-      padding: const EdgeInsets.all(SkillNovaSpacing.md),
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.map_outlined, color: colors.onSurfaceVariant, size: 28),
-          const SizedBox(height: SkillNovaSpacing.xs),
-          Text(
-            label?.trim().isNotEmpty == true ? label! : 'Map preview',
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: text.titleSmall,
-          ),
-          if (hasPoint) ...[
-            const SizedBox(height: SkillNovaSpacing.xxs),
-            TextButton.icon(
-              onPressed: () => launchUrl(
-                Uri.parse(
-                  'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Small map slots (list cards, mini previews) cannot fit the icon and
+        // the button; drop them before the card overflows.
+        final roomy = constraints.maxHeight >= 150;
+        final showButton = hasPoint && constraints.maxHeight >= 110;
+        return Container(
+          color: colors.surfaceContainer,
+          padding: const EdgeInsets.all(SkillNovaSpacing.md),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (roomy) ...[
+                Icon(
+                  Icons.map_outlined,
+                  color: colors.onSurfaceVariant,
+                  size: 28,
                 ),
-                mode: LaunchMode.externalApplication,
+                const SizedBox(height: SkillNovaSpacing.xs),
+              ],
+              Text(
+                label?.trim().isNotEmpty == true ? label! : 'Map preview',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: text.titleSmall,
               ),
-              icon: const Icon(Icons.open_in_new_rounded, size: 18),
-              label: const Text('Open in Google Maps'),
-            ),
-          ],
-        ],
-      ),
+              if (showButton) ...[
+                const SizedBox(height: SkillNovaSpacing.xxs),
+                TextButton.icon(
+                  onPressed: () => launchUrl(
+                    Uri.parse(
+                      'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude',
+                    ),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: const Text('Open in Google Maps'),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }

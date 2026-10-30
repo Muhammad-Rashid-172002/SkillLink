@@ -386,13 +386,29 @@ service cloud.firestore {
 
     // ------------------------------------------------- verification requests
     match /verification_requests/{workerId} {
+      // Decision fields only an admin may write.
+      function reviewKeys() {
+        return ['reviewedBy', 'reviewedAt', 'reviewNotes', 'approvedAt',
+          'rejectedAt', 'rejectionReason', 'decision'];
+      }
+      function ownerKeysChanged() {
+        return request.method == 'create'
+          ? newData().keys().toSet()
+          : newData().diff(oldData()).affectedKeys();
+      }
       allow read: if isAdmin() || isOwner(workerId);
+      // Workers save CNIC/selfie drafts ('not_submitted') and then submit
+      // ('pending'). They can never approve/reject, write review fields or
+      // edit a request an admin has already approved.
       allow create, update: if isAdmin()
         || (isOwner(workerId)
             && isWorker()
             && newData().workerId == uid()
-            && newData().get('identityStatus', 'pending') == 'pending'
-            && newData().get('status', 'pending') == 'pending');
+            && newData().get('identityStatus', 'not_submitted') in ['not_submitted', 'pending']
+            && newData().get('status', 'pending') in ['not_submitted', 'pending']
+            && (request.method == 'create'
+                || oldData().get('identityStatus', 'not_submitted') != 'approved')
+            && !ownerKeysChanged().hasAny(reviewKeys()));
       allow delete: if isAdmin();
     }
 
