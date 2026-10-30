@@ -221,6 +221,12 @@ void main() {
       find.byKey(const Key('local-notification-switch')),
       -200,
     );
+    // scrollUntilVisible stops as soon as the tile is built (it can still be
+    // in the list's cache area behind the app bar) and ends with
+    // Scrollable.ensureVisible, which jumps without laying out a new frame.
+    // Without this pump the tap is aimed at the stale position and lands on
+    // the app bar instead of the switch.
+    await tester.pump();
     await tester.tap(find.byKey(const Key('local-notification-switch')));
     await tester.pump();
     expect(preferences.localNotificationsEnabled, isFalse);
@@ -228,6 +234,7 @@ void main() {
       find.byKey(const Key('logout-button')),
       300,
     );
+    await tester.pump(); // Lay out the ensureVisible jump before tapping.
     await tester.tap(find.byKey(const Key('logout-button')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Log out').last);
