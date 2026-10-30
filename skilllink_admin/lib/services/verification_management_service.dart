@@ -217,6 +217,15 @@ class VerificationManagementService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
+    batch.set(_firestore.collection('admin_audit_logs').doc(), {
+      'action': 'worker_identity_rejected',
+      'targetUserId': request.workerId,
+      'targetRequestId': request.id,
+      'adminId': admin.uid,
+      'note': reason.trim(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
     await batch.commit();
   }
 
@@ -248,6 +257,15 @@ class VerificationManagementService {
       'canAcceptJobs': false,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+
+    batch.set(_firestore.collection('admin_audit_logs').doc(), {
+      'action': 'worker_identity_more_information_required',
+      'targetUserId': request.workerId,
+      'targetRequestId': request.id,
+      'adminId': admin.uid,
+      'note': reason.trim(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
 
     await batch.commit();
   }

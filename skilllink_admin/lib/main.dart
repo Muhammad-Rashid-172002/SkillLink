@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -43,6 +44,14 @@ Future<void> main() async {
       const int.fromEnvironment(
         'FIREBASE_STORAGE_EMULATOR_PORT',
         defaultValue: 9199,
+      ),
+    );
+    // Account deletion and suspension run as callable Cloud Functions.
+    FirebaseFunctions.instanceFor(region: 'us-central1').useFunctionsEmulator(
+      host,
+      const int.fromEnvironment(
+        'FIREBASE_FUNCTIONS_EMULATOR_PORT',
+        defaultValue: 5001,
       ),
     );
   }

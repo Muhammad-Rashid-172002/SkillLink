@@ -92,7 +92,9 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (isOwner(userId) && ownerUpdateIsSafe());
 
-      allow delete: if isAdmin();
+      // Accounts are deleted only by the adminDeleteUser Cloud Function,
+      // which also removes the Auth account and the person's other data.
+      allow delete: if false;
 
       function verificationUpdateIsSafe() {
         // Workers may only *submit* verification (-> pending).
@@ -478,6 +480,13 @@ service cloud.firestore {
     match /admin_settings/{doc} {
       allow read: if signedIn();
       allow write: if isAdmin();
+    }
+
+    // Progress of permanent account deletions; written only by the
+    // adminDeleteUser Cloud Function (Admin SDK).
+    match /account_deletions/{uid} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /admin_audit_logs/{doc} {

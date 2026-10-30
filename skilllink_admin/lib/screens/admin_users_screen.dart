@@ -1,416 +1,298 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:skilllink_admin/theme/admin_design.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:skilllink_admin/screens/admin_user_detail_screen.dart';
 import 'package:skilllink_admin/services/ser_management_service.dart';
+import 'package:skilllink_admin/theme/admin_design.dart';
+import 'package:skilllink_admin/widgets/user_deletion_dialogs.dart';
 
-enum UserRoleFilter { all, customers, workers, blocked }
-
+/// Admin > Users: overview, search/filter, details, suspension and
+/// permanent deletion (single and bulk). All account changes are executed
+/// by server-side Cloud Functions that re-check admin rights.
 class AdminUsersScreen extends StatefulWidget {
-  const AdminUsersScreen({super.key});
+  const AdminUsersScreen({super.key, this.gateway, this.now});
+
+  /// Injected in tests; defaults to Firebase.
+  final UserAdminGateway? gateway;
+
+  /// Clock for "recently registered" (tests).
+  final DateTime Function()? now;
 
   @override
   State<AdminUsersScreen> createState() => _AdminUsersScreenState();
 }
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
-  final UserManagementService _service = UserManagementService();
-  final TextEditingController _searchController = TextEditingController();
+  static const int pageSize = 20;
 
-  UserRoleFilter _selectedFilter = UserRoleFilter.all;
-  bool _gridView = false;
-  String _searchQuery = '';
+  late final UserAdminGateway _gateway =
+      widget.gateway ?? UserManagementService();
+  late final Stream<List<ManagedUser>> _users = _gateway.watchUsers();
+  final _search = TextEditingController();
+
+  UserListFilter _filter = UserListFilter.all;
+  UserTypeFilter _type = UserTypeFilter.all;
+  UserSort _sort = UserSort.newest;
+  int _page = 0;
+  final Set<String> _selected = {};
+  final Set<String> _working = {};
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _search.dispose();
     super.dispose();
   }
 
-  List<ManagedUser> _filterUsers(List<ManagedUser> users) {
-    return users.where((user) {
-      final query = _searchQuery.trim().toLowerCase();
+  UserQuery get _query => UserQuery(
+    filter: _filter,
+    type: _type,
+    search: _search.text,
+    sort: _sort,
+  );
 
-      final matchesSearch =
-          query.isEmpty ||
-          user.name.toLowerCase().contains(query) ||
-          user.email.toLowerCase().contains(query) ||
-          user.phone.toLowerCase().contains(query);
+  void _changed(VoidCallback update) => setState(() {
+    update();
+    _page = 0;
+    _selected.clear();
+  });
 
-      final matchesFilter = switch (_selectedFilter) {
-        UserRoleFilter.all => true,
-        UserRoleFilter.customers => user.isCustomer,
-        UserRoleFilter.workers => user.isWorker,
-        UserRoleFilter.blocked => user.isBlocked,
-      };
+  bool _canDelete(ManagedUser user) =>
+      user.id != _gateway.currentAdminUid && !_working.contains(user.id);
 
-      return matchesSearch && matchesFilter;
-    }).toList()..sort((a, b) {
-      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return bDate.compareTo(aDate);
-    });
-  }
-
-  Future<void> _toggleBlocked(ManagedUser user) async {
-    final action = user.isBlocked ? 'unblock' : 'block';
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          title: Text(
-            '${action[0].toUpperCase()}${action.substring(1)} user?',
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF0F172A),
-            ),
-          ),
-          content: Text(
-            user.isBlocked
-                ? '${user.name} will be able to use SkillNova again.'
-                : '${user.name} won’t be able to use SkillNova until you unblock them.',
-            style: GoogleFonts.inter(
-              height: 1.5,
-              color: const Color(0xFF64748B),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: FilledButton.styleFrom(
-                backgroundColor: user.isBlocked
-                    ? kAdminBrand
-                    : const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-              ),
-              child: Text(user.isBlocked ? 'Unblock' : 'Block user'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await _service.setUserBlocked(
-        userId: user.id,
-        isBlocked: !user.isBlocked,
-      );
-
-      if (!mounted) return;
-
-      _showMessage(
-        user.isBlocked
-            ? '${user.name} was unblocked.'
-            : '${user.name} was blocked.',
-      );
-    } catch (error) {
-      if (!mounted) return;
-      _showMessage('Couldn’t update status. Please try again.', isError: true);
-    }
-  }
-
-  Future<void> _toggleVerified(ManagedUser user) async {
-    try {
-      await _service.setWorkerVerified(
-        userId: user.id,
-        isVerified: !user.isVerified,
-      );
-
-      if (!mounted) return;
-
-      _showMessage(
-        user.isVerified
-            ? 'Verification removed for ${user.name}.'
-            : '${user.name} is now verified.',
-      );
-    } catch (error) {
-      if (!mounted) return;
-      _showMessage(
-        'Couldn’t update verification. Please try again.',
-        isError: true,
-      );
-    }
-  }
-
-  Future<void> _deleteUserDocument(ManagedUser user) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          title: Text(
-            'Delete Firestore profile?',
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF0F172A),
-            ),
-          ),
-          content: Text(
-            'This deletes the profile document only. The sign-in account is not deleted automatically.',
-            style: GoogleFonts.inter(
-              height: 1.5,
-              color: const Color(0xFF64748B),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Delete profile'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await _service.deleteUserDocument(user.id);
-
-      if (!mounted) return;
-
-      _showMessage('Profile deleted for ${user.name}.');
-    } catch (error) {
-      if (!mounted) return;
-      _showMessage('Couldn’t delete profile. Please try again.', isError: true);
-    }
-  }
-
-  void _showUserDetails(ManagedUser user) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: Container(
-              padding: const EdgeInsets.all(26),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _UserAvatar(user: user, radius: 34),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user.name,
-                              style: GoogleFonts.inter(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              user.email,
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(dialogContext),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _DetailChip(
-                        icon: Icons.badge_outlined,
-                        label: user.role.toUpperCase(),
-                      ),
-                      _DetailChip(
-                        icon: Icons.phone_outlined,
-                        label: user.phone,
-                      ),
-                      _DetailChip(
-                        icon: Icons.calendar_today_outlined,
-                        label: _formatDate(user.createdAt),
-                      ),
-                      _DetailChip(
-                        icon: user.isBlocked
-                            ? Icons.block_rounded
-                            : Icons.check_circle_outline_rounded,
-                        label: user.isBlocked ? 'BLOCKED' : 'ACTIVE',
-                      ),
-                      if (user.isWorker)
-                        _DetailChip(
-                          icon: Icons.verified_rounded,
-                          label: user.isVerified
-                              ? 'VERIFIED WORKER'
-                              : 'NOT VERIFIED',
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Document ID',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF94A3B8),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  SelectableText(
-                    user.id,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: const Color(0xFF334155),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showMessage(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
+  void _toast(String message, {bool error = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: isError ? kAdminDanger : kAdminSuccess,
         content: Text(message),
+        backgroundColor: error ? kAdminDanger : null,
       ),
     );
   }
 
+  Future<void> _openDetails(ManagedUser user) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<bool>(
+        builder: (_) => AdminUserDetailScreen(user: user, gateway: _gateway),
+      ),
+    );
+  }
+
+  Future<void> _toggleSuspension(ManagedUser user) async {
+    final suspend = !user.isSuspended;
+    final reason = await showReasonDialog(
+      context,
+      title: suspend ? 'Suspend this account?' : 'Reactivate account?',
+      message: suspend
+          ? '${user.displayName} will be signed out and cannot use SkillNova '
+                'until reactivated.'
+          : '${user.displayName} will be able to sign in again.',
+      confirmLabel: suspend ? 'Suspend' : 'Reactivate',
+      askReason: suspend,
+      danger: suspend,
+      fieldKey: const Key('suspend-reason'),
+      confirmKey: const Key('suspend-confirm'),
+    );
+    if (reason == null || !mounted) return;
+    setState(() => _working.add(user.id));
+    try {
+      await _gateway.setAccountStatus(
+        user.id,
+        suspended: suspend,
+        reason: reason,
+      );
+      _toast(suspend ? 'Account suspended.' : 'Account reactivated.');
+    } catch (_) {
+      _toast('The account status could not be changed.', error: true);
+    } finally {
+      if (mounted) setState(() => _working.remove(user.id));
+    }
+  }
+
+  Future<void> _delete(ManagedUser user) async {
+    if (!_canDelete(user)) return;
+    final request = await showDeleteUserDialog(context, user);
+    if (request == null || !mounted) return;
+    setState(() => _working.add(user.id));
+    final outcome = await _gateway.deleteUser(
+      user.id,
+      reason: request.reason,
+      detail: request.detail,
+    );
+    if (!mounted) return;
+    setState(() {
+      _working.remove(user.id);
+      if (outcome.succeeded) _selected.remove(user.id);
+    });
+    _toast(
+      outcome.succeeded
+          ? '${user.displayName} was deleted permanently.'
+          : outcome.description,
+      error: !outcome.succeeded,
+    );
+  }
+
+  Future<void> _bulkDelete(List<ManagedUser> all) async {
+    final users = all.where((u) => _selected.contains(u.id)).toList();
+    if (users.isEmpty) return;
+    if (users.length > UserManagementService.maxBulkSelection) {
+      _toast(
+        'Select at most ${UserManagementService.maxBulkSelection} accounts '
+        'at a time.',
+        error: true,
+      );
+      return;
+    }
+    final request = await showBulkDeleteDialog(context, users);
+    if (request == null || !mounted) return;
+    final outcome = await runBulkDeletion(
+      context,
+      gateway: _gateway,
+      users: users,
+      request: request,
+    );
+    if (!mounted || outcome == null) return;
+    setState(() {
+      for (final result in outcome.results) {
+        if (result.succeeded) _selected.remove(result.uid);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _service.usersStream(),
+    return StreamBuilder<List<ManagedUser>>(
+      stream: _users,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return _UsersErrorState(
-            message: 'We couldn’t load users. Refresh to try again.',
+          return const _StateMessage(
+            icon: Icons.cloud_off_rounded,
+            title: 'Users could not be loaded',
+            message: 'Check your connection and refresh the page.',
           );
         }
-
         if (!snapshot.hasData) {
           return const Center(
             child: CircularProgressIndicator(color: kAdminBrand),
           );
         }
+        final all = snapshot.data!;
+        final stats = UserStats.of(all, now: widget.now?.call());
+        final filtered = _query.apply(all);
+        final pages = (filtered.length / pageSize).ceil().clamp(1, 1 << 30);
+        final page = _page.clamp(0, pages - 1);
+        final visible = filtered.skip(page * pageSize).take(pageSize).toList();
+        final selectable = filtered.where(_canDelete).toList();
+        final allSelected =
+            selectable.isNotEmpty &&
+            selectable.every((u) => _selected.contains(u.id));
 
-        final allUsers = snapshot.data!.docs
-            .map(ManagedUser.fromDocument)
-            .toList();
-
-        final filteredUsers = _filterUsers(allUsers);
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _UsersHeader(
-                totalUsers: allUsers.length,
-                workers: allUsers.where((user) => user.isWorker).length,
-                customers: allUsers.where((user) => user.isCustomer).length,
-                blocked: allUsers.where((user) => user.isBlocked).length,
-              ),
-              const SizedBox(height: 22),
-              _UsersToolbar(
-                controller: _searchController,
-                selectedFilter: _selectedFilter,
-                gridView: _gridView,
-                resultCount: filteredUsers.length,
-                onSearchChanged: (value) {
-                  setState(() => _searchQuery = value);
-                },
-                onFilterChanged: (value) {
-                  setState(() => _selectedFilter = value);
-                },
-                onViewChanged: (value) {
-                  setState(() => _gridView = value);
-                },
-              ),
-              const SizedBox(height: 18),
-              if (filteredUsers.isEmpty)
-                const _EmptyUsersState()
-              else if (_gridView)
-                _UsersGrid(
-                  users: filteredUsers,
-                  onView: _showUserDetails,
-                  onToggleBlocked: _toggleBlocked,
-                  onToggleVerified: _toggleVerified,
-                  onDelete: _deleteUserDocument,
-                )
-              else
-                _UsersTable(
-                  users: filteredUsers,
-                  onView: _showUserDetails,
-                  onToggleBlocked: _toggleBlocked,
-                  onToggleVerified: _toggleVerified,
-                  onDelete: _deleteUserDocument,
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 1080;
+            final pad = constraints.maxWidth < 600 ? 16.0 : 28.0;
+            return ListView(
+              padding: EdgeInsets.all(pad),
+              children: [
+                const _Header(),
+                const SizedBox(height: 18),
+                _StatsGrid(
+                  stats: stats,
+                  onSelect: (filter) => _changed(() => _filter = filter),
                 ),
-            ],
-          ),
+                const SizedBox(height: 18),
+                _Toolbar(
+                  search: _search,
+                  filter: _filter,
+                  type: _type,
+                  sort: _sort,
+                  results: filtered.length,
+                  onSearch: () => _changed(() {}),
+                  onFilter: (value) => _changed(() => _filter = value),
+                  onType: (value) => _changed(() => _type = value),
+                  onSort: (value) => setState(() => _sort = value),
+                ),
+                const SizedBox(height: 12),
+                _SelectionBar(
+                  selectedCount: _selected.length,
+                  selectableCount: selectable.length,
+                  allSelected: allSelected,
+                  onSelectAll: (value) => setState(() {
+                    if (value) {
+                      _selected.addAll(selectable.map((u) => u.id));
+                    } else {
+                      _selected.clear();
+                    }
+                  }),
+                  onDelete: () => _bulkDelete(all),
+                ),
+                const SizedBox(height: 12),
+                if (filtered.isEmpty)
+                  _StateMessage(
+                    icon: Icons.person_search_rounded,
+                    title: all.isEmpty ? 'No users yet' : 'No matching users',
+                    message: all.isEmpty
+                        ? 'People who sign up in the app will appear here.'
+                        : 'Try another search or filter.',
+                  )
+                else if (wide)
+                  _UsersTable(
+                    users: visible,
+                    selected: _selected,
+                    working: _working,
+                    canDelete: _canDelete,
+                    onSelect: (user, value) => setState(() {
+                      value
+                          ? _selected.add(user.id)
+                          : _selected.remove(user.id);
+                    }),
+                    onView: _openDetails,
+                    onSuspend: _toggleSuspension,
+                    onDelete: _delete,
+                  )
+                else
+                  Column(
+                    children: [
+                      for (final user in visible)
+                        _UserCard(
+                          user: user,
+                          selected: _selected.contains(user.id),
+                          busy: _working.contains(user.id),
+                          canDelete: _canDelete(user),
+                          onSelect: (value) => setState(() {
+                            value
+                                ? _selected.add(user.id)
+                                : _selected.remove(user.id);
+                          }),
+                          onView: () => _openDetails(user),
+                          onSuspend: () => _toggleSuspension(user),
+                          onDelete: () => _delete(user),
+                        ),
+                    ],
+                  ),
+                if (filtered.isNotEmpty)
+                  _Pagination(
+                    page: page,
+                    pages: pages,
+                    total: filtered.length,
+                    pageSize: pageSize,
+                    onPage: (value) => setState(() => _page = value),
+                  ),
+              ],
+            );
+          },
         );
       },
     );
   }
 }
 
-class _UsersHeader extends StatelessWidget {
-  const _UsersHeader({
-    required this.totalUsers,
-    required this.workers,
-    required this.customers,
-    required this.blocked,
-  });
+// ------------------------------------------------------------------ parts
 
-  final int totalUsers;
-  final int workers;
-  final int customers;
-  final int blocked;
+TextStyle _muted(double size) =>
+    GoogleFonts.inter(fontSize: size, color: kAdminTextMuted);
+
+class _Header extends StatelessWidget {
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
@@ -418,128 +300,253 @@ class _UsersHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Users Management',
+          'User Management',
           style: GoogleFonts.inter(
             fontSize: 25,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.7,
-            color: const Color(0xFF0F172A),
+            color: kAdminText,
           ),
         ),
-        const SizedBox(height: 7),
+        const SizedBox(height: 6),
         Text(
-          'Manage, verify, and monitor SkillNova customers and workers with ease.',
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            color: const Color(0xFF64748B),
-          ),
-        ),
-        const SizedBox(height: 22),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 950
-                ? 4
-                : constraints.maxWidth >= 520
-                ? 2
-                : 1;
-
-            final width =
-                (constraints.maxWidth - ((columns - 1) * 14)) / columns;
-
-            final cards = [
-              _MiniStatCard(
-                label: 'Total Users',
-                value: '$totalUsers',
-                icon: Icons.groups_2_rounded,
-                color: kAdminBrand,
-              ),
-              _MiniStatCard(
-                label: 'Workers',
-                value: '$workers',
-                icon: Icons.engineering_rounded,
-                color: kAdminBrand,
-              ),
-              _MiniStatCard(
-                label: 'Customers',
-                value: '$customers',
-                icon: Icons.person_rounded,
-                color: const Color(0xFF7C3AED),
-              ),
-              _MiniStatCard(
-                label: 'Blocked',
-                value: '$blocked',
-                icon: Icons.block_rounded,
-                color: const Color(0xFFDC2626),
-              ),
-            ];
-
-            return Wrap(
-              spacing: 14,
-              runSpacing: 14,
-              children: cards
-                  .map((card) => SizedBox(width: width, child: card))
-                  .toList(),
-            );
-          },
+          'Review, verify, suspend or permanently delete customer and worker '
+          'accounts.',
+          style: _muted(13),
         ),
       ],
     );
   }
 }
 
-class _MiniStatCard extends StatelessWidget {
-  const _MiniStatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
+class _StatsGrid extends StatelessWidget {
+  const _StatsGrid({required this.stats, required this.onSelect});
+  final UserStats stats;
+  final ValueChanged<UserListFilter> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = <(String, int, IconData, Color, UserListFilter?)>[
+      (
+        'Total users',
+        stats.total,
+        Icons.groups_2_rounded,
+        kAdminBrand,
+        UserListFilter.all,
+      ),
+      (
+        'Verified',
+        stats.verified,
+        Icons.verified_rounded,
+        kAdminSuccess,
+        UserListFilter.verified,
+      ),
+      (
+        'Unverified',
+        stats.unverified,
+        Icons.help_outline_rounded,
+        kAdminTextMuted,
+        UserListFilter.unverified,
+      ),
+      (
+        'Pending verification',
+        stats.pending,
+        Icons.hourglass_top_rounded,
+        kAdminWarning,
+        UserListFilter.pending,
+      ),
+      (
+        'Rejected',
+        stats.rejected,
+        Icons.cancel_outlined,
+        kAdminDanger,
+        UserListFilter.rejected,
+      ),
+      (
+        'Suspended',
+        stats.suspended,
+        Icons.block_rounded,
+        kAdminDanger,
+        UserListFilter.suspended,
+      ),
+      (
+        'New this week',
+        stats.recent,
+        Icons.fiber_new_rounded,
+        kAdminInfo,
+        null,
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1100
+            ? 4
+            : constraints.maxWidth >= 560
+            ? 3
+            : 2;
+        final width = (constraints.maxWidth - (columns - 1) * 12) / columns;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final (label, value, icon, color, filter) in cards)
+              SizedBox(
+                width: width,
+                child: Semantics(
+                  button: filter != null,
+                  label: '$label: $value',
+                  // The InkWell below is hidden from assistive technology,
+                  // so the semantics node carries the tap itself.
+                  onTap: filter == null ? null : () => onSelect(filter),
+                  excludeSemantics: true,
+                  child: InkWell(
+                    key: Key('stat-$label'),
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: filter == null ? null : () => onSelect(filter),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: kAdminBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            height: 38,
+                            width: 38,
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(icon, color: color, size: 20),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$value',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: kAdminText,
+                                  ),
+                                ),
+                                Text(
+                                  label,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: _muted(11.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Toolbar extends StatelessWidget {
+  const _Toolbar({
+    required this.search,
+    required this.filter,
+    required this.type,
+    required this.sort,
+    required this.results,
+    required this.onSearch,
+    required this.onFilter,
+    required this.onType,
+    required this.onSort,
   });
 
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
+  final TextEditingController search;
+  final UserListFilter filter;
+  final UserTypeFilter type;
+  final UserSort sort;
+  final int results;
+  final VoidCallback onSearch;
+  final ValueChanged<UserListFilter> onFilter;
+  final ValueChanged<UserTypeFilter> onType;
+  final ValueChanged<UserSort> onSort;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(19),
-        border: Border.all(color: const Color(0xFFE6ECF2)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kAdminBorder),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 45,
-            width: 45,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: 13),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF0F172A),
+              SizedBox(
+                width: 320,
+                child: TextField(
+                  key: const Key('user-search'),
+                  controller: search,
+                  onChanged: (_) => onSearch(),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search_rounded),
+                    hintText: 'Search name, email, phone or user ID',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
                 ),
               ),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 11.5,
-                  color: const Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                ),
+              DropdownButton<UserTypeFilter>(
+                key: const Key('type-filter'),
+                value: type,
+                onChanged: (value) => value == null ? null : onType(value),
+                items: [
+                  for (final value in UserTypeFilter.values)
+                    DropdownMenuItem(value: value, child: Text(value.label)),
+                ],
               ),
+              DropdownButton<UserSort>(
+                key: const Key('sort'),
+                value: sort,
+                onChanged: (value) => value == null ? null : onSort(value),
+                items: [
+                  for (final value in UserSort.values)
+                    DropdownMenuItem(value: value, child: Text(value.label)),
+                ],
+              ),
+              Text(
+                '$results ${results == 1 ? 'user' : 'users'}',
+                key: const Key('result-count'),
+                style: _muted(12.5),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final value in UserListFilter.values)
+                ChoiceChip(
+                  key: Key('filter-${value.name}'),
+                  label: Text(value.label),
+                  selected: filter == value,
+                  onSelected: (_) => onFilter(value),
+                ),
             ],
           ),
         ],
@@ -548,183 +555,161 @@ class _MiniStatCard extends StatelessWidget {
   }
 }
 
-class _UsersToolbar extends StatelessWidget {
-  const _UsersToolbar({
-    required this.controller,
-    required this.selectedFilter,
-    required this.gridView,
-    required this.resultCount,
-    required this.onSearchChanged,
-    required this.onFilterChanged,
-    required this.onViewChanged,
+class _SelectionBar extends StatelessWidget {
+  const _SelectionBar({
+    required this.selectedCount,
+    required this.selectableCount,
+    required this.allSelected,
+    required this.onSelectAll,
+    required this.onDelete,
   });
 
-  final TextEditingController controller;
-  final UserRoleFilter selectedFilter;
-  final bool gridView;
-  final int resultCount;
-  final ValueChanged<String> onSearchChanged;
-  final ValueChanged<UserRoleFilter> onFilterChanged;
-  final ValueChanged<bool> onViewChanged;
+  final int selectedCount;
+  final int selectableCount;
+  final bool allSelected;
+  final ValueChanged<bool> onSelectAll;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Checkbox(
+              key: const Key('select-all'),
+              value: allSelected,
+              onChanged: selectableCount == 0
+                  ? null
+                  : (value) => onSelectAll(value ?? false),
+            ),
+            Flexible(
+              child: Text(
+                'Select all filtered ($selectableCount)',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        if (selectedCount > 0)
+          FilledButton.icon(
+            key: const Key('bulk-delete'),
+            style: FilledButton.styleFrom(backgroundColor: kAdminDanger),
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_sweep_rounded),
+            label: Text('Delete selected ($selectedCount)'),
+          ),
+      ],
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge(this.label, this.color);
+  final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE6ECF2)),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 850;
-
-          final searchField = SizedBox(
-            width: compact ? double.infinity : 330,
-            child: TextField(
-              controller: controller,
-              onChanged: onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Search name, email or phone...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: controller.text.isNotEmpty
-                    ? IconButton(
-                        onPressed: () {
-                          controller.clear();
-                          onSearchChanged('');
-                        },
-                        icon: const Icon(Icons.close_rounded),
-                      )
-                    : null,
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: kAdminBrand, width: 1.6),
-                ),
-              ),
-            ),
-          );
-
-          final filters = Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: UserRoleFilter.values.map((filter) {
-              final selected = selectedFilter == filter;
-
-              return ChoiceChip(
-                selected: selected,
-                onSelected: (_) => onFilterChanged(filter),
-                label: Text(_filterLabel(filter)),
-                backgroundColor: const Color(0xFFF8FAFC),
-                selectedColor: kAdminBrand.withValues(alpha: 0.12),
-                side: BorderSide(
-                  color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
-                ),
-                labelStyle: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? kAdminBrand : const Color(0xFF64748B),
-                ),
-              );
-            }).toList(),
-          );
-
-          final viewControls = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '$resultCount users',
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(width: 12),
-              _ViewButton(
-                icon: Icons.table_rows_rounded,
-                selected: !gridView,
-                onTap: () => onViewChanged(false),
-              ),
-              const SizedBox(width: 6),
-              _ViewButton(
-                icon: Icons.grid_view_rounded,
-                selected: gridView,
-                onTap: () => onViewChanged(true),
-              ),
-            ],
-          );
-
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                searchField,
-                const SizedBox(height: 14),
-                filters,
-                const SizedBox(height: 14),
-                Align(alignment: Alignment.centerRight, child: viewControls),
-              ],
-            );
-          }
-
-          return Row(
-            children: [
-              searchField,
-              const SizedBox(width: 16),
-              Expanded(child: filters),
-              const SizedBox(width: 12),
-              viewControls,
-            ],
-          );
-        },
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
 }
 
-class _ViewButton extends StatelessWidget {
-  const _ViewButton({
-    required this.icon,
-    required this.selected,
-    required this.onTap,
+Widget _verificationBadge(ManagedUser user) => switch (user.verification) {
+  UserVerification.verified => const _Badge('Verified', kAdminSuccess),
+  UserVerification.pending => const _Badge('Pending', kAdminWarning),
+  UserVerification.rejected => const _Badge('Rejected', kAdminDanger),
+  UserVerification.unverified => const _Badge('Unverified', kAdminTextMuted),
+};
+
+Widget _statusBadge(ManagedUser user) => user.isSuspended
+    ? _Badge(user.accountStatusLabel, kAdminDanger)
+    : const _Badge('Active', kAdminSuccess);
+
+Widget _check(bool ok, String label) => Tooltip(
+  message: '$label ${ok ? 'verified' : 'not verified'}',
+  child: Icon(
+    ok ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+    size: 18,
+    color: ok ? kAdminSuccess : kAdminTextMuted,
+    semanticLabel: '$label ${ok ? 'verified' : 'not verified'}',
+  ),
+);
+
+String _date(DateTime? value) =>
+    value == null ? '—' : DateFormat('d MMM yyyy').format(value);
+
+class _Actions extends StatelessWidget {
+  const _Actions({
+    required this.user,
+    required this.busy,
+    required this.canDelete,
+    required this.onView,
+    required this.onSuspend,
+    required this.onDelete,
   });
 
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
+  final ManagedUser user;
+  final bool busy;
+  final bool canDelete;
+  final VoidCallback onView;
+  final VoidCallback onSuspend;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(11),
-      onTap: onTap,
-      child: Container(
-        height: 38,
-        width: 38,
-        decoration: BoxDecoration(
-          color: selected ? kAdminBrand : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(11),
-          border: Border.all(
-            color: selected ? kAdminBrand : const Color(0xFFE2E8F0),
+    if (busy) {
+      return const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'View details',
+          onPressed: onView,
+          icon: const Icon(Icons.visibility_outlined),
+        ),
+        IconButton(
+          tooltip: user.isSuspended ? 'Reactivate' : 'Suspend',
+          onPressed: canDelete ? onSuspend : null,
+          icon: Icon(
+            user.isSuspended
+                ? Icons.lock_open_rounded
+                : Icons.pause_circle_outline_rounded,
           ),
         ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: selected ? Colors.white : const Color(0xFF64748B),
+        IconButton(
+          key: Key('delete-${user.id}'),
+          tooltip: canDelete
+              ? 'Delete user'
+              : 'You cannot delete your own account',
+          onPressed: canDelete ? onDelete : null,
+          color: kAdminDanger,
+          icon: const Icon(Icons.delete_forever_rounded),
         ),
-      ),
+      ],
     );
   }
 }
@@ -732,180 +717,139 @@ class _ViewButton extends StatelessWidget {
 class _UsersTable extends StatelessWidget {
   const _UsersTable({
     required this.users,
+    required this.selected,
+    required this.working,
+    required this.canDelete,
+    required this.onSelect,
     required this.onView,
-    required this.onToggleBlocked,
-    required this.onToggleVerified,
+    required this.onSuspend,
     required this.onDelete,
   });
 
   final List<ManagedUser> users;
+  final Set<String> selected;
+  final Set<String> working;
+  final bool Function(ManagedUser) canDelete;
+  final void Function(ManagedUser, bool) onSelect;
   final ValueChanged<ManagedUser> onView;
-  final ValueChanged<ManagedUser> onToggleBlocked;
-  final ValueChanged<ManagedUser> onToggleVerified;
+  final ValueChanged<ManagedUser> onSuspend;
   final ValueChanged<ManagedUser> onDelete;
 
   @override
   Widget build(BuildContext context) {
+    const header = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      color: kAdminTextMuted,
+      letterSpacing: 0.4,
+    );
     return Container(
-      width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE6ECF2)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kAdminBorder),
       ),
       clipBehavior: Clip.antiAlias,
       child: LayoutBuilder(
-        // Fill the card on wide screens; scroll sideways on narrow ones.
         builder: (context, constraints) => SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
+            // Fill the card on wide screens; scroll sideways when narrower.
             constraints: BoxConstraints(minWidth: constraints.maxWidth),
             child: DataTable(
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              dataRowMinHeight: 70,
-              dataRowMaxHeight: 78,
-              horizontalMargin: 20,
-              columnSpacing: 34,
+              headingRowHeight: 44,
+              dataRowMinHeight: 58,
+              dataRowMaxHeight: 66,
+              columnSpacing: 16,
+              horizontalMargin: 12,
+              showCheckboxColumn: false,
               columns: const [
-                DataColumn(label: _TableHeading('USER')),
-                DataColumn(label: _TableHeading('ROLE')),
-                DataColumn(label: _TableHeading('PHONE')),
-                DataColumn(label: _TableHeading('STATUS')),
-                DataColumn(label: _TableHeading('JOINED')),
-                DataColumn(label: _TableHeading('ACTIONS')),
+                DataColumn(label: SizedBox.shrink()),
+                DataColumn(label: Text('USER · EMAIL · PHONE', style: header)),
+                DataColumn(label: Text('TYPE', style: header)),
+                DataColumn(label: Text('REGISTERED', style: header)),
+                DataColumn(label: Text('EMAIL / PHONE ✓', style: header)),
+                DataColumn(label: Text('CNIC', style: header)),
+                DataColumn(label: Text('VERIFICATION', style: header)),
+                DataColumn(label: Text('STATUS', style: header)),
+                DataColumn(label: Text('ACTIONS', style: header)),
               ],
-              rows: users.map((user) {
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      SizedBox(
-                        width: 230,
-                        child: Row(
-                          children: [
-                            _UserAvatar(user: user, radius: 21),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    user.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    user.email,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      color: const Color(0xFF64748B),
-                                    ),
-                                  ),
-                                ],
+              rows: [
+                for (final user in users)
+                  DataRow(
+                    key: ValueKey('row-${user.id}'),
+                    cells: [
+                      DataCell(
+                        Checkbox(
+                          key: Key('select-${user.id}'),
+                          value: selected.contains(user.id),
+                          onChanged: canDelete(user)
+                              ? (value) => onSelect(user, value ?? false)
+                              : null,
+                        ),
+                      ),
+                      DataCell(
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 260),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user.displayName,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: kAdminText,
+                                ),
                               ),
-                            ),
+                              Text(
+                                [
+                                  user.email.isEmpty ? 'No email' : user.email,
+                                  if (user.phone.isNotEmpty) user.phone,
+                                ].join(' · '),
+                                overflow: TextOverflow.ellipsis,
+                                style: _muted(12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        onTap: () => onView(user),
+                      ),
+                      DataCell(Text(user.roleLabel)),
+                      DataCell(Text(_date(user.createdAt))),
+                      DataCell(
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _check(user.emailVerified, 'Email'),
+                            const SizedBox(width: 6),
+                            _check(user.phoneVerified, 'Phone'),
                           ],
                         ),
                       ),
-                    ),
-                    DataCell(_RoleBadge(role: user.role)),
-                    DataCell(
-                      SizedBox(
-                        width: 120,
-                        child: Text(
-                          user.phone,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: const Color(0xFF475569),
-                          ),
+                      DataCell(
+                        Text(user.isWorker ? user.identityStatusLabel : '—'),
+                      ),
+                      DataCell(_verificationBadge(user)),
+                      DataCell(_statusBadge(user)),
+                      DataCell(
+                        _Actions(
+                          user: user,
+                          busy: working.contains(user.id),
+                          canDelete: canDelete(user),
+                          onView: () => onView(user),
+                          onSuspend: () => onSuspend(user),
+                          onDelete: () => onDelete(user),
                         ),
                       ),
-                    ),
-                    DataCell(_StatusBadge(isBlocked: user.isBlocked)),
-                    DataCell(
-                      Text(
-                        _formatDate(user.createdAt),
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: const Color(0xFF475569),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      _UserActions(
-                        user: user,
-                        onView: onView,
-                        onToggleBlocked: onToggleBlocked,
-                        onToggleVerified: onToggleVerified,
-                        onDelete: onDelete,
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
+                    ],
+                  ),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _UsersGrid extends StatelessWidget {
-  const _UsersGrid({
-    required this.users,
-    required this.onView,
-    required this.onToggleBlocked,
-    required this.onToggleVerified,
-    required this.onDelete,
-  });
-
-  final List<ManagedUser> users;
-  final ValueChanged<ManagedUser> onView;
-  final ValueChanged<ManagedUser> onToggleBlocked;
-  final ValueChanged<ManagedUser> onToggleVerified;
-  final ValueChanged<ManagedUser> onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1180
-            ? 4
-            : constraints.maxWidth >= 820
-            ? 3
-            : constraints.maxWidth >= 540
-            ? 2
-            : 1;
-
-        final width = (constraints.maxWidth - ((columns - 1) * 16)) / columns;
-
-        return Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: users.map((user) {
-            return SizedBox(
-              width: width,
-              child: _UserCard(
-                user: user,
-                onView: onView,
-                onToggleBlocked: onToggleBlocked,
-                onToggleVerified: onToggleVerified,
-                onDelete: onDelete,
-              ),
-            );
-          }).toList(),
-        );
-      },
     );
   }
 }
@@ -913,401 +857,120 @@ class _UsersGrid extends StatelessWidget {
 class _UserCard extends StatelessWidget {
   const _UserCard({
     required this.user,
+    required this.selected,
+    required this.busy,
+    required this.canDelete,
+    required this.onSelect,
     required this.onView,
-    required this.onToggleBlocked,
-    required this.onToggleVerified,
+    required this.onSuspend,
     required this.onDelete,
   });
 
   final ManagedUser user;
-  final ValueChanged<ManagedUser> onView;
-  final ValueChanged<ManagedUser> onToggleBlocked;
-  final ValueChanged<ManagedUser> onToggleVerified;
-  final ValueChanged<ManagedUser> onDelete;
+  final bool selected;
+  final bool busy;
+  final bool canDelete;
+  final ValueChanged<bool> onSelect;
+  final VoidCallback onView;
+  final VoidCallback onSuspend;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      key: ValueKey('card-${user.id}'),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(6, 10, 10, 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(21),
-        border: Border.all(color: const Color(0xFFE6ECF2)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x090F172A),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: _UserActions(
-              user: user,
-              onView: onView,
-              onToggleBlocked: onToggleBlocked,
-              onToggleVerified: onToggleVerified,
-              onDelete: onDelete,
-            ),
-          ),
-          _UserAvatar(user: user, radius: 34),
-          const SizedBox(height: 13),
-          Text(
-            user.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            user.email,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              fontSize: 10.5,
-              color: const Color(0xFF64748B),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            alignment: WrapAlignment.center,
-            children: [
-              _RoleBadge(role: user.role),
-              _StatusBadge(isBlocked: user.isBlocked),
-              if (user.isWorker && user.isVerified) const _VerifiedBadge(),
-            ],
-          ),
-          const SizedBox(height: 15),
-          const Divider(color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(
-                Icons.phone_outlined,
-                size: 16,
-                color: Color(0xFF94A3B8),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  user.phone,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 10.5,
-                    color: const Color(0xFF475569),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          Row(
-            children: [
-              const Icon(
-                Icons.calendar_today_outlined,
-                size: 15,
-                color: Color(0xFF94A3B8),
-              ),
-              const SizedBox(width: 7),
-              Text(
-                _formatDate(user.createdAt),
-                style: GoogleFonts.inter(
-                  fontSize: 10.5,
-                  color: const Color(0xFF475569),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UserActions extends StatelessWidget {
-  const _UserActions({
-    required this.user,
-    required this.onView,
-    required this.onToggleBlocked,
-    required this.onToggleVerified,
-    required this.onDelete,
-  });
-
-  final ManagedUser user;
-  final ValueChanged<ManagedUser> onView;
-  final ValueChanged<ManagedUser> onToggleBlocked;
-  final ValueChanged<ManagedUser> onToggleVerified;
-  final ValueChanged<ManagedUser> onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      tooltip: 'User actions',
-      color: Colors.white,
-      surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      onSelected: (value) {
-        switch (value) {
-          case 'view':
-            onView(user);
-            break;
-          case 'block':
-            onToggleBlocked(user);
-            break;
-          case 'verify':
-            onToggleVerified(user);
-            break;
-          case 'delete':
-            onDelete(user);
-            break;
-        }
-      },
-      itemBuilder: (_) => [
-        const PopupMenuItem(
-          value: 'view',
-          child: _MenuItem(
-            icon: Icons.visibility_outlined,
-            text: 'View details',
-          ),
-        ),
-        PopupMenuItem(
-          value: 'block',
-          child: _MenuItem(
-            icon: user.isBlocked
-                ? Icons.lock_open_rounded
-                : Icons.block_rounded,
-            text: user.isBlocked ? 'Unblock user' : 'Block user',
-          ),
-        ),
-        if (user.isWorker)
-          PopupMenuItem(
-            value: 'verify',
-            child: _MenuItem(
-              icon: Icons.verified_outlined,
-              text: user.isVerified ? 'Remove verification' : 'Verify worker',
-            ),
-          ),
-        const PopupMenuDivider(),
-        const PopupMenuItem(
-          value: 'delete',
-          child: _MenuItem(
-            icon: Icons.delete_outline_rounded,
-            text: 'Delete profile',
-            danger: true,
-          ),
-        ),
-      ],
-      child: Container(
-        height: 36,
-        width: 36,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(11),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: const Icon(
-          Icons.more_horiz_rounded,
-          color: Color(0xFF64748B),
-          size: 20,
-        ),
-      ),
-    );
-  }
-}
-
-class _MenuItem extends StatelessWidget {
-  const _MenuItem({
-    required this.icon,
-    required this.text,
-    this.danger = false,
-  });
-
-  final IconData icon;
-  final String text;
-  final bool danger;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = danger ? const Color(0xFFDC2626) : const Color(0xFF334155);
-
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 10),
-        Text(
-          text,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _UserAvatar extends StatelessWidget {
-  const _UserAvatar({required this.user, required this.radius});
-
-  final ManagedUser user;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    final photo = user.photoUrl;
-
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: kAdminBrandSoft,
-      backgroundImage: photo != null ? NetworkImage(photo) : null,
-      child: photo == null
-          ? Text(
-              user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-              style: GoogleFonts.inter(
-                color: kAdminBrand,
-                fontSize: radius * 0.70,
-                fontWeight: FontWeight.w700,
-              ),
-            )
-          : null,
-    );
-  }
-}
-
-class _RoleBadge extends StatelessWidget {
-  const _RoleBadge({required this.role});
-
-  final String role;
-
-  @override
-  Widget build(BuildContext context) {
-    final worker = role.toLowerCase() == 'worker';
-    final color = worker ? kAdminBrand : const Color(0xFF7C3AED);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        role.toUpperCase(),
-        style: GoogleFonts.inter(
-          fontSize: 8.5,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.isBlocked});
-
-  final bool isBlocked;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isBlocked ? const Color(0xFFDC2626) : const Color(0xFF059669);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        isBlocked ? 'BLOCKED' : 'ACTIVE',
-        style: GoogleFonts.inter(
-          fontSize: 8.5,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
-    );
-  }
-}
-
-class _VerifiedBadge extends StatelessWidget {
-  const _VerifiedBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: kAdminBrand.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        'VERIFIED',
-        style: GoogleFonts.inter(
-          fontSize: 8.5,
-          fontWeight: FontWeight.w700,
-          color: kAdminBrand,
-        ),
-      ),
-    );
-  }
-}
-
-class _TableHeading extends StatelessWidget {
-  const _TableHeading(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: GoogleFonts.inter(
-        fontSize: 9,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.7,
-        color: const Color(0xFF64748B),
-      ),
-    );
-  }
-}
-
-class _DetailChip extends StatelessWidget {
-  const _DetailChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: selected ? kAdminBrand : kAdminBorder),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: kAdminBrand),
-          const SizedBox(width: 7),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF475569),
+          Checkbox(
+            key: Key('select-${user.id}'),
+            value: selected,
+            onChanged: canDelete ? (value) => onSelect(value ?? false) : null,
+          ),
+          Expanded(
+            child: InkWell(
+              onTap: onView,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.displayName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: kAdminText,
+                    ),
+                  ),
+                  Text(
+                    user.email.isEmpty ? 'No email' : user.email,
+                    overflow: TextOverflow.ellipsis,
+                    style: _muted(12),
+                  ),
+                  if (user.phone.isNotEmpty)
+                    Text(user.phone, style: _muted(12)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      _Badge(user.roleLabel, kAdminInfo),
+                      _verificationBadge(user),
+                      _statusBadge(user),
+                      Text(
+                        'Joined ${_date(user.createdAt)}',
+                        style: _muted(11.5),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _check(user.emailVerified, 'Email'),
+                          const SizedBox(width: 4),
+                          Text('Email', style: _muted(11.5)),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _check(user.phoneVerified, 'Phone'),
+                          const SizedBox(width: 4),
+                          Text('Phone', style: _muted(11.5)),
+                        ],
+                      ),
+                      if (user.isWorker)
+                        Text(
+                          'CNIC: ${user.identityStatusLabel}',
+                          style: _muted(11.5),
+                        ),
+                    ],
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _Actions(
+                      user: user,
+                      busy: busy,
+                      canDelete: canDelete,
+                      onView: onView,
+                      onSuspend: onSuspend,
+                      onDelete: onDelete,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1316,43 +979,42 @@ class _DetailChip extends StatelessWidget {
   }
 }
 
-class _EmptyUsersState extends StatelessWidget {
-  const _EmptyUsersState();
+class _Pagination extends StatelessWidget {
+  const _Pagination({
+    required this.page,
+    required this.pages,
+    required this.total,
+    required this.pageSize,
+    required this.onPage,
+  });
+
+  final int page;
+  final int pages;
+  final int total;
+  final int pageSize;
+  final ValueChanged<int> onPage;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 70),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE6ECF2)),
-      ),
-      child: Column(
+    final from = page * pageSize + 1;
+    final to = ((page + 1) * pageSize).clamp(0, total);
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const Icon(
-            Icons.person_search_rounded,
-            size: 55,
-            color: Color(0xFF94A3B8),
+          Text('$from–$to of $total', key: const Key('page-label')),
+          IconButton(
+            key: const Key('page-prev'),
+            tooltip: 'Previous page',
+            onPressed: page > 0 ? () => onPage(page - 1) : null,
+            icon: const Icon(Icons.chevron_left_rounded),
           ),
-          const SizedBox(height: 14),
-          Text(
-            'No users found',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'No users match your search or filters.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF64748B),
-              fontSize: 12,
-            ),
+          IconButton(
+            key: const Key('page-next'),
+            tooltip: 'Next page',
+            onPressed: page < pages - 1 ? () => onPage(page + 1) : null,
+            icon: const Icon(Icons.chevron_right_rounded),
           ),
         ],
       ),
@@ -1360,57 +1022,38 @@ class _EmptyUsersState extends StatelessWidget {
   }
 }
 
-class _UsersErrorState extends StatelessWidget {
-  const _UsersErrorState({required this.message});
+class _StateMessage extends StatelessWidget {
+  const _StateMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
 
+  final IconData icon;
+  final String title;
   final String message;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(28),
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF1F2),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFFFDA4AF)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              color: Color(0xFFDC2626),
-              size: 46,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
+      child: Column(
+        children: [
+          Icon(icon, size: 40, color: kAdminTextMuted),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: kAdminText,
             ),
-            const SizedBox(height: 14),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(color: const Color(0xFF991B1B)),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(message, textAlign: TextAlign.center, style: _muted(13)),
+        ],
       ),
     );
   }
-}
-
-String _filterLabel(UserRoleFilter filter) {
-  switch (filter) {
-    case UserRoleFilter.all:
-      return 'All';
-    case UserRoleFilter.customers:
-      return 'Customers';
-    case UserRoleFilter.workers:
-      return 'Workers';
-    case UserRoleFilter.blocked:
-      return 'Blocked';
-  }
-}
-
-String _formatDate(DateTime? date) {
-  if (date == null) return 'Unknown';
-  return DateFormat('dd MMM yyyy').format(date);
 }

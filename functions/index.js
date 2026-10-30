@@ -9,12 +9,15 @@ const {initializeApp} = require("firebase-admin/app");
 const {getFirestore} = require("firebase-admin/firestore");
 const {getMessaging} = require("firebase-admin/messaging");
 const {getAuth} = require("firebase-admin/auth");
+const {getStorage} = require("firebase-admin/storage");
+const {randomUUID} = require("node:crypto");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const nodemailer = require("nodemailer");
 const logger = require("firebase-functions/logger");
 const jobTargeting = require("./job_targeting");
 const {computeRatingAggregate} = require("./rating_aggregate");
+const accountDeletion = require("./account_deletion");
 initializeApp();
 
 const smtpAppPassword = defineSecret("SMTP_APP_PASSWORD");
@@ -1816,7 +1819,10 @@ exports.syncWorkerCompletedJobs = onDocumentUpdated(
           .count()
           .get();
 
-      await firestore.collection("users").doc(workerId).set({
+      const workerRef = firestore.collection("users").doc(workerId);
+      // Never recreate a profile for an account that was deleted.
+      if (!(await workerRef.get()).exists) return;
+      await workerRef.set({
         completedJobs: aggregate.data().count,
         statsUpdatedAt: new Date(),
       }, {merge: true});
@@ -1848,7 +1854,10 @@ exports.syncWorkerRating = onDocumentWritten(
         const aggregate = computeRatingAggregate(
             snapshot.docs.map((doc) => doc.data()));
 
-        await firestore.collection("users").doc(workerId).set({
+        const workerRef = firestore.collection("users").doc(workerId);
+        // Never recreate a profile for an account that was deleted.
+        if (!(await workerRef.get()).exists) continue;
+        await workerRef.set({
           rating: aggregate.rating,
           totalReviews: aggregate.totalReviews,
           statsUpdatedAt: new Date(),
@@ -2046,6 +2055,90 @@ exports.adminSetAccountStatus = onCall(
         createdAt: FieldValue.serverTimestamp(),
       });
       return {success: true};
+    },
+);
+
+/**
+ * Admin-only permanent account deletion (single account). Authorization is
+ * checked here, on the server, from admins/{uid}; the client's claims about
+ * role or target are never trusted. See functions/account_deletion.js.
+ *
+ * @return {Object} Admin SDK services used by the deletion flow.
+ */
+function deletionDeps() {
+  // The app stores files in the bucket from firebase_options.dart. Name it
+  // explicitly (functions/.env.<projectId>) so the emulator, whose default is
+  // <project>.appspot.com, cleans the same bucket production does.
+  const bucketName = process.env.SKILLNOVA_STORAGE_BUCKET || undefined;
+  return {db: getFirestore(), auth: getAuth(), bucket: getStorage().bucket(bucketName)};
+}
+
+/**
+ * Maps deletion errors to callable errors without leaking internals.
+ *
+ * @param {*} error Thrown value.
+ * @return {HttpsError} Error for the client.
+ */
+function toHttpsError(error) {
+  if (error instanceof HttpsError) return error;
+  if (error instanceof accountDeletion.DeletionError) {
+    return new HttpsError(error.code, error.message);
+  }
+  logger.error("Account deletion failed", {error: String(error)});
+  return new HttpsError("internal", "The account could not be deleted. Please try again.");
+}
+
+exports.adminDeleteUser = onCall(
+    {region: "us-central1", timeoutSeconds: 300, memory: "512MiB"},
+    async (request) => {
+      const requestId = randomUUID();
+      try {
+        const deps = deletionDeps();
+        const adminUid = request.auth && request.auth.uid;
+        await accountDeletion.assertActiveAdmin(deps.db, adminUid);
+        const data = request.data || {};
+        const {reason, detail} = accountDeletion.normalizeReason(data.reason, data.reasonDetail);
+        const result = await accountDeletion.deleteAndAudit(deps, {
+          adminUid,
+          targetUid: String(data.uid || "").trim(),
+          reason,
+          detail,
+          requestId,
+        });
+        logger.info("Account deletion finished", {requestId, uid: result.uid, status: result.status});
+        return {requestId, ...result};
+      } catch (error) {
+        throw toHttpsError(error);
+      }
+    },
+);
+
+/**
+ * Admin-only bulk deletion, at most MAX_BULK_DELETE accounts per call,
+ * processed one by one and audited individually.
+ */
+exports.adminDeleteUsers = onCall(
+    {region: "us-central1", timeoutSeconds: 540, memory: "512MiB"},
+    async (request) => {
+      const requestId = randomUUID();
+      try {
+        const deps = deletionDeps();
+        const adminUid = request.auth && request.auth.uid;
+        await accountDeletion.assertActiveAdmin(deps.db, adminUid);
+        const data = request.data || {};
+        const summary = await accountDeletion.deleteUsersInBulk(deps, {
+          adminUid,
+          uids: data.uids,
+          reason: data.reason,
+          detail: data.reasonDetail,
+          reasons: data.reasons,
+          requestId,
+        });
+        logger.info("Bulk account deletion finished", {requestId, succeeded: summary.succeeded, failed: summary.failed});
+        return {requestId, ...summary};
+      } catch (error) {
+        throw toHttpsError(error);
+      }
     },
 );
 

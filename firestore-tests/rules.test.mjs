@@ -673,3 +673,56 @@ test("reviews: customer name and photo may be shown", async () => {
       {customerName: "Cara", customerPhotoUrl: "https://x/y.jpg"})),
   "review with customer name and photo");
 });
+
+// ============================================== account deletion (admin)
+test("accounts: only the trusted backend deletes profiles", async () => {
+  await seed("users/deleteMe", {role: "customer", name: "Delete Me"});
+  await denied(as(customer).delete(`users/${otherCustomer.uid}`),
+      "customer deletes another user");
+  await denied(as(customer).delete(`users/${customer.uid}`),
+      "customer deletes own profile directly");
+  await denied(as(worker).delete(`users/${otherWorker.uid}`),
+      "worker deletes another worker");
+  await denied(as(admin).delete("users/deleteMe"),
+      "admin client deletes a profile without the Cloud Function");
+  const kept = await as(admin).get("users/deleteMe");
+  assert.equal(kept.status, 200);
+});
+
+test("accounts: deletion status and audit trail are server-only", async () => {
+  await seed("account_deletions/gone1", {status: "completed", uid: "gone1"});
+  await allowed(as(admin).get("account_deletions/gone1"),
+      "admin reads deletion status");
+  await denied(as(customer).get("account_deletions/gone1"),
+      "customer reads deletion status");
+  await denied(as(admin).set("account_deletions/gone1",
+      {status: "completed"}), "admin client forges a deletion status");
+  await denied(as(worker).set("account_deletions/x", {status: "completed"}),
+      "worker writes a deletion status");
+  await seed("admin_audit_logs/del1",
+      {action: "user_deleted", targetUid: "gone1", adminUid: admin.uid});
+  await denied(as(admin).update("admin_audit_logs/del1",
+      {result: "rejected"}), "admin edits a deletion audit entry");
+  await denied(as(admin).delete("admin_audit_logs/del1"),
+      "admin deletes a deletion audit entry");
+  await denied(as(worker).create("admin_audit_logs/fake",
+      {action: "user_deleted"}), "worker writes a deletion audit entry");
+});
+
+test("accounts: workers cannot approve their own verification request",
+    async () => {
+      const path = `verification_requests/${pendingWorker.uid}`;
+      await seed(path, {workerId: pendingWorker.uid,
+        identityStatus: "pending", status: "pending"});
+      await denied(as(pendingWorker).update(path,
+          {identityStatus: "approved", status: "approved"}),
+      "worker approves own verification request");
+      await denied(as(pendingWorker).update(path,
+          {reviewedBy: pendingWorker.uid}), "worker writes review fields");
+      await denied(as(otherWorker).update(path, {identityStatus: "pending"}),
+          "another worker edits the request");
+      await allowed(as(admin).update(path,
+          {identityStatus: "approved", status: "approved",
+            reviewedBy: admin.uid}), "admin approves");
+    });
+
