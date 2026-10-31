@@ -12,23 +12,32 @@ const {getAuth} = require("firebase-admin/auth");
 const {getStorage} = require("firebase-admin/storage");
 const {randomUUID} = require("node:crypto");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const {defineSecret} = require("firebase-functions/params");
+const {defineSecret, defineString} = require("firebase-functions/params");
 const nodemailer = require("nodemailer");
 const logger = require("firebase-functions/logger");
 const jobTargeting = require("./job_targeting");
 const {computeRatingAggregate} = require("./rating_aggregate");
 const accountDeletion = require("./account_deletion");
+const mailConfig = require("./mail_config");
 initializeApp();
 
-const smtpAppPassword = defineSecret("SMTP_APP_PASSWORD");
+// SkillNova emails are sent through Gmail SMTP as the mailbox below, using
+// an App Password of that same mailbox (Secret Manager, never in source).
+// Gmail only sends "From" the logged-in mailbox, so sender = SMTP login.
+// Values live in functions/.env.<projectId>; see docs/EMAIL_SENDER.md.
+const smtpAppPassword = defineSecret("GMAIL_APP_PASSWORD");
+const smtpUser = defineString("SMTP_USER", {default: mailConfig.DEFAULT_SENDER});
+const mailFromAddress = defineString("MAIL_FROM_ADDRESS", {default: mailConfig.DEFAULT_SENDER});
+const smtpHost = defineString("SMTP_HOST", {default: "smtp.gmail.com"});
+const smtpPort = defineString("SMTP_PORT", {default: "465"});
 const googleRoutesApiKey = defineSecret("GOOGLE_ROUTES_API_KEY");
 
 
 /**
  * Sends a branded SkillNova verification email for the currently
  * signed-in user.
- * Firebase Admin generates the secure verification action link while Google
- * Workspace SMTP handles delivery.
+ * Firebase Admin generates the secure verification action link while Gmail
+ * SMTP (see skillNovaMailSettings) handles delivery.
  */
 exports.sendCustomVerificationEmail = onCall(
     {
@@ -106,10 +115,11 @@ exports.sendCustomVerificationEmail = onCall(
         const verificationLink =
           await auth.generateEmailVerificationLink(email);
 
-        const transporter = createSkillNovaMailTransport();
+        const mail = skillNovaMailSettings();
+        const transporter = nodemailer.createTransport(mail.transport);
 
         await transporter.sendMail({
-          from: "\"SkillNova\" <noreply@korvenzatech.com>",
+          from: mail.from,
           to: email,
           replyTo: "MuhammadRashid172002@gmail.com",
           subject: "Verify your email | SkillNova",
@@ -189,10 +199,11 @@ exports.sendCustomPasswordResetEmail = onCall(
         const displayName = String(user.displayName || "").trim();
         const firstName = displayName ? displayName.split(/\s+/)[0] : "there";
 
-        const transporter = createSkillNovaMailTransport();
+        const mail = skillNovaMailSettings();
+        const transporter = nodemailer.createTransport(mail.transport);
 
         await transporter.sendMail({
-          from: "\"SkillNova\" <noreply@korvenzatech.com>",
+          from: mail.from,
           to: email,
           replyTo: "MuhammadRashid172002@gmail.com",
           subject: "Reset your password | SkillNova",
@@ -240,20 +251,17 @@ exports.sendCustomPasswordResetEmail = onCall(
 
 
 /**
- * Creates the Google Workspace SMTP transport used by SkillNova emails.
+ * Sender + SMTP settings for SkillNova emails (see mail_config.js).
  *
- * @return {Object} Nodemailer transport instance.
+ * @return {Object} {from, transport, fromAddress, smtpUser}.
  */
-function createSkillNovaMailTransport() {
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      // The App Password belongs to this real Google Workspace mailbox.
-      user: "ceo@korvenzatech.com",
-      pass: smtpAppPassword.value(),
-    },
+function skillNovaMailSettings() {
+  return mailConfig.buildMailSettings({
+    smtpUser: smtpUser.value(),
+    fromAddress: mailFromAddress.value(),
+    password: smtpAppPassword.value(),
+    host: smtpHost.value(),
+    port: smtpPort.value(),
   });
 }
 
