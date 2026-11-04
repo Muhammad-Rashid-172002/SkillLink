@@ -3,14 +3,30 @@
 /// Every message says what happened and how to fix it, and never exposes raw
 /// Firebase codes or stack traces.
 abstract final class AuthErrors {
-  static const String generic =
-      'Something went wrong on our side. Please try again in a moment.';
+  static const String generic = 'Something went wrong. Please try again.';
+
+  static const String authFailed = 'Authentication failed. Please try again.';
+
+  static const String offline =
+      'Please check your internet connection and try again.';
+
+  /// Shown when the sign-in backend (Cloud Functions / Auth configuration)
+  /// is unreachable or not set up for this Firebase project.
+  static const String serviceUnavailable =
+      'Sign-in is temporarily unavailable. Please try again in a few '
+      'minutes.';
+
+  static const String googleCancelled = 'Google Sign-In was cancelled.';
+
+  static const String googleNotConfigured =
+      'Google Sign-In isn’t available in this version of the app yet. '
+      'Please sign in with your email and password.';
 
   static String forAuthCode(String code) => switch (code) {
     'invalid-email' =>
       'That email address doesn’t look right. Check for typos and try again.',
     'email-already-in-use' =>
-      'An account already uses this email. Sign in instead, or reset your '
+      'This email is already registered. Sign in instead, or reset your '
           'password if you’ve forgotten it.',
     'weak-password' =>
       'That password is too easy to guess. Use at least 8 characters with '
@@ -19,14 +35,12 @@ abstract final class AuthErrors {
     'wrong-password' ||
     'user-not-found' ||
     'INVALID_LOGIN_CREDENTIALS' =>
-      'Email or password is incorrect. Check both and try again, or reset '
-          'your password.',
+      'Invalid email or password. Check both and try again, or reset your '
+          'password.',
     'too-many-requests' =>
       'Too many attempts from this device. For your security, wait a few '
           'minutes before trying again.',
-    'network-request-failed' =>
-      'You appear to be offline. Check your internet connection and try '
-          'again.',
+    'network-request-failed' || 'unavailable' => offline,
     'user-disabled' =>
       'This account has been disabled. Contact SkillNova support for help.',
     'account-exists-with-different-credential' =>
@@ -35,6 +49,16 @@ abstract final class AuthErrors {
     'operation-not-allowed' =>
       'This sign-in method isn’t enabled right now. Please use another '
           'option.',
+    // Firebase project / app configuration problems (provider not enabled,
+    // API key or app not authorised). Not the person's fault; logged in
+    // debug builds by the caller.
+    'configuration-not-found' ||
+    'app-not-authorized' ||
+    'invalid-api-key' ||
+    'api-key-not-valid' ||
+    'app-not-verified' => serviceUnavailable,
+    'channel-error' => 'Enter your email and password to continue.',
+    'internal-error' || 'unknown' || 'user-creation-failed' => authFailed,
     'google-token-missing' =>
       'Google didn’t confirm your sign-in. Please try again.',
     'user-token-expired' ||
@@ -43,11 +67,24 @@ abstract final class AuthErrors {
   };
 
   static String forFirestoreCode(String code) => switch (code) {
-    'unavailable' || 'deadline-exceeded' =>
-      'We couldn’t reach SkillNova. Check your connection and try again.',
+    'unavailable' || 'deadline-exceeded' => offline,
     'permission-denied' =>
       'We couldn’t access your account data. Please sign in again.',
+    // Database missing or misconfigured for this Firebase project.
+    'not-found' || 'failed-precondition' => serviceUnavailable,
     _ => generic,
+  };
+
+  /// Callable Cloud Functions (`initializeAccount`, emails).
+  static String forFunctionsCode(String code) => switch (code) {
+    'unavailable' || 'deadline-exceeded' => offline,
+    'unauthenticated' => 'Please sign in again to continue.',
+    // The function is not deployed to this project, or crashed.
+    'not-found' || 'internal' || 'unimplemented' => serviceUnavailable,
+    'permission-denied' =>
+      'Your account can’t be set up automatically. Please contact '
+          'SkillNova support.',
+    _ => authFailed,
   };
 }
 

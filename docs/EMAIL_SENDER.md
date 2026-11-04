@@ -6,7 +6,7 @@
 |---|---|---|
 | Sign-up email verification | Callable Cloud Function `sendCustomVerificationEmail` (functions/index.js). The Admin SDK makes the link (`generateEmailVerificationLink`), Nodemailer sends it through Gmail SMTP | `SMTP_USER` / `MAIL_FROM_ADDRESS` |
 | App "forgot password" | Callable `sendCustomPasswordResetEmail` (same transport, `generatePasswordResetLink`) | same |
-| Fallback when the callable fails (app: `user.sendEmailVerification()` / `sendPasswordResetEmail`) and admin-console password reset | Firebase Authentication's own templates | Firebase Console setting (default `noreply@skilllink-e1064.firebaseapp.com`) |
+| Fallback when the callable fails (app: `user.sendEmailVerification()` / `sendPasswordResetEmail`) and admin-console password reset | Firebase Authentication's own templates | Firebase Console setting (default `noreply@skillnova-2e776.firebaseapp.com`) |
 
 Before this change the function logged in to SMTP as `ceo@korvenzatech.com`
 (Google Workspace App Password in secret `SMTP_APP_PASSWORD`) and set
@@ -15,7 +15,7 @@ Before this change the function logged in to SMTP as `ceo@korvenzatech.com`
 ## What changed
 
 - Sender settings are configuration, not code:
-  `functions/.env.skilllink-e1064` → `SMTP_USER` and `MAIL_FROM_ADDRESS`
+  `functions/.env.<projectId>` (e.g. `.env.skillnova-2e776`) → `SMTP_USER` and `MAIL_FROM_ADDRESS`
   = `muhammadrashid172002@gmail.com` (not secrets).
 - The password is a new Secret Manager secret **`GMAIL_APP_PASSWORD`** (an
   App Password of that Gmail account). A new name means a deploy cannot
@@ -50,9 +50,9 @@ Before this change the function logged in to SMTP as `ceo@korvenzatech.com`
 1. In the Google account muhammadrashid172002@gmail.com: turn on 2-Step
    Verification, then create an App Password ("SkillNova SMTP").
 2. Store it (it is never committed):
-   `firebase functions:secrets:set GMAIL_APP_PASSWORD --project skilllink-e1064`
+   `firebase functions:secrets:set GMAIL_APP_PASSWORD --project skillnova-2e776`
 3. Deploy only the two mail functions:
-   `firebase deploy --only functions:sendCustomVerificationEmail,functions:sendCustomPasswordResetEmail --project skilllink-e1064`
+   `firebase deploy --only functions:sendCustomVerificationEmail,functions:sendCustomPasswordResetEmail --project skillnova-2e776`
 4. Optional cleanup later: `firebase functions:secrets:destroy SMTP_APP_PASSWORD`
    once nothing uses it.
 

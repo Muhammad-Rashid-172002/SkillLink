@@ -85,9 +85,16 @@ class _AuthScreenState extends State<AuthScreen> {
         await _signUp();
       }
     } on FirebaseAuthException catch (error) {
+      debugPrint('Auth submit failed: ${error.code}');
       _showFormError(AuthErrors.forAuthCode(error.code));
+    } on FirebaseFunctionsException catch (error) {
+      debugPrint('Auth submit function failed: ${error.code}');
+      _showFormError(AuthErrors.forFunctionsCode(error.code));
     } on FirebaseException catch (error) {
+      debugPrint('Auth submit data failed: ${error.code}');
       _showFormError(AuthErrors.forFirestoreCode(error.code));
+    } on SessionException catch (error) {
+      _showFormError(error.message);
     } catch (error) {
       debugPrint('Auth submit error: $error');
       _showFormError(AuthErrors.generic);
@@ -211,22 +218,22 @@ class _AuthScreenState extends State<AuthScreen> {
       unawaited(saveFcmToken());
       await _routeAfterAuth();
     } on GoogleSignInException catch (error) {
-      if (error.code != GoogleSignInExceptionCode.canceled) {
-        _showFormError(
-          'Google sign-in couldn’t be completed. Please try again, or use '
-          'your email and password.',
-        );
-      }
+      debugPrint('Google sign-in failed: ${error.code} ${error.description}');
+      _showFormError(googleSignInMessage(error.code));
     } on FirebaseAuthException catch (error) {
-      _showFormError(AuthErrors.forAuthCode(error.code));
+      debugPrint('Google credential rejected: ${error.code}');
+      _showFormError(
+        // For Google, "invalid credential" means the Google token was not
+        // accepted (e.g. OAuth client of another project), not a password.
+        error.code == 'invalid-credential'
+            ? AuthErrors.authFailed
+            : AuthErrors.forAuthCode(error.code),
+      );
     } on FirebaseException catch (error) {
       _showFormError(AuthErrors.forFirestoreCode(error.code));
     } catch (error) {
       debugPrint('Google sign-in error: $error');
-      _showFormError(
-        'Google sign-in isn’t available on this device right now. '
-        'Please use your email and password.',
-      );
+      _showFormError(AuthErrors.googleNotConfigured);
     } finally {
       if (mounted) {
         setState(() {
@@ -848,3 +855,18 @@ class _ResetPasswordSheetState extends State<_ResetPasswordSheet> {
     );
   }
 }
+
+/// User-facing message for a Google Sign-In failure.
+@visibleForTesting
+String googleSignInMessage(GoogleSignInExceptionCode code) => switch (code) {
+  GoogleSignInExceptionCode.canceled => AuthErrors.googleCancelled,
+  // No OAuth client / SHA fingerprint / serverClientId for this build:
+  // a Firebase/Google Cloud setup problem, not the person's fault.
+  GoogleSignInExceptionCode.clientConfigurationError ||
+  GoogleSignInExceptionCode.providerConfigurationError =>
+    AuthErrors.googleNotConfigured,
+  GoogleSignInExceptionCode.uiUnavailable =>
+    'Google Sign-In can’t open on this device right now. Please try again.',
+  GoogleSignInExceptionCode.interrupted => AuthErrors.authFailed,
+  _ => AuthErrors.authFailed,
+};

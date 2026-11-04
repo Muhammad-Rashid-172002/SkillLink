@@ -46,7 +46,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<!-- Firebase Phone Auth reCAPTCHA fallback (encoded iOS app id). -->
-				<string>app-1-941379228912-ios-a40c9da41d5b89e68f1e35</string>
+				<string>app-1-7852809922-ios-3fd2844e281afac1e5e55b</string>
 			</array>
 		</dict>
 	</array>

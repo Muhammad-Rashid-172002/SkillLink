@@ -53,12 +53,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAr_sDN07MiJioGKM3NM7MUkSnufvowbtk',
-    appId: '1:941379228912:web:52f1d6e05deef7d88f1e35',
-    messagingSenderId: '941379228912',
-    projectId: 'skilllink-e1064',
-    authDomain: 'skilllink-e1064.firebaseapp.com',
-    storageBucket: 'skilllink-e1064.firebasestorage.app',
-    measurementId: 'G-R41W0SW75V',
+    apiKey: 'AIzaSyAYhGFj9tJCbIzq9ubhmiV9UosA_VabMYI',
+    appId: '1:7852809922:web:905c7dc770f5f0d0e5e55b',
+    messagingSenderId: '7852809922',
+    projectId: 'skillnova-2e776',
+    authDomain: 'skillnova-2e776.firebaseapp.com',
+    storageBucket: 'skillnova-2e776.firebasestorage.app',
+    measurementId: 'G-76WN17XS49',
   );
 }

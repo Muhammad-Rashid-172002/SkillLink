@@ -1,7 +1,9 @@
 [
   {
     "origin": [
-     "https://skilllink-e1064.web.app",
+      "https://skillnova-2e776.firebaseapp.com",
+      "https://skillnova-2e776.web.app",
+      "https://skilllink-e1064.web.app",
       "https://skilllink-e1064.firebaseapp.com",
       "http://localhost:59363",
       "http://127.0.0.1:59363"
@@ -11,7 +13,7 @@
       "HEAD"
     ],
     "responseHeader": [
-     "Content-Type",
+      "Content-Type",
       "Authorization",
       "Content-Length"
     ],

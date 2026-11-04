@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "skilllink-e1064"
+    "default": "skillnova-2e776",
+    "legacy": "skilllink-e1064"
   }
 }

@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skill_link/core/auth/auth_errors.dart';
 import 'package:skill_link/core/auth/role_resolver.dart';
 import 'package:skill_link/core/auth/user_role.dart';
 
@@ -165,7 +166,7 @@ class AuthSessionService {
       debugPrint('Session resolve failed: $error');
       return const SessionSnapshot(
         stage: SessionStage.error,
-        message: 'Something went wrong while loading your account.',
+        message: AuthErrors.generic,
       );
     }
   }
@@ -214,8 +215,7 @@ class AuthSessionService {
     } on TimeoutException {
       return const SessionSnapshot(
         stage: SessionStage.error,
-        message:
-            'We could not reach SkillNova. Check your connection and try again.',
+        message: AuthErrors.offline,
       );
     }
 
@@ -438,20 +438,16 @@ class AuthSessionService {
       }
       return result;
     } on FirebaseFunctionsException catch (error) {
-      debugPrint('initializeAccount failed: ${error.code}');
-      throw SessionException(switch (error.code) {
-        'unavailable' || 'deadline-exceeded' =>
-          'You appear to be offline. Check your connection and try again.',
-        'unauthenticated' => 'Please sign in again to continue.',
-        _ =>
-          'We couldn’t set up your account right now. Please try again in a '
-              'moment.',
-      });
-    } on TimeoutException {
-      throw const SessionException(
-        'SkillNova is taking too long to respond. Check your connection and '
-        'try again.',
+      // 'not-found' / 'internal' here almost always means the
+      // initializeAccount function is not deployed to the Firebase project
+      // the app is configured for (see docs/AUTH_SETUP.md).
+      debugPrint(
+        'initializeAccount failed: ${error.code} '
+        '(project: ${_auth.app.options.projectId})',
       );
+      throw SessionException(AuthErrors.forFunctionsCode(error.code));
+    } on TimeoutException {
+      throw const SessionException(AuthErrors.offline);
     }
   }
 
@@ -594,11 +590,16 @@ class AuthSessionService {
     'requires-recent-login',
   }.contains(code);
 
-  static String _firestoreMessage(String code) => switch (code) {
-    'unavailable' || 'deadline-exceeded' =>
-      'You appear to be offline. Check your connection and try again.',
-    'permission-denied' =>
-      'We could not open your account right now. Please sign in again.',
-    _ => 'Something went wrong while loading your account. Please try again.',
-  };
+  static String _firestoreMessage(String code) {
+    debugPrint('Account load failed: $code');
+    return switch (code) {
+      'unavailable' || 'deadline-exceeded' => AuthErrors.offline,
+      // Signed in, but the rules refused the person's own profile: the
+      // project's Firestore rules are not deployed or out of date.
+      'permission-denied' ||
+      'not-found' ||
+      'failed-precondition' => AuthErrors.serviceUnavailable,
+      _ => AuthErrors.generic,
+    };
+  }
 }

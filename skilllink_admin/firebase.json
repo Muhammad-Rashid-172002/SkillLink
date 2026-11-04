@@ -3,9 +3,9 @@
     "platforms": {
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "skilllink-e1064",
+          "projectId": "skillnova-2e776",
           "configurations": {
-            "web": "1:941379228912:web:52f1d6e05deef7d88f1e35"
+            "web": "1:7852809922:web:905c7dc770f5f0d0e5e55b"
           }
         }
       }
