@@ -1,75 +1,26 @@
 {
   "project_info": {
-    "project_number": "941379228912",
-    "project_id": "skilllink-e1064",
-    "storage_bucket": "skilllink-e1064.firebasestorage.app"
+    "project_number": "7852809922",
+    "project_id": "skillnova-2e776",
+    "storage_bucket": "skillnova-2e776.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:941379228912:android:966aa8dc31adbc1a8f1e35",
+        "mobilesdk_app_id": "1:7852809922:android:a9d483c216f51423e5e55b",
         "android_client_info": {
           "package_name": "com.rashidapps.skillnova"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "941379228912-192jtpqu37c5e5ue7g57nf0bludfmh21.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.rashidapps.skillnova",
-            "certificate_hash": "6695c6bb32c73f00cdfa6acab0bbb077f9536098"
-          }
-        },
-        {
-          "client_id": "941379228912-1n5tlc45egf48c9hvils3so7fcg83e2n.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.rashidapps.skillnova",
-            "certificate_hash": "5a1ebfaeb68cd0a9fa0110608e6dfaeb7b2a5b2e"
-          }
-        },
-        {
-          "client_id": "941379228912-4plueljei2ubo6b63l4co0idle4khdgv.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.rashidapps.skillnova",
-            "certificate_hash": "50c900b730b3b37f2cd3f95bcdd5552ba23bbcbc"
-          }
-        },
-        {
-          "client_id": "941379228912-tmcehqqtdsg1k9rtil858t9vdbio8lde.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.rashidapps.skillnova",
-            "certificate_hash": "235593886eaae72a793ffbd9d8136ce78540f671"
-          }
-        },
-        {
-          "client_id": "941379228912-eq1j8vq6uebt81f9lsouoaoo6qsdl66t.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDo-EJyyAS-nh9NZFm9y6VwHQTSInU11Ag"
+          "current_key": "AIzaSyCt_k_RQPr6Sv3vu2KkcrZFU1tpEPe_vNk"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "941379228912-eq1j8vq6uebt81f9lsouoaoo6qsdl66t.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "941379228912-t7o94m23i5bfnlm6i8r1a4opmcgen4n1.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.skillLink"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
